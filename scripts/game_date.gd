@@ -1,0 +1,35 @@
+class_name GameDate
+extends Resource
+## A calendar date in the Silent Dominion world.
+##
+## Years are stored as positive integers representing BCE, because the
+## whole game sits centuries before year zero. Month names use the Roman
+## calendar for flavour (Quintilis/Sextilis, not Iulius/Augustus — those
+## renamings happen much later than 500 BCE).
+
+const MONTH_NAMES: Array[String] = [
+	"Ianuarius", "Februarius", "Martius", "Aprilis",
+	"Maius", "Iunius", "Quintilis", "Sextilis",
+	"September", "October", "November", "December",
+]
+
+@export var year: int = 500
+@export_range(1, 12) var month: int = 1
+@export_range(1, 30) var day: int = 1
+
+
+static func make(p_year: int, p_month: int, p_day: int) -> GameDate:
+	var d: GameDate = GameDate.new()
+	d.year = p_year
+	d.month = p_month
+	d.day = p_day
+	return d
+
+
+func format_long() -> String:
+	var idx: int = clampi(month, 1, 12) - 1
+	return "%d %s, %d BCE" % [day, MONTH_NAMES[idx], year]
+
+
+func format_short() -> String:
+	return "%02d.%02d.%d BCE" % [day, month, year]

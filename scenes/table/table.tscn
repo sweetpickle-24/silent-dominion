@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://cxsd0table0001"]
+[gd_scene load_steps=16 format=3 uid="uid://cxsd0table0001"]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1_script"]
 
@@ -116,6 +116,23 @@ corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
+
+; --- Unread badge -------------------------------------------------------------
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_badge"]
+bg_color = Color(0.78, 0.12, 0.12, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.95, 0.85, 0.9)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 10
+shadow_offset = Vector2(0, 3)
 
 ; ==============================================================================
 ; Scene tree
@@ -320,6 +337,31 @@ text = "Letters"
 horizontal_alignment = 1
 vertical_alignment = 1
 offset_top = -28.0
+
+[node name="UnreadBadge" type="Panel" parent="Objects/Inbox"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -14.0
+offset_top = -14.0
+offset_right = 30.0
+offset_bottom = 30.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_badge")
+
+[node name="Count" type="Label" parent="Objects/Inbox/UnreadBadge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.98, 0.92, 1)
+theme_override_font_sizes/font_size = 18
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 ; ---- Codebook (bottom right) -------------------------------------------------
 
