@@ -29,8 +29,6 @@ const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tsc
 @onready var _btn_pause: Button       = $TimeDial/HBox/Markers/Pause
 @onready var _btn_day: Button         = $TimeDial/HBox/Markers/Day
 @onready var _btn_month: Button       = $TimeDial/HBox/Markers/Month
-@onready var _btn_year: Button        = $TimeDial/HBox/Markers/Year
-@onready var _btn_decade: Button      = $TimeDial/HBox/Markers/Decade
 
 @onready var _panel_layer: Control    = $PanelLayer
 @onready var _dimmer: ColorRect       = $PanelLayer/Dimmer
@@ -265,14 +263,10 @@ func _wire_time_dial() -> void:
 	_btn_pause.button_group  = group
 	_btn_day.button_group    = group
 	_btn_month.button_group  = group
-	_btn_year.button_group   = group
-	_btn_decade.button_group = group
 
 	_btn_pause.pressed.connect(func() -> void:  GameClock.set_speed(GameClock.Speed.PAUSED))
 	_btn_day.pressed.connect(func() -> void:    GameClock.set_speed(GameClock.Speed.DAY))
 	_btn_month.pressed.connect(func() -> void:  GameClock.set_speed(GameClock.Speed.MONTH))
-	_btn_year.pressed.connect(func() -> void:   GameClock.set_speed(GameClock.Speed.YEAR))
-	_btn_decade.pressed.connect(func() -> void: GameClock.set_speed(GameClock.Speed.DECADE))
 
 	GameClock.day_passed.connect(_on_day_passed)
 	GameClock.speed_changed.connect(_on_speed_changed)
@@ -291,8 +285,6 @@ func _on_speed_changed(speed: int) -> void:
 	_btn_pause.set_pressed_no_signal(speed  == GameClock.Speed.PAUSED)
 	_btn_day.set_pressed_no_signal(speed    == GameClock.Speed.DAY)
 	_btn_month.set_pressed_no_signal(speed  == GameClock.Speed.MONTH)
-	_btn_year.set_pressed_no_signal(speed   == GameClock.Speed.YEAR)
-	_btn_decade.set_pressed_no_signal(speed == GameClock.Speed.DECADE)
 
 
 func _refresh_time_display() -> void:

@@ -15,7 +15,7 @@ signal month_passed(year: int, month: int)
 signal year_passed(year: int)
 signal speed_changed(speed: int)
 
-enum Speed { PAUSED, DAY, MONTH, YEAR, DECADE }
+enum Speed { PAUSED, DAY, MONTH }
 
 const DAYS_PER_MONTH: int = 30
 const MONTHS_PER_YEAR: int = 12
@@ -32,8 +32,6 @@ const SPEED_DAYS_PER_SECOND: Dictionary = {
 	Speed.PAUSED: 0.0,
 	Speed.DAY:    1.0,
 	Speed.MONTH:  float(DAYS_PER_MONTH),                  # 1s = 1 month
-	Speed.YEAR:   float(DAYS_PER_YEAR),                   # 1s = 1 year
-	Speed.DECADE: float(DAYS_PER_YEAR) * 10.0,            # 1s = 1 decade
 }
 
 var year: int = -500
@@ -71,13 +69,6 @@ func set_speed(new_speed: Speed) -> void:
 
 
 func format_date() -> String:
-	# "January 500 BCE"
-	var bce_year: int = -year
-	var idx: int = clampi(month, 1, MONTHS_PER_YEAR) - 1
-	return "%s %d BCE" % [MONTH_NAMES[idx], bce_year]
-
-
-func format_date_full() -> String:
 	# "1 January 500 BCE"
 	var bce_year: int = -year
 	var idx: int = clampi(month, 1, MONTHS_PER_YEAR) - 1
