@@ -15,6 +15,11 @@ const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tsc
 @onready var _map_scroll: Control     = $Objects/MapScroll
 @onready var _inbox: Control          = $Objects/Inbox
 @onready var _codebook: Control       = $Objects/Codebook
+@onready var _memoirs: Control        = $Objects/Memoirs
+@onready var _public_news: Control    = $Objects/PublicNews
+@onready var _ledger: Control         = $Objects/Ledger
+@onready var _dossiers: Control       = $Objects/Dossiers
+@onready var _compose: Control        = $Objects/Compose
 
 @onready var _inbox_seal: Panel       = $Objects/Inbox/Letter1/WaxSeal
 @onready var _inbox_badge: Control    = $Objects/Inbox/UnreadBadge
@@ -59,6 +64,11 @@ func _ready() -> void:
 	_wire_object(_map_scroll, _on_map_clicked)
 	_wire_object(_inbox, _on_inbox_clicked)
 	_wire_object(_codebook, _on_codebook_clicked)
+	_wire_object(_memoirs, _on_memoirs_clicked)
+	_wire_object(_public_news, _on_public_news_clicked)
+	_wire_object(_ledger, _on_ledger_clicked)
+	_wire_object(_dossiers, _on_dossiers_clicked)
+	_wire_object(_compose, _on_compose_clicked)
 
 	_dimmer.gui_input.connect(_on_dimmer_input)
 	_close_button.pressed.connect(close_panel)
@@ -135,6 +145,26 @@ func _on_codebook_clicked() -> void:
 	open_panel("Codebook", _codebook_placeholder_text())
 
 
+func _on_memoirs_clicked() -> void:
+	open_panel("Memoirs", _memoirs_placeholder_text())
+
+
+func _on_public_news_clicked() -> void:
+	open_panel("Public Dispatches", _public_news_placeholder_text())
+
+
+func _on_ledger_clicked() -> void:
+	open_panel("Ledger", _ledger_placeholder_text())
+
+
+func _on_dossiers_clicked() -> void:
+	open_panel("Dossiers", _dossiers_placeholder_text())
+
+
+func _on_compose_clicked() -> void:
+	open_panel("Compose a Letter", _compose_placeholder_text())
+
+
 func _on_inbox_clicked() -> void:
 	var letter: Letter = Inbox.get_top_letter()
 	if letter == null:
@@ -153,8 +183,13 @@ func _open_letter_view(letter: Letter) -> void:
 
 func _on_letter_view_closed() -> void:
 	_overlay_active = false
-	for obj in [_map_scroll, _inbox, _codebook]:
+	for obj in _all_objects():
 		_tween_object_scale(obj, 1.0)
+
+
+func _all_objects() -> Array:
+	return [_map_scroll, _inbox, _codebook, _memoirs,
+			_public_news, _ledger, _dossiers, _compose]
 
 
 # --- Placeholder panel (map / codebook) ---------------------------------------
@@ -185,7 +220,7 @@ func close_panel() -> void:
 	await tw.finished
 	_panel_layer.visible = false
 
-	for obj in [_map_scroll, _inbox, _codebook]:
+	for obj in _all_objects():
 		_tween_object_scale(obj, 1.0)
 
 
@@ -276,3 +311,35 @@ func _codebook_placeholder_text() -> String:
 	return "A leather-bound codebook.\n\n" \
 		+ "Ciphers, contacts, oaths, and the names of those who\n" \
 		+ "must never remember yours."
+
+
+func _memoirs_placeholder_text() -> String:
+	return "Your memoirs. A worn journal of centuries.\n\n" \
+		+ "Patterns across eras, faces that keep returning\n" \
+		+ "in different bodies, and notes to your future self."
+
+
+func _public_news_placeholder_text() -> String:
+	return "Public dispatches, posted for anyone who can read.\n\n" \
+		+ "Kings dying, cities burning, famines declared —\n" \
+		+ "the news the world already knows. Compare it to\n" \
+		+ "what your network has told you."
+
+
+func _ledger_placeholder_text() -> String:
+	return "A heavy accounts book.\n\n" \
+		+ "Treasuries, bribes in flight, debts owed and owed\n" \
+		+ "to you, and every silver piece you have quietly moved."
+
+
+func _dossiers_placeholder_text() -> String:
+	return "A stack of profile cards.\n\n" \
+		+ "Names, faces, last-known whereabouts, temperaments,\n" \
+		+ "loyalties, and the leverage you hold over each of them."
+
+
+func _compose_placeholder_text() -> String:
+	return "A blank sheet, a quill, an inkwell, a stick of wax\n" \
+		+ "and your seal ring.\n\n" \
+		+ "This is how orders leave the table. Every action you\n" \
+		+ "take is a letter sealed and sent."
