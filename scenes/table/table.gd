@@ -74,6 +74,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE and _panel_layer.visible:
 			close_panel()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F1:
+			# Developer shortcut: dump the loaded world to the console.
+			WorldData.print_debug_dump()
+			get_viewport().set_input_as_handled()
 
 
 # --- Object wiring ------------------------------------------------------------

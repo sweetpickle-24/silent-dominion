@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+WorldData="*res://scripts/world_data.gd"
 Inbox="*res://scripts/inbox_manager.gd"
 GameClock="*res://scripts/game_clock.gd"
 
