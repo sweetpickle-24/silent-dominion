@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://cxsd0table0001"]
+[gd_scene load_steps=21 format=3 uid="uid://cxsd0table0001"]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1_script"]
 
@@ -133,6 +133,85 @@ corner_radius_bottom_left = 22
 shadow_color = Color(0, 0, 0, 0.55)
 shadow_size = 10
 shadow_offset = Vector2(0, 3)
+
+; --- Time dial (stone plinth + brass markers) ---------------------------------
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_time_plinth"]
+bg_color = Color(0.16, 0.12, 0.08, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.46, 0.22, 0.75)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 22
+shadow_offset = Vector2(0, 10)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_date_tablet"]
+bg_color = Color(0.94, 0.88, 0.72, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.32, 0.16, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+; Brass marker — normal (raised, warm bronze)
+[sub_resource type="StyleBoxFlat" id="StyleBox_marker_normal"]
+bg_color = Color(0.52, 0.36, 0.14, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.82, 0.62, 0.28, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 5
+shadow_offset = Vector2(0, 2)
+
+; Brass marker — hover (slightly brighter)
+[sub_resource type="StyleBoxFlat" id="StyleBox_marker_hover"]
+bg_color = Color(0.66, 0.48, 0.18, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.98, 0.78, 0.36, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+; Brass marker — pressed/active (pressed in, darker, glowing rim)
+[sub_resource type="StyleBoxFlat" id="StyleBox_marker_pressed"]
+bg_color = Color(0.3, 0.2, 0.06, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.82, 0.38, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.0)
+shadow_size = 0
 
 ; ==============================================================================
 ; Scene tree
@@ -410,6 +489,144 @@ theme_override_font_sizes/font_size = 26
 text = "Codebook"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+; ==============================================================================
+; Time dial (bottom-centre stone plinth with date + brass speed markers)
+; ==============================================================================
+
+[node name="TimeDial" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -96.0
+offset_right = 260.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="Plinth" type="Panel" parent="TimeDial"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_time_plinth")
+
+[node name="HBox" type="HBoxContainer" parent="TimeDial"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 12.0
+offset_right = -14.0
+offset_bottom = -12.0
+mouse_filter = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="DateTablet" type="PanelContainer" parent="TimeDial/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_date_tablet")
+
+[node name="Margin" type="MarginContainer" parent="TimeDial/HBox/DateTablet"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="Date" type="Label" parent="TimeDial/HBox/DateTablet/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.06, 1)
+theme_override_font_sizes/font_size = 20
+text = "January 500 BCE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Markers" type="HBoxContainer" parent="TimeDial/HBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Pause" type="Button" parent="TimeDial/HBox/Markers"]
+custom_minimum_size = Vector2(40, 44)
+layout_mode = 2
+toggle_mode = true
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_marker_normal")
+theme_override_styles/hover = SubResource("StyleBox_marker_hover")
+theme_override_styles/pressed = SubResource("StyleBox_marker_pressed")
+theme_override_styles/focus = SubResource("StyleBox_marker_pressed")
+text = "❚❚"
+
+[node name="Day" type="Button" parent="TimeDial/HBox/Markers"]
+custom_minimum_size = Vector2(40, 44)
+layout_mode = 2
+toggle_mode = true
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_marker_normal")
+theme_override_styles/hover = SubResource("StyleBox_marker_hover")
+theme_override_styles/pressed = SubResource("StyleBox_marker_pressed")
+theme_override_styles/focus = SubResource("StyleBox_marker_pressed")
+text = "I"
+
+[node name="Month" type="Button" parent="TimeDial/HBox/Markers"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+toggle_mode = true
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_marker_normal")
+theme_override_styles/hover = SubResource("StyleBox_marker_hover")
+theme_override_styles/pressed = SubResource("StyleBox_marker_pressed")
+theme_override_styles/focus = SubResource("StyleBox_marker_pressed")
+text = "II"
+
+[node name="Year" type="Button" parent="TimeDial/HBox/Markers"]
+custom_minimum_size = Vector2(48, 44)
+layout_mode = 2
+toggle_mode = true
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_marker_normal")
+theme_override_styles/hover = SubResource("StyleBox_marker_hover")
+theme_override_styles/pressed = SubResource("StyleBox_marker_pressed")
+theme_override_styles/focus = SubResource("StyleBox_marker_pressed")
+text = "III"
+
+[node name="Decade" type="Button" parent="TimeDial/HBox/Markers"]
+custom_minimum_size = Vector2(54, 44)
+layout_mode = 2
+toggle_mode = true
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_marker_normal")
+theme_override_styles/hover = SubResource("StyleBox_marker_hover")
+theme_override_styles/pressed = SubResource("StyleBox_marker_pressed")
+theme_override_styles/focus = SubResource("StyleBox_marker_pressed")
+text = "IIII"
 
 ; ==============================================================================
 ; Overlay panel (shown when an object is clicked)

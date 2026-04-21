@@ -20,6 +20,13 @@ const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tsc
 @onready var _inbox_badge: Control    = $Objects/Inbox/UnreadBadge
 @onready var _inbox_badge_count: Label = $Objects/Inbox/UnreadBadge/Count
 
+@onready var _time_date_label: Label  = $TimeDial/HBox/DateTablet/Margin/Date
+@onready var _btn_pause: Button       = $TimeDial/HBox/Markers/Pause
+@onready var _btn_day: Button         = $TimeDial/HBox/Markers/Day
+@onready var _btn_month: Button       = $TimeDial/HBox/Markers/Month
+@onready var _btn_year: Button        = $TimeDial/HBox/Markers/Year
+@onready var _btn_decade: Button      = $TimeDial/HBox/Markers/Decade
+
 @onready var _panel_layer: Control    = $PanelLayer
 @onready var _dimmer: ColorRect       = $PanelLayer/Dimmer
 @onready var _panel: PanelContainer   = $PanelLayer/PanelContent
@@ -58,6 +65,8 @@ func _ready() -> void:
 
 	Inbox.letters_changed.connect(_refresh_inbox_visual)
 	_refresh_inbox_visual()
+
+	_wire_time_dial()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -204,6 +213,51 @@ func _refresh_inbox_visual() -> void:
 		_badge_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE)
 		_badge_tween.tween_property(_inbox_badge, "scale", Vector2(1.12, 1.12), BADGE_PULSE_TIME)
 		_badge_tween.tween_property(_inbox_badge, "scale", Vector2.ONE, BADGE_PULSE_TIME)
+
+
+# --- Time dial ----------------------------------------------------------------
+#
+# Five brass markers share a ButtonGroup so exactly one is pressed at any
+# time. Pressing a marker sets the corresponding GameClock speed; the clock
+# emits signals we use to keep the date tablet in sync.
+
+func _wire_time_dial() -> void:
+	var group: ButtonGroup = ButtonGroup.new()
+	_btn_pause.button_group  = group
+	_btn_day.button_group    = group
+	_btn_month.button_group  = group
+	_btn_year.button_group   = group
+	_btn_decade.button_group = group
+
+	_btn_pause.pressed.connect(func() -> void:  GameClock.set_speed(GameClock.Speed.PAUSED))
+	_btn_day.pressed.connect(func() -> void:    GameClock.set_speed(GameClock.Speed.DAY))
+	_btn_month.pressed.connect(func() -> void:  GameClock.set_speed(GameClock.Speed.MONTH))
+	_btn_year.pressed.connect(func() -> void:   GameClock.set_speed(GameClock.Speed.YEAR))
+	_btn_decade.pressed.connect(func() -> void: GameClock.set_speed(GameClock.Speed.DECADE))
+
+	GameClock.day_passed.connect(_on_day_passed)
+	GameClock.speed_changed.connect(_on_speed_changed)
+
+	_refresh_time_display()
+	_on_speed_changed(GameClock.speed)
+
+
+func _on_day_passed(_year: int, _month: int, _day: int) -> void:
+	_refresh_time_display()
+
+
+func _on_speed_changed(speed: int) -> void:
+	# Keep the pressed marker in sync in case speed is changed from elsewhere
+	# (e.g. a future hotkey). Uses set_pressed_no_signal to avoid re-firing.
+	_btn_pause.set_pressed_no_signal(speed  == GameClock.Speed.PAUSED)
+	_btn_day.set_pressed_no_signal(speed    == GameClock.Speed.DAY)
+	_btn_month.set_pressed_no_signal(speed  == GameClock.Speed.MONTH)
+	_btn_year.set_pressed_no_signal(speed   == GameClock.Speed.YEAR)
+	_btn_decade.set_pressed_no_signal(speed == GameClock.Speed.DECADE)
+
+
+func _refresh_time_display() -> void:
+	_time_date_label.text = GameClock.format_date()
 
 
 # --- Placeholder copy ---------------------------------------------------------
