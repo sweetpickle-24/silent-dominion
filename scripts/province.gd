@@ -36,6 +36,11 @@ enum Climate {
 @export var timber_production: float = 0.0
 @export var owning_kingdom: String = ""
 
+## Unrest is a 0–100 scalar tracked per province by Unrest (autoload).
+## The number is never shown to the player; the Map panel reads it
+## through unrest_phrase() / unrest_band().
+@export var unrest: int = 0
+
 
 static func from_dict(d: Dictionary) -> Province:
 	var p: Province = Province.new()
@@ -49,6 +54,7 @@ static func from_dict(d: Dictionary) -> Province:
 	p.iron_production   = float(d.get("iron_production", 0.0))
 	p.timber_production = float(d.get("timber_production", 0.0))
 	p.owning_kingdom    = String(d.get("owning_kingdom", ""))
+	p.unrest            = int(d.get("unrest", 0))
 	return p
 
 
@@ -80,3 +86,22 @@ func terrain_name() -> String:
 
 func climate_name() -> String:
 	return Climate.keys()[climate]
+
+
+## Qualitative band for the current unrest level. Matches the codebook.
+func unrest_band() -> StringName:
+	if unrest <= 4:   return &"quiet"
+	if unrest < 20:   return &"uneasy"
+	if unrest < 45:   return &"restless"
+	if unrest < 70:   return &"seething"
+	return &"in revolt"
+
+
+## A longer sentence the Map panel prints instead of the raw number.
+func unrest_phrase() -> String:
+	match unrest_band():
+		&"quiet":     return "The streets are quiet. Children at the fountain, elders at the gate."
+		&"uneasy":    return "A certain watchfulness has entered the markets. Nothing named, yet."
+		&"restless":  return "Knots of men argue in corners. The guard is paid to look tired and does."
+		&"seething": return "Broadsides appear on walls at night. The crown's name is being said in the wrong tones."
+		_:            return "The province is past orderly. Stones in the square, doors barred, names shouted."

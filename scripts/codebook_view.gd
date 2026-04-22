@@ -224,6 +224,16 @@ func _render() -> void:
 
 	_divider()
 
+	_section("PROVINCE MOOD",
+		"Every populated province carries a mood that shifts with taxes, war, and your own rumor-work. Shown only on the Map.")
+	_entry("Quiet", "Nothing is stirring. Children at the fountain, elders at the gate.", COLOR_GREEN)
+	_entry("Uneasy", "A watchfulness in the markets. Nothing named, yet.", COLOR_ACCENT)
+	_entry("Restless", "Knots of men arguing. The guard looks tired on purpose.", COLOR_ACCENT)
+	_entry("Seething", "Broadsides at night. The crown's name is said wrong.", COLOR_WAX)
+	_entry("In revolt", "Past orderly. Stones in the square, doors barred, names shouted.", COLOR_WAX)
+
+	_divider()
+
 	_section("THE TIME DIAL",
 		"Clock speeds, top-right. Pause, day, and month. No faster setting exists yet.")
 	_entry("Pause", "Time freezes. Useful for reading or composing without pressure.", COLOR_INK_MUTED)

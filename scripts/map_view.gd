@@ -111,6 +111,7 @@ func _ready() -> void:
 
 	KingdomEconomy.tick.connect(_on_economy_tick)
 	Relations.relation_changed.connect(_on_relation_changed)
+	Unrest.province_unrest_changed.connect(_on_unrest_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -430,6 +431,10 @@ func _render_detail(p: Province) -> void:
 	_detail_vbox.add_child(_make_heading("SOULS"))
 	_detail_vbox.add_child(_make_line(_population_phrase(p.population)))
 
+	if p.population > 0:
+		_detail_vbox.add_child(_make_heading("MOOD"))
+		_detail_vbox.add_child(_make_line(p.unrest_phrase()))
+
 	_detail_vbox.add_child(_make_heading("WHAT IT PRODUCES"))
 	var prod: Array[String] = _production_phrases(p)
 	if prod.is_empty():
@@ -539,6 +544,14 @@ func _on_relation_changed(_a: String, _b: String, _s: int) -> void:
 	if _selected_province_id.is_empty():
 		return
 	var p: Province = WorldData.get_province(_selected_province_id)
+	if p != null:
+		_render_detail(p)
+
+
+func _on_unrest_changed(province_id: String) -> void:
+	if province_id != _selected_province_id:
+		return
+	var p: Province = WorldData.get_province(province_id)
 	if p != null:
 		_render_detail(p)
 
