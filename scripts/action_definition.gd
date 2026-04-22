@@ -18,6 +18,7 @@ enum TargetKind {
 	ACTOR,         # needs a target Actor id
 	KINGDOM,       # needs a target kingdom id
 	PROVINCE,      # needs a target province id
+	ORG_MEMBER,    # needs an OrgMember id (audit, double-agent, sever)
 }
 
 @export var id: StringName = &""
@@ -76,8 +77,9 @@ static func _tier_from_string(s: String) -> Tier:
 
 static func _target_from_string(s: String) -> TargetKind:
 	match s.to_upper():
-		"NONE":     return TargetKind.NONE
-		"ACTOR":    return TargetKind.ACTOR
-		"KINGDOM":  return TargetKind.KINGDOM
-		"PROVINCE": return TargetKind.PROVINCE
-		_:          return TargetKind.ACTOR
+		"NONE":       return TargetKind.NONE
+		"ACTOR":      return TargetKind.ACTOR
+		"KINGDOM":    return TargetKind.KINGDOM
+		"PROVINCE":   return TargetKind.PROVINCE
+		"ORG_MEMBER": return TargetKind.ORG_MEMBER
+		_:            return TargetKind.ACTOR

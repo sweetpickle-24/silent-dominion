@@ -286,6 +286,33 @@ func _build_row(m: OrgMember) -> Control:
 	if strain != &"comfortable":
 		hbox.add_child(_build_strain_badge(strain))
 
+	# §18-19 intelligence/corruption flags. Double agent is the loudest;
+	# suspected is a yellow warning; drift fires after a long tenure
+	# without audit. At most one of these shows — we pick the most
+	# severe so the row stays readable.
+	if m.double_agent:
+		hbox.add_child(_build_status_badge(
+			"DOUBLE",
+			Color(0.35, 0.18, 0.48, 1.0),
+			"Running as a controlled feeder back to the rival network. "
+			+ "Monthly handler upkeep; all their reporting is our fiction."
+		))
+	elif m.suspected_compromised:
+		hbox.add_child(_build_status_badge(
+			"SUSPECT",
+			Color(0.68, 0.46, 0.10, 1.0),
+			"A cross-reference or audit has flagged them. Decide soon: "
+			+ "cut, leverage, or run them as a double."
+		))
+	elif m.layer != OrgMember.Layer.OPERATIVE and m.months_since_audit >= 18:
+		hbox.add_child(_build_status_badge(
+			"DRIFT",
+			Color(0.52, 0.40, 0.18, 1.0),
+			"%d months since this cell was last audited. Long tenure "
+			% m.months_since_audit
+			+ "without oversight is the tenure that rots."
+		))
+
 	# Sever-cell action on coordinators (§14.2 rollback). Operatives
 	# are dissolved automatically with their coordinator; lieutenants
 	# are too deep to burn casually — their removal is future work.
@@ -293,6 +320,30 @@ func _build_row(m: OrgMember) -> Control:
 		hbox.add_child(_build_sever_button(m))
 
 	return row
+
+
+func _build_status_badge(text: String, bg: Color, tooltip: String) -> Control:
+	var panel: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.mouse_filter = MOUSE_FILTER_STOP
+	panel.tooltip_text = tooltip
+
+	var l: Label = Label.new()
+	l.text = text
+	l.add_theme_color_override("font_color", Color(0.96, 0.92, 0.82, 1.0))
+	l.add_theme_font_size_override("font_size", 9)
+	panel.add_child(l)
+	return panel
 
 
 func _build_strain_badge(label: StringName) -> Control:

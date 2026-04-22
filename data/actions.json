@@ -198,6 +198,71 @@
       "max_days_to_resolve": 240,
       "base_success_chance": 0.65,
       "report_sender": "A private letter"
+    },
+    {
+      "id": "intel_cross_reference",
+      "display_name": "Cross-reference a source",
+      "blurb": "Hold one operative's reports against every other thread you have on the same ground. Fast, quiet, and tells you less than you would like — but the contradictions it finds are almost never wrong.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ORG_MEMBER",
+      "silver_cost": 30,
+      "exposure_cost": 0,
+      "min_days_to_resolve": 3,
+      "max_days_to_resolve": 10,
+      "base_success_chance": 0.85,
+      "report_sender": "Your archivist"
+    },
+    {
+      "id": "intel_source_audit",
+      "display_name": "Audit a source",
+      "blurb": "Put the operative themselves under the glass — their contacts, their lifestyle, the gap between what they say they spend and what they clearly do. If they are clean, you will only cost them sleep. If they are turned, they will know within weeks that they are watched.",
+      "tier": "ACTIVE",
+      "target_kind": "ORG_MEMBER",
+      "silver_cost": 80,
+      "exposure_cost": 5,
+      "min_days_to_resolve": 21,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.7,
+      "report_sender": "A second pair of eyes"
+    },
+    {
+      "id": "intel_reinvestigate",
+      "display_name": "Re-investigate independently",
+      "blurb": "Send a fresh operative over the same ground with no connection to the original source. Slow and expensive, but the only method that tells you what is actually true, not merely what your existing sources agree on.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 150,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 90,
+      "base_success_chance": 0.8,
+      "report_sender": "An unaffiliated watcher"
+    },
+    {
+      "id": "audit_cell",
+      "display_name": "Audit a cell",
+      "blurb": "Look inside one of your own cells. Compare the ledgers your coordinator keeps with what your financial network actually moved; walk the same ground their operatives report on. Long tenures with no audit are the tenures that rot.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ORG_MEMBER",
+      "silver_cost": 60,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 45,
+      "base_success_chance": 0.8,
+      "report_sender": "Your internal reviewer"
+    },
+    {
+      "id": "run_double_agent",
+      "display_name": "Run them as a double",
+      "blurb": "A compromised source is not a problem — it is a chair at the other table. Turn them. Control what they carry upward. Bleeds your bandwidth every month and ends, eventually, in fire. Worth it, if the fire burns in the right direction.",
+      "tier": "HIGH",
+      "target_kind": "ORG_MEMBER",
+      "silver_cost": 200,
+      "exposure_cost": 6,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 40,
+      "base_success_chance": 0.65,
+      "report_sender": "Your handler"
     }
   ]
 }

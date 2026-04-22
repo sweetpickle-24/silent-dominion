@@ -353,6 +353,17 @@ func _on_month_passed(_y: int, _m: int) -> void:
 				burn_member(m.id, &"strain")
 				continue
 
+		# Tenure-without-oversight counter (§19.1). Ticks forward every
+		# month; reset by a successful audit_cell. The Roster surfaces
+		# this as a "drift" warning past ~12 months, and audit yield
+		# scales with this number.
+		m.months_since_audit += 1
+
+		# Double-agent maintenance (§18.5). Running a double bleeds
+		# exposure every month — feeding curated fiction is real work.
+		if m.double_agent:
+			Exposure.bump(0.5, "double_agent_upkeep")
+
 		member_updated.emit(m)
 
 

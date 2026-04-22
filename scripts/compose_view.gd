@@ -344,6 +344,8 @@ func _render_target_picker() -> void:
 		_render_kingdom_target_list()
 	elif _selected_action.target_kind == ActionDefinition.TargetKind.PROVINCE:
 		_render_province_target_list()
+	elif _selected_action.target_kind == ActionDefinition.TargetKind.ORG_MEMBER:
+		_render_org_member_target_list()
 
 	_body_vbox.add_child(_make_close_button("Set aside", func() -> void: close()))
 
@@ -501,6 +503,64 @@ func _render_kingdom_target_list() -> void:
 		row.add_theme_stylebox_override("hover", _card_stylebox(COLOR_CARD_HOVER))
 		row.pressed.connect(func() -> void: _issue_action(String(k.id)))
 		list.add_child(row)
+
+
+func _render_org_member_target_list() -> void:
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size.y = 360.0
+	_body_vbox.add_child(scroll)
+
+	var list: VBoxContainer = VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	var members: Array = Org.members.values()
+	members.sort_custom(func(a, b):
+		if a.layer != b.layer:
+			return a.layer < b.layer
+		return a.display_name < b.display_name)
+
+	var id: StringName = _selected_action.id if _selected_action != null else &""
+	var rendered: int = 0
+	for m in members:
+		if m.burned:
+			continue
+		# run_double_agent is only meaningful on members flagged suspected_compromised.
+		if id == &"run_double_agent" and not m.suspected_compromised:
+			continue
+		# audit_cell applies to coordinator+. Operatives don't hold ledgers.
+		if id == &"audit_cell" and m.layer == OrgMember.Layer.OPERATIVE:
+			continue
+		rendered += 1
+		var row: Button = Button.new()
+		var subtitle: String = "%s — %s" % [m.layer_name(), (m.region_id if m.region_id != "" else "unassigned")]
+		if m.double_agent:
+			subtitle += " · double"
+		elif m.suspected_compromised:
+			subtitle += " · suspected"
+		row.text = "%s   %s" % [m.display_name, subtitle]
+		row.flat = true
+		row.custom_minimum_size.y = 36.0
+		row.focus_mode = Control.FOCUS_NONE
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_color_override("font_color", COLOR_INK)
+		row.add_theme_font_size_override("font_size", 13)
+		row.add_theme_stylebox_override("hover", _card_stylebox(COLOR_CARD_HOVER))
+		var mid: String = String(m.id)
+		row.pressed.connect(func() -> void: _issue_action(mid))
+		list.add_child(row)
+
+	if rendered == 0:
+		var empty: Label = Label.new()
+		empty.text = (
+			"No eligible targets in your organisation yet."
+			if id != &"run_double_agent" else
+			"No operative or coordinator has been flagged as suspected yet. Audit first."
+		)
+		empty.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		empty.add_theme_font_size_override("font_size", 12)
+		list.add_child(empty)
 
 
 func _render_province_target_list() -> void:
@@ -690,9 +750,10 @@ func _tier_color(tier: ActionDefinition.Tier) -> Color:
 
 func _target_kind_hint(kind: ActionDefinition.TargetKind) -> String:
 	match kind:
-		ActionDefinition.TargetKind.ACTOR:    return "Pick a person."
-		ActionDefinition.TargetKind.KINGDOM:  return "Pick a kingdom."
-		ActionDefinition.TargetKind.PROVINCE: return "Pick a province."
+		ActionDefinition.TargetKind.ACTOR:      return "Pick a person."
+		ActionDefinition.TargetKind.KINGDOM:    return "Pick a kingdom."
+		ActionDefinition.TargetKind.PROVINCE:   return "Pick a province."
+		ActionDefinition.TargetKind.ORG_MEMBER: return "Pick one of your own."
 		_: return ""
 
 
@@ -712,6 +773,10 @@ func _pretty_target(def: ActionDefinition, id: String) -> String:
 			var p: Province = WorldData.get_province(id)
 			if p != null:
 				return p.province_name
+		ActionDefinition.TargetKind.ORG_MEMBER:
+			var m: OrgMember = Org.get_member(StringName(id))
+			if m != null:
+				return "%s (%s)" % [m.display_name, m.layer_name().to_lower()]
 		_:
 			pass
 	return id

@@ -63,6 +63,33 @@ enum Layer {
 # colour Memoirs entries and for the Roster cover blurbs.
 @export var origin_blurb: String = ""
 
+# --- Source integrity (§18) ---------------------------------------------------
+#
+# How reliable the intel flowing through this member is. 100 = trusted
+# completely; drops after cross-reference contradictions or failed
+# actions built on their reporting. Runs parallel to `trust` (which is
+# the player's personal confidence in the person) and `skill` (their
+# operational competence).
+@export_range(0, 100) var confidence: int = 100
+
+# --- Internal corruption (§19) ------------------------------------------------
+#
+# Months since the last audit. Long tenure without oversight is a
+# corruption risk in itself; this drives the visible "drift" warning in
+# the Roster and increases the yield of audit_cell.
+@export var months_since_audit: int = 0
+
+# Flagged by an audit / source-check as potentially compromised. Purely
+# informational; the consequences come from the response the player
+# chooses (quiet reassign, double-agent, sever). Resets on audit pass.
+@export var suspected_compromised: bool = false
+
+# Double-agent mode (§18.5). The member has been confirmed compromised
+# and flipped: we now use them as a controlled feeder back into the
+# rival network. They stop being a reliable source themselves — their
+# reports carry our chosen noise — and they steadily bleed exposure.
+@export var double_agent: bool = false
+
 
 func layer_name() -> String:
 	match layer:
@@ -89,6 +116,10 @@ static func from_dict(d: Dictionary) -> OrgMember:
 	m.tenure_days     = int(d.get("tenure_days", 0))
 	m.burned          = bool(d.get("burned", false))
 	m.origin_blurb    = String(d.get("origin_blurb", ""))
+	m.confidence            = clampi(int(d.get("confidence", 100)), 0, 100)
+	m.months_since_audit    = int(d.get("months_since_audit", 0))
+	m.suspected_compromised = bool(d.get("suspected_compromised", false))
+	m.double_agent          = bool(d.get("double_agent", false))
 	return m
 
 
@@ -107,6 +138,10 @@ func to_dict() -> Dictionary:
 		"tenure_days":     tenure_days,
 		"burned":          burned,
 		"origin_blurb":    origin_blurb,
+		"confidence":            confidence,
+		"months_since_audit":    months_since_audit,
+		"suspected_compromised": suspected_compromised,
+		"double_agent":          double_agent,
 	}
 
 

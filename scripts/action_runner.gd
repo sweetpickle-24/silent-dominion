@@ -92,6 +92,24 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		if not _valid_lieutenant_candidate(target_id):
 			push_warning("[Actions] promote_lieutenant: '%s' is not a valid coordinator." % target_id)
 			return Scheduler.INVALID_HANDLE
+	elif action_id == &"audit_cell":
+		var am: OrgMember = Org.get_member(StringName(target_id))
+		if am == null or am.burned or am.layer == OrgMember.Layer.OPERATIVE:
+			push_warning("[Actions] audit_cell: '%s' is not an auditable member." % target_id)
+			return Scheduler.INVALID_HANDLE
+	elif action_id == &"run_double_agent":
+		var dm: OrgMember = Org.get_member(StringName(target_id))
+		if dm == null or dm.burned or not dm.suspected_compromised:
+			push_warning("[Actions] run_double_agent: '%s' is not suspected or not eligible." % target_id)
+			return Scheduler.INVALID_HANDLE
+		if dm.double_agent:
+			push_warning("[Actions] run_double_agent: '%s' is already running as a double." % target_id)
+			return Scheduler.INVALID_HANDLE
+	elif action_id == &"intel_cross_reference" or action_id == &"intel_source_audit":
+		var im: OrgMember = Org.get_member(StringName(target_id))
+		if im == null or im.burned:
+			push_warning("[Actions] %s: '%s' is not a valid member." % [action_id, target_id])
+			return Scheduler.INVALID_HANDLE
 
 	if not Exposure.allows_tier(def.tier):
 		push_warning("[Actions] Action '%s' blocked by exposure level: %s" %
@@ -203,6 +221,9 @@ func _kingdom_of_target(def: ActionDefinition, target_id: String) -> String:
 		ActionDefinition.TargetKind.PROVINCE:
 			var p: Province = WorldData.get_province(target_id)
 			return p.owning_kingdom if p != null else ""
+		ActionDefinition.TargetKind.ORG_MEMBER:
+			var m: OrgMember = Org.get_member(StringName(target_id))
+			return m.region_id if m != null else ""
 		_:
 			return ""
 
@@ -648,6 +669,16 @@ func _apply_org_effects(def: ActionDefinition, target_id: String, success: bool,
 func _apply_special_effects(def: ActionDefinition, target_id: String, success: bool) -> Dictionary:
 	var out: Dictionary = {}
 	match def.id:
+		&"intel_cross_reference":
+			_apply_cross_reference(target_id, success, out)
+		&"intel_source_audit":
+			_apply_source_audit(target_id, success, out)
+		&"intel_reinvestigate":
+			_apply_reinvestigate(target_id, success, out)
+		&"audit_cell":
+			_apply_audit_cell(target_id, success, out)
+		&"run_double_agent":
+			_apply_run_double_agent(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -679,6 +710,197 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 		_:
 			pass
 	return out
+
+
+## §18.2 Cross-reference: fast, silent, useful only when other sources
+## cover the same ground. We simulate that coverage by checking whether
+## at least one other non-burned member reports from the same region;
+## without a corroborator, we cannot contradict anything.
+func _apply_cross_reference(target_id: String, success: bool, out: Dictionary) -> void:
+	var m: OrgMember = Org.get_member(StringName(target_id))
+	if m == null:
+		return
+	out["member_name"] = m.display_name
+	out["member_layer"] = m.layer_name()
+
+	var corroborators: int = 0
+	for other in Org.all_members():
+		if other.burned or other.id == m.id:
+			continue
+		if other.region_id == m.region_id:
+			corroborators += 1
+	out["corroborators"] = corroborators
+
+	if corroborators == 0:
+		out["verdict"] = &"no_coverage"
+		return
+
+	# Chance of finding a contradiction scales down with their confidence
+	# (a trustworthy source rarely produces gaps) and up with tenure
+	# under no audit (long-unchecked sources are the ones that rot).
+	var base_gap: float = 0.05 + 0.004 * float(max(0, 100 - m.confidence))
+	base_gap += 0.005 * float(m.months_since_audit)
+	if m.double_agent:
+		base_gap += 0.4
+	var roll: float = _rng.randf()
+	if success and roll < base_gap:
+		var drop: int = _rng.randi_range(10, 25)
+		m.confidence = clampi(m.confidence - drop, 0, 100)
+		m.suspected_compromised = m.confidence <= 35 or m.double_agent
+		Org.member_updated.emit(m)
+		out["verdict"] = &"contradictions"
+		out["confidence_delta"] = -drop
+		out["now_suspected"] = m.suspected_compromised
+		return
+	out["verdict"] = &"consistent"
+
+
+## §18.2 Source audit — higher fidelity, higher risk. Success brings
+## back a real verdict on the target; failure on a compromised source
+## means they notice they're being watched and start leaking our work
+## to whoever owns them.
+func _apply_source_audit(target_id: String, success: bool, out: Dictionary) -> void:
+	var m: OrgMember = Org.get_member(StringName(target_id))
+	if m == null:
+		return
+	out["member_name"] = m.display_name
+	out["member_layer"] = m.layer_name()
+
+	# A member with low confidence or double-agent flag is de facto
+	# compromised. "Compromised" is latched onto suspected_compromised.
+	var truly_compromised: bool = m.double_agent \
+			or (m.confidence <= 40 and m.months_since_audit >= 6)
+
+	if success:
+		# We learn the truth.
+		if truly_compromised:
+			m.suspected_compromised = true
+			m.confidence = mini(m.confidence, 25)
+			out["verdict"] = &"compromised_confirmed"
+		else:
+			m.suspected_compromised = false
+			m.confidence = clampi(m.confidence + 15, 0, 100)
+			m.months_since_audit = 0
+			out["verdict"] = &"clean"
+		Org.member_updated.emit(m)
+	else:
+		# Audit fumbled. If they were clean, no real cost beyond the
+		# silver. If they were turned, they now know they are watched,
+		# and every future cross-reference is poisoned.
+		if truly_compromised:
+			m.confidence = mini(m.confidence, 20)
+			m.heat = clampi(m.heat + 15, 0, 100)
+			out["verdict"] = &"audit_burned"
+			Org.member_updated.emit(m)
+		else:
+			out["verdict"] = &"inconclusive"
+
+
+## §18.2 Direct re-investigation: slow, reliable, expensive. Produces
+## an independent confidence read on the *best* source in that kingdom
+## (their reporting is the one most worth verifying).
+func _apply_reinvestigate(target_id: String, success: bool, out: Dictionary) -> void:
+	out["kingdom_id"] = target_id
+	var best: OrgMember = null
+	var best_skill: int = -1
+	for m in Org.all_members():
+		if m.burned or m.region_id != target_id:
+			continue
+		if m.layer == OrgMember.Layer.OPERATIVE or m.layer == OrgMember.Layer.COORDINATOR:
+			if m.skill > best_skill:
+				best = m
+				best_skill = m.skill
+	if best == null:
+		out["verdict"] = &"no_source"
+		return
+
+	out["member_name"] = best.display_name
+	out["member_layer"] = best.layer_name()
+
+	if not success:
+		out["verdict"] = &"operative_lost"
+		return
+
+	# Independent operative returns the ground truth of their recent
+	# reporting. If they're compromised, the true picture diverges;
+	# we express that as a large confidence adjustment.
+	var truly_compromised: bool = best.double_agent or best.confidence <= 40
+	if truly_compromised:
+		var drop: int = _rng.randi_range(25, 45)
+		best.confidence = clampi(best.confidence - drop, 0, 100)
+		best.suspected_compromised = true
+		Org.member_updated.emit(best)
+		out["verdict"] = &"divergence"
+		out["confidence_delta"] = -drop
+	else:
+		best.confidence = clampi(best.confidence + 10, 0, 100)
+		Org.member_updated.emit(best)
+		out["verdict"] = &"aligned"
+
+
+## §19.2 Internal cell audit. Surfaces drift corruption signals built
+## up through tenure without oversight; a clean pass resets the clock.
+func _apply_audit_cell(target_id: String, success: bool, out: Dictionary) -> void:
+	var m: OrgMember = Org.get_member(StringName(target_id))
+	if m == null:
+		return
+	out["member_name"] = m.display_name
+
+	# Risk score is a mix of long-tenure-without-audit and source actor
+	# traits (greed, low loyalty) when we have them.
+	var risk: int = m.months_since_audit * 2
+	if m.source_actor_id != &"":
+		var a: Actor = Actors.get_actor(m.source_actor_id)
+		if a != null:
+			risk += maxi(0, a.greed - 50)
+			risk += maxi(0, 50 - a.loyalty)
+	out["risk_score"] = risk
+
+	if not success:
+		out["verdict"] = &"audit_inconclusive"
+		return
+
+	m.months_since_audit = 0
+	if m.double_agent or m.suspected_compromised:
+		out["verdict"] = &"drift_confirmed"
+		m.confidence = mini(m.confidence, 30)
+	elif risk >= 60:
+		m.suspected_compromised = true
+		m.confidence = clampi(m.confidence - 15, 0, 100)
+		out["verdict"] = &"drift_detected"
+	else:
+		out["verdict"] = &"clean"
+	Org.member_updated.emit(m)
+
+
+## §18.5 Run a confirmed compromised source as a double agent. Setup
+## is a HIGH action; ongoing maintenance happens monthly in OrgRegistry
+## (the double_agent flag makes them bleed a small exposure each month).
+func _apply_run_double_agent(target_id: String, success: bool, out: Dictionary) -> void:
+	var m: OrgMember = Org.get_member(StringName(target_id))
+	if m == null:
+		return
+	out["member_name"] = m.display_name
+
+	if not m.suspected_compromised:
+		out["verdict"] = &"not_suspected"
+		return
+
+	if success:
+		m.double_agent = true
+		m.suspected_compromised = true
+		# Trust is operational — we still trust them to do what we say.
+		# Confidence stays low because what they report is our fiction.
+		m.confidence = clampi(m.confidence, 0, 30)
+		Org.member_updated.emit(m)
+		out["verdict"] = &"double_running"
+	else:
+		# Setup discovered. Most dangerous failure mode in the game:
+		# the source now knows what we tried to do with them.
+		m.heat = clampi(m.heat + 40, 0, 100)
+		Exposure.bump(6.0, "double_agent_botched")
+		Org.member_updated.emit(m)
+		out["verdict"] = &"setup_burned"
 
 
 ## A botched move leaves loose threads. The *player's* exposure meter
@@ -907,6 +1129,44 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			if success else
 			"The elevation is deferred"
 		)
+	elif def.id == &"intel_cross_reference":
+		var cv: StringName = StringName(String(extras.get("verdict", "")))
+		match cv:
+			&"contradictions": subject = "Contradictions in %s's reporting" % target_name
+			&"no_coverage":    subject = "No corroborating sources for %s" % target_name
+			&"consistent":     subject = "%s's reports hold up" % target_name
+			_:                 subject = "Cross-reference on %s" % target_name
+	elif def.id == &"intel_source_audit":
+		var av: StringName = StringName(String(extras.get("verdict", "")))
+		match av:
+			&"compromised_confirmed": subject = "%s is compromised" % target_name
+			&"clean":                 subject = "%s is clean" % target_name
+			&"audit_burned":          subject = "The audit on %s was noticed" % target_name
+			&"inconclusive":          subject = "Audit on %s was inconclusive" % target_name
+			_:                        subject = "Audit on %s" % target_name
+	elif def.id == &"intel_reinvestigate":
+		var rv: StringName = StringName(String(extras.get("verdict", "")))
+		match rv:
+			&"divergence":      subject = "Independent ground differs from our source"
+			&"aligned":         subject = "Independent investigation aligns with our source"
+			&"operative_lost":  subject = "The second operative could not deliver"
+			&"no_source":       subject = "No one to verify against"
+			_:                  subject = "Re-investigation report"
+	elif def.id == &"audit_cell":
+		var uv: StringName = StringName(String(extras.get("verdict", "")))
+		match uv:
+			&"drift_confirmed":     subject = "%s's cell has drifted" % target_name
+			&"drift_detected":      subject = "Concerns about %s's cell" % target_name
+			&"clean":               subject = "%s's cell is in order" % target_name
+			&"audit_inconclusive":  subject = "Audit on %s's cell was inconclusive" % target_name
+			_:                      subject = "Internal audit on %s" % target_name
+	elif def.id == &"run_double_agent":
+		var dv: StringName = StringName(String(extras.get("verdict", "")))
+		match dv:
+			&"double_running": subject = "%s is now feeding them our words" % target_name
+			&"setup_burned":   subject = "The double play is burned"
+			&"not_suspected":  subject = "%s is not yet suspected" % target_name
+			_:                 subject = "On %s, and the other room" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -960,6 +1220,17 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 
 		&"bribe_direct", &"bribe_retainer", &"bribe_career", &"bribe_info", &"bribe_gift":
 			return _bribe_body(def.id, target, extras)
+
+		&"intel_cross_reference":
+			return _cross_reference_body(target, extras)
+		&"intel_source_audit":
+			return _source_audit_body(target, extras)
+		&"intel_reinvestigate":
+			return _reinvestigate_body(target, extras)
+		&"audit_cell":
+			return _audit_cell_body(target, extras)
+		&"run_double_agent":
+			return _double_agent_body(target, extras)
 
 		&"host_sway_court":
 			if success:
@@ -1088,6 +1359,142 @@ func _bribe_body(action_id: StringName, target: String, extras: Dictionary) -> S
 	return "%s — no outcome recorded." % target
 
 
+func _cross_reference_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var drop: int = int(extras.get("confidence_delta", 0))
+	var now_suspected: bool = bool(extras.get("now_suspected", false))
+	var corroborators: int = int(extras.get("corroborators", 0))
+
+	match verdict:
+		&"contradictions":
+			var tail: String = "Their confidence rating falls by %d. " % abs(drop)
+			if now_suspected:
+				tail += "I have flagged them as suspected — the next move is yours."
+			else:
+				tail += "Not yet enough to call them turned, but enough to stop acting on their word alone."
+			return ("I held %s's reports against every other thread I have on the same ground. "
+				+ "There are gaps — places where what they say happened and what others say happened "
+				+ "do not line up. They are small, and any one of them could be forgiven. Together, "
+				+ "they are not. %s") % [target, tail]
+		&"no_coverage":
+			return ("I have nothing to hold %s's reports against. No other operative covers the "
+				+ "same city, no public news speaks to what they speak of. We must either put a "
+				+ "second pair of eyes in place or accept that this source verifies only itself."
+				) % target
+		&"consistent":
+			return ("%s's reporting holds. I compared it against %d other thread(s) of mine and found "
+				+ "no contradictions worth pulling at. That is not proof of honesty — only of coherence. "
+				+ "But it is what we have."
+				) % [target, corroborators]
+	return "Cross-reference on %s complete. No clear verdict." % target
+
+
+func _source_audit_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"compromised_confirmed":
+			return ("There is no more doubt. %s is turned. Their lifestyle has exceeded their means "
+				+ "for some months, their route home at night passes a door it has no reason to, and "
+				+ "they have met twice with a man I can place in another city's records. You now decide "
+				+ "what use they still are — a quiet cut, or a louder play."
+				) % target
+		&"clean":
+			return ("%s has been walked through — contacts, purse, routines — and they come out whole. "
+				+ "No meetings we did not know of, no silver we did not account for. I have reset the "
+				+ "audit clock on them. Put them to harder work with a steadier hand."
+				) % target
+		&"audit_burned":
+			return ("The audit on %s was felt. They know they are watched now — a follower they should "
+				+ "not have been able to spot, a question asked of the wrong friend. Worse: if they are "
+				+ "the thing we feared, our movements across the last weeks are now carried to whoever "
+				+ "owns them. Treat this as a loud failure and act before they do."
+				) % target
+		&"inconclusive":
+			return ("The audit on %s returns nothing I would stake a decision on. Nothing damning, but "
+				+ "nothing clean either — the pattern of their week is too ordinary to be persuasive. "
+				+ "Try again in a season; or invest in a heavier method."
+				) % target
+	return "The audit on %s returned no verdict." % target
+
+
+func _reinvestigate_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var mname: String = String(extras.get("member_name", "our source"))
+	match verdict:
+		&"divergence":
+			var drop: int = int(extras.get("confidence_delta", 0))
+			return ("A second operative, independent of our standing network, has walked the same "
+				+ "ground %s walks and come back with a different picture. The gap is wide enough "
+				+ "that we cannot explain it by variance alone. %s's confidence rating is reduced "
+				+ "by %d; I have flagged them as suspected."
+				) % [mname, mname, abs(drop)]
+		&"aligned":
+			return ("The independent walk confirms %s. What they have been telling us is, as far as "
+				+ "a second pair of eyes can judge, what is actually happening. Their confidence rating "
+				+ "rises a little."
+				) % mname
+		&"operative_lost":
+			return ("I lost the second operative before the work was complete. They are alive — the "
+				+ "letters arrive — but the investigation did not. The silver is gone. Another hand will "
+				+ "be needed.")
+		&"no_source":
+			return ("I could not find a source in %s worth re-investigating. Either we have no one there, "
+				+ "or what we have is an abstract operative whose reports are too shallow to doubt or "
+				+ "confirm. The silver is returned."
+				) % target
+	return "Re-investigation produced no verdict."
+
+
+func _audit_cell_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"drift_confirmed":
+			return ("The audit on %s's cell returns what we feared. The ledgers and the operational "
+				+ "record do not align; silver intended for one hand has been touching a second before "
+				+ "it arrived. I have flagged the cell for a decision — reassign, leverage, or cut."
+				) % target
+		&"drift_detected":
+			return ("%s's cell has grown too comfortable. Nothing outright wrong, yet — but the patterns "
+				+ "of their last six months show the small liberties that tend to grow into the large ones. "
+				+ "I have resurfaced them as suspected; if you mean to keep them, we should audit again "
+				+ "before the year turns."
+				) % target
+		&"clean":
+			return ("%s's cell is in order. Their ledgers match the financial record to within what "
+				+ "variance the work admits; their operatives' reports track the public ground. Audit "
+				+ "clock is reset — the next review can wait at least a year."
+				) % target
+		&"audit_inconclusive":
+			return ("The audit on %s's cell could not settle. Too much of their work runs through "
+				+ "intermediaries we have no hand on; I could not verify what mattered. Consider a "
+				+ "heavier method if you have reason to doubt them."
+				) % target
+	return "The audit on %s's cell returned no verdict." % target
+
+
+func _double_agent_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"double_running":
+			return ("The arrangement is made. %s now carries upward the words we give them and no others. "
+				+ "Their eyes remain on us — and ours, for the first time, pass through them and into the "
+				+ "room that thought it owned them. This costs. Every month the handler must renew the "
+				+ "fiction, and every month the risk of their rival testing them grows. Worth it, if the "
+				+ "right thing comes back."
+				) % target
+		&"setup_burned":
+			return ("The approach to %s failed at the worst possible stage. They sensed what was being "
+				+ "asked before it was asked, and now they know that we knew they were turned. They have "
+				+ "taken that knowledge to the room that owns them. Every source that has spoken to %s "
+				+ "in the past year must be assumed compromised. Act now; there is no grace period."
+				) % [target, target]
+		&"not_suspected":
+			return ("%s has not been flagged as suspected. A double-agent play requires a confirmed "
+				+ "compromise, or you are merely handing a clean operative to an enemy. Audit first."
+				) % target
+	return "On the matter of %s, no clear result." % target
+
+
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:
 	match kind:
 		ActionDefinition.TargetKind.ACTOR:
@@ -1102,6 +1509,10 @@ func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> Strin
 			var p: Province = WorldData.get_province(id)
 			if p != null:
 				return p.province_name
+		ActionDefinition.TargetKind.ORG_MEMBER:
+			var m: OrgMember = Org.get_member(StringName(id))
+			if m != null:
+				return m.display_name
 		_:
 			pass
 	return id if not id.is_empty() else "the matter"
