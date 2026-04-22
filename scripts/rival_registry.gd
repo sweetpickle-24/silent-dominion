@@ -285,7 +285,13 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 	var headline: String = String(templates[_rng.randi_range(0, templates.size() - 1)]) % _kingdom_name(kingdom_id)
 	var body: String = _body_for(s, method, kingdom_id)
 
+	var op_id: String = "op_%d_%s_%s" % [
+		GameClock.absolute_day(),
+		String(s.id),
+		_rng.randi(),
+	]
 	var op: Dictionary = {
+		"op_id":             op_id,
 		"kind":              cover.get("kind", &"misc"),
 		"headline":          headline,
 		"body":              body,
@@ -295,6 +301,10 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 		# progressively — a bare public-news render never surfaces them.
 		"rival_signature":   String(s.id),
 		"rival_method":      String(method),
+		# The player's current investigation level on this op. 0 means
+		# "they saw the headline and nothing more." Raised by the
+		# Fingerprints singleton as actions resolve.
+		"rival_suspected":   true,
 	}
 
 	op_log.append(op)

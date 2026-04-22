@@ -263,6 +263,45 @@
       "max_days_to_resolve": 40,
       "base_success_chance": 0.65,
       "report_sender": "Your handler"
+    },
+    {
+      "id": "investigate_anomaly",
+      "display_name": "Investigate an anomaly",
+      "blurb": "Walk the ground under the last strange thing that happened in this region. Granary fires without a drought, decrees without an obvious author, succession that arranged itself. One pass of honest feet, asking questions that have to be paid for.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 60,
+      "exposure_cost": 3,
+      "min_days_to_resolve": 10,
+      "max_days_to_resolve": 30,
+      "base_success_chance": 0.75,
+      "report_sender": "Your investigator"
+    },
+    {
+      "id": "cross_reference_pattern",
+      "display_name": "Cross-reference the pattern",
+      "blurb": "Take the pile of anomalies we have already broken open in this region and ask a harder question: is there a single hidden hand behind them? Slow, expensive, and only useful if we have done the groundwork.",
+      "tier": "ACTIVE",
+      "target_kind": "KINGDOM",
+      "silver_cost": 140,
+      "exposure_cost": 4,
+      "min_days_to_resolve": 20,
+      "max_days_to_resolve": 55,
+      "base_success_chance": 0.65,
+      "report_sender": "Your archivist"
+    },
+    {
+      "id": "match_fingerprint",
+      "display_name": "Match a fingerprint",
+      "blurb": "Take a confirmed pattern and hold it up against the library of every rival signature we have catalogued. If the match is real, we will know the name of the hand that has been moving here.",
+      "tier": "ACTIVE",
+      "target_kind": "KINGDOM",
+      "silver_cost": 200,
+      "exposure_cost": 5,
+      "min_days_to_resolve": 28,
+      "max_days_to_resolve": 70,
+      "base_success_chance": 0.6,
+      "report_sender": "Your archivist"
     }
   ]
 }

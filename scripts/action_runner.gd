@@ -680,6 +680,12 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_audit_cell(target_id, success, out)
 		&"run_double_agent":
 			_apply_run_double_agent(target_id, success, out)
+		&"investigate_anomaly":
+			_apply_investigate_anomaly(target_id, success, out)
+		&"cross_reference_pattern":
+			_apply_cross_reference_pattern(target_id, success, out)
+		&"match_fingerprint":
+			_apply_match_fingerprint(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -902,6 +908,80 @@ func _apply_run_double_agent(target_id: String, success: bool, out: Dictionary) 
 		Exposure.bump(6.0, "double_agent_botched")
 		Org.member_updated.emit(m)
 		out["verdict"] = &"setup_burned"
+
+
+## §8.12 Level 1–2: investigate the most recent anomaly in the region.
+## Failure burns the silver and returns &"no_trail"; success advances
+## one op by one level (up to Actor, the hard cap before cross-
+## referencing). The rival_registry already tags ops with hidden
+## signatures — we reveal them in stages.
+func _apply_investigate_anomaly(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	if not success:
+		out["verdict"] = &"no_trail"
+		return
+
+	var op: Dictionary = Fingerprints.advance_one_in(target_id, Fingerprints.LEVEL_SIGNAL)
+	if op.is_empty():
+		out["verdict"] = &"nothing_anomalous"
+		return
+
+	var new_level: int = Fingerprints.level_for(String(op.get("op_id", "")))
+	out["verdict"]    = &"advanced"
+	out["op_id"]      = String(op.get("op_id", ""))
+	out["op_headline"] = String(op.get("headline", ""))
+	out["new_level"]   = new_level
+	# A flavour token describing what was confirmed this pass.
+	if new_level >= Fingerprints.LEVEL_ACTOR:
+		out["level_label"] = "a local actor is implicated"
+	elif new_level >= Fingerprints.LEVEL_MECHANISM:
+		out["level_label"] = "a deliberate hand is confirmed"
+	else:
+		out["level_label"] = "questions remain open"
+
+
+## §8.12 Level 3. Requires at least three Actor-level ops in the
+## region sharing a signature. Returns the matching society_id (not
+## yet the name — that is Level 4) so the letter can describe a
+## "persistent organisation" without naming it.
+func _apply_cross_reference_pattern(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	if not success:
+		out["verdict"] = &"pattern_not_found"
+		return
+
+	var sid: StringName = Fingerprints.cross_reference(target_id)
+	if sid == &"":
+		out["verdict"] = &"insufficient_evidence"
+		return
+	out["verdict"]        = &"pattern_confirmed"
+	out["pattern_signature"] = String(sid)
+
+
+## §8.12 Level 4 — commit an identification to the library. Raises
+## the player's confirmation on the matched society and attributes
+## every Pattern-level op of theirs in the region to them.
+func _apply_match_fingerprint(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	if not success:
+		out["verdict"] = &"no_match"
+		return
+
+	var sid: StringName = Fingerprints.match_fingerprint(target_id)
+	if sid == &"":
+		out["verdict"] = &"insufficient_evidence"
+		return
+	var soc: RivalSociety = Rivals.get_society(sid)
+	out["verdict"]       = &"fingerprint_matched"
+	out["society_id"]    = String(sid)
+	out["society_name"]  = soc.display_name if soc != null else String(sid)
+	out["confirmation"]  = Fingerprints.confirmation_for(sid)
 
 
 ## A botched move leaves loose threads. The *player's* exposure meter
@@ -1168,6 +1248,27 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"setup_burned":   subject = "The double play is burned"
 			&"not_suspected":  subject = "%s is not yet suspected" % target_name
 			_:                 subject = "On %s, and the other room" % target_name
+	elif def.id == &"investigate_anomaly":
+		var iv: StringName = StringName(String(extras.get("verdict", "")))
+		match iv:
+			&"advanced":           subject = "A hand shows in %s" % target_name
+			&"nothing_anomalous":  subject = "Nothing unnatural in %s" % target_name
+			&"no_trail":           subject = "The trail in %s went cold" % target_name
+			_:                     subject = "Investigation in %s" % target_name
+	elif def.id == &"cross_reference_pattern":
+		var pv: StringName = StringName(String(extras.get("verdict", "")))
+		match pv:
+			&"pattern_confirmed":      subject = "A persistent hand in %s" % target_name
+			&"pattern_not_found":      subject = "No single pattern in %s" % target_name
+			&"insufficient_evidence":  subject = "Too little to cross-reference in %s" % target_name
+			_:                         subject = "Archive sweep on %s" % target_name
+	elif def.id == &"match_fingerprint":
+		var fv: StringName = StringName(String(extras.get("verdict", "")))
+		match fv:
+			&"fingerprint_matched":    subject = "%s named in %s" % [String(extras.get("society_name", "A rival")), target_name]
+			&"no_match":               subject = "No match in the library for %s" % target_name
+			&"insufficient_evidence":  subject = "Not ready to match fingerprints on %s" % target_name
+			_:                         subject = "Library cross-check on %s" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -1232,6 +1333,13 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _audit_cell_body(target, extras)
 		&"run_double_agent":
 			return _double_agent_body(target, extras)
+
+		&"investigate_anomaly":
+			return _investigate_anomaly_body(extras)
+		&"cross_reference_pattern":
+			return _cross_reference_pattern_body(extras)
+		&"match_fingerprint":
+			return _match_fingerprint_body(extras)
 
 		&"host_sway_court":
 			if success:
@@ -1494,6 +1602,95 @@ func _double_agent_body(target: String, extras: Dictionary) -> String:
 				+ "compromise, or you are merely handing a clean operative to an enemy. Audit first."
 				) % target
 	return "On the matter of %s, no clear result." % target
+
+
+## §8.12 Level 1–2 report. We deliberately do not name the society
+## here — the letter describes what was learned at the level the
+## player reached, and nothing beyond it.
+func _investigate_anomaly_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "that region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_trail":
+			return ("Three weeks in %s and every door my hand was on opened onto an empty room. "
+				+ "Either nothing is moving there, or the thing that is moving is well enough "
+				+ "dressed that it is wearing its own weather. I would try again in a quieter season."
+				) % region
+		&"nothing_anomalous":
+			return ("The region is quiet enough that I could not, in good conscience, name any event in "
+				+ "%s as unnatural. The harvest arrived on time. The courts sat without murder. "
+				+ "If there is a hand at work here, it is a careful one, and we have nothing to read yet."
+				) % region
+		&"advanced":
+			var head: String = String(extras.get("op_headline", "the last anomaly"))
+			var level: int   = int(extras.get("new_level", Fingerprints.LEVEL_MECHANISM))
+			var label: String = String(extras.get("level_label", ""))
+			if level >= Fingerprints.LEVEL_ACTOR:
+				return ("On the matter headlined '[i]%s[/i]' in %s:\n\n"
+					+ "We now have a name — or at least a household — at the bottom of it. "
+					+ "A local actor acted at the exact moment the event required. Their money trail "
+					+ "does not quite close on itself; it disappears into an institution our ledgers "
+					+ "do not recognise. %s.\n\n"
+					+ "This is enough to compare against other incidents in %s if we have them."
+					) % [head, region, label, region]
+			return ("On the matter headlined '[i]%s[/i]' in %s:\n\n"
+				+ "What looked like a run of bad weather — or bad luck — was not. The mechanism was "
+				+ "deliberate. %s. I could not yet say by whose hand; the trail narrows but does not end.\n\n"
+				+ "Another investigation of the same event, from a different angle, may give us the actor."
+				) % [head, region, label]
+	return "An investigation closed in %s without a clear finding." % region
+
+
+## §8.12 Level 3 report.
+func _cross_reference_pattern_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"pattern_not_found":
+			return ("The archivists spent a month at the desk and a week on the road. The incidents in %s "
+				+ "do not, when laid next to each other, sing the same tune. Either we do not have "
+				+ "enough of them yet, or there is no single hand here — only weather."
+				) % region
+		&"insufficient_evidence":
+			return ("To compare patterns we first need individual incidents investigated to the point where "
+				+ "a local actor has been named. We do not yet have three such incidents in %s. "
+				+ "The archivists returned with nothing the desk did not already know."
+				) % region
+		&"pattern_confirmed":
+			return ("Three incidents in %s, unrelated on their face, settle onto the same financial spine. "
+				+ "The institution behind them is not one our books recognise. We cannot yet name it, "
+				+ "but we can see it — a persistent organisation, working quietly, across years, to a "
+				+ "consistent shape.\n\nIf we have encountered their signature elsewhere, the library "
+				+ "will know. If not, we will open a new file."
+				) % region
+	return "The archive produced no useful result on %s." % region
+
+
+## §8.12 Level 4 report.
+func _match_fingerprint_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_match":
+			return ("The comparison failed. Either the signature we have built in %s is partial, or the "
+				+ "fingerprint library has no record of the hand at work. The archivists recommend "
+				+ "more cross-referencing before this move is attempted again."
+				) % region
+		&"insufficient_evidence":
+			return ("To match a fingerprint we need at least one pattern already confirmed in %s. "
+				+ "No such pattern is on file. Cross-reference first; then come back to the library."
+				) % region
+		&"fingerprint_matched":
+			var soc: String = String(extras.get("society_name", "a named society"))
+			var conf: int   = int(extras.get("confirmation", 0))
+			return ("The hand that has been moving in %s is [b]%s[/b].\n\n"
+				+ "The library's records of their operations elsewhere line up, near enough, with "
+				+ "what we have collected here. Methods, rhythm, the shape of the cut-outs — it is "
+				+ "them. Confirmation in the library now stands at roughly %d per cent.\n\n"
+				+ "From this point forward, their fingerprint will be read the first time it shows up, "
+				+ "not the fifth."
+				) % [region, soc, conf]
+	return "The match attempt on %s produced no result." % region
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

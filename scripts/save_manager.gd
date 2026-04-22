@@ -164,9 +164,10 @@ func _collect_state() -> Dictionary:
 		"whispers":  Whispers.snapshot(),
 		"org":       Org.snapshot(),
 		"finance":   Finance.snapshot(),
-		"picture":   Picture.snapshot(),
-		"rivals":    Rivals.snapshot(),
-		"beats":     Beats.snapshot(),
+		"picture":      Picture.snapshot(),
+		"rivals":       Rivals.snapshot(),
+		"fingerprints": Fingerprints.snapshot(),
+		"beats":        Beats.snapshot(),
 	}
 
 
@@ -203,6 +204,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Picture.restore(blob["picture"])
 	if blob.has("rivals"):
 		Rivals.restore(blob["rivals"])
+	if blob.has("fingerprints"):
+		Fingerprints.restore(blob["fingerprints"])
 	if blob.has("beats"):
 		Beats.restore(blob["beats"])
 
