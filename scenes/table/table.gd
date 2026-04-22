@@ -20,6 +20,7 @@ const PurseIndicatorScript: Script      = preload("res://scripts/purse_indicator
 const SlotsViewScript: Script           = preload("res://scripts/slots_view.gd")
 const ArchiveIndicatorScript: Script    = preload("res://scripts/archive_indicator.gd")
 const CodebookViewScript: Script        = preload("res://scripts/codebook_view.gd")
+const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -387,7 +388,25 @@ func _on_codebook_view_closed() -> void:
 
 
 func _on_memoirs_clicked() -> void:
-	open_panel("Memoirs", _memoirs_placeholder_text())
+	_open_memoirs_view()
+
+
+func _open_memoirs_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(MemoirsViewScript)
+	view.name = "MemoirsView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_memoirs_view_closed)
+	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+
+
+func _on_memoirs_view_closed() -> void:
+	_overlay_active = false
 
 
 func _on_public_news_clicked() -> void:
