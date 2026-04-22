@@ -40,6 +40,17 @@ const TAX_LEVEL_MULTIPLIER: Dictionary = {
 	Kingdom.TaxLevel.RUINOUS:   1.75,
 }
 
+## Per-province multiplier on production when the province is restive.
+## Quiet/uneasy/restless provinces pay in full — the friction hasn't
+## reached the tax rolls yet. Seething and revolting provinces bleed.
+const UNREST_YIELD_MULTIPLIER: Dictionary = {
+	&"quiet":     1.00,
+	&"uneasy":    1.00,
+	&"restless":  0.95,
+	&"seething":  0.80,
+	&"in revolt": 0.30,
+}
+
 # How many months a given level can persist before the ruler is
 # pressured back down. Tracked per-kingdom in _burden_streak.
 const MAX_BURDENED_MONTHS: int = 12
@@ -92,10 +103,14 @@ func _monthly_income(k: Kingdom) -> float:
 		var p: Province = WorldData.get_province(pid)
 		if p == null:
 			continue
-		annual += p.grain_production
-		annual += p.silver_production
-		annual += p.iron_production
-		annual += p.timber_production
+		var province_total: float = (
+			p.grain_production
+			+ p.silver_production
+			+ p.iron_production
+			+ p.timber_production
+		)
+		var unrest_mult: float = float(UNREST_YIELD_MULTIPLIER.get(p.unrest_band(), 1.0))
+		annual += province_total * unrest_mult
 	var mult: float = float(TAX_LEVEL_MULTIPLIER.get(k.tax_level, 1.0))
 	return (annual / MONTHS_PER_YEAR) * TAX_EFFICIENCY * mult
 

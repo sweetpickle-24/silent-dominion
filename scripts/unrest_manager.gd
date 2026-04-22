@@ -27,6 +27,9 @@ const AGITATE_BUMP: int       = 10
 const BROKE_TREASURY_TICK: int = 3
 
 var _last_band: Dictionary = {}   # province_id -> StringName
+var _revolt_streak: Dictionary = {}   # province_id -> consecutive months in revolt
+
+const PROLONGED_REVOLT_MONTHS: int = 6
 
 
 func _ready() -> void:
@@ -57,17 +60,23 @@ func bump(province_id: String, delta: int) -> void:
 func snapshot() -> Array:
 	var out: Array = []
 	for p in WorldData.provinces.values():
-		out.append({ "id": p.id, "unrest": p.unrest })
+		out.append({
+			"id":            p.id,
+			"unrest":        p.unrest,
+			"revolt_streak": int(_revolt_streak.get(p.id, 0)),
+		})
 	return out
 
 
 func restore(arr: Array) -> void:
+	_revolt_streak.clear()
 	for d in arr:
 		var p: Province = WorldData.get_province(String(d.get("id", "")))
 		if p == null:
 			continue
 		p.unrest = int(d.get("unrest", 0))
 		_last_band[p.id] = p.unrest_band()
+		_revolt_streak[p.id] = int(d.get("revolt_streak", 0))
 
 
 # --- Monthly tick ------------------------------------------------------------
@@ -93,6 +102,34 @@ func _on_month_passed(_y: int, _m: int) -> void:
 
 		if delta != 0:
 			bump(p.id, delta)
+
+		_track_revolt_streak(p)
+
+
+func _track_revolt_streak(p: Province) -> void:
+	var in_revolt: bool = p.unrest_band() == &"in revolt"
+	var streak: int = int(_revolt_streak.get(p.id, 0))
+	if in_revolt:
+		streak += 1
+		_revolt_streak[p.id] = streak
+		if streak == PROLONGED_REVOLT_MONTHS:
+			_emit_prolonged_revolt(p)
+	else:
+		if streak > 0:
+			_revolt_streak[p.id] = 0
+
+
+func _emit_prolonged_revolt(p: Province) -> void:
+	var k: Kingdom = WorldData.get_kingdom(p.owning_kingdom)
+	var kname: String = k.kingdom_name if k != null else p.owning_kingdom
+	EventBus.public_event.emit({
+		"kind":       &"unrest",
+		"kingdom_id": p.owning_kingdom,
+		"headline":   "%s is lost to its crown" % p.province_name,
+		"body":       "Half a year of open revolt in %s. The crown of %s still names the province on its maps, but no silver comes out of it, no soldiers answer from it, and the priests have stopped pretending the magistrates are in charge." % [
+			p.province_name, kname,
+		],
+	})
 
 
 func _kingdom_is_at_war(kingdom_id: String) -> bool:
