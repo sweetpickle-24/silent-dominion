@@ -8,6 +8,16 @@ extends Control
 
 const TABLE_SCENE: String = "res://scenes/table/table.tscn"
 
+## Keep in sync with SlotsView. The quicksave slot is listed first, then
+## named slots in order, so the most-recently-used convention is obvious.
+const SLOT_IDS: Array[String] = ["quicksave", "slot_1", "slot_2", "slot_3"]
+const SLOT_LABELS: Dictionary = {
+	"quicksave": "Quick fold",
+	"slot_1":    "The first fold",
+	"slot_2":    "The second fold",
+	"slot_3":    "The third fold",
+}
+
 const COLOR_PARCHMENT: Color      = Color(0.96, 0.92, 0.82, 1.0)
 const COLOR_PARCHMENT_EDGE: Color = Color(0.55, 0.42, 0.28, 0.7)
 const COLOR_INK: Color            = Color(0.22, 0.14, 0.06, 1.0)
@@ -88,10 +98,10 @@ func _build_sheet() -> void:
 	_sheet.anchor_top = 0.5
 	_sheet.anchor_right = 0.5
 	_sheet.anchor_bottom = 0.5
-	_sheet.offset_left = -280.0
-	_sheet.offset_right = 280.0
-	_sheet.offset_top = -210.0
-	_sheet.offset_bottom = 210.0
+	_sheet.offset_left = -300.0
+	_sheet.offset_right = 300.0
+	_sheet.offset_top = -260.0
+	_sheet.offset_bottom = 260.0
 	var sb: StyleBoxFlat = StyleBoxFlat.new()
 	sb.bg_color = COLOR_PARCHMENT
 	sb.border_color = COLOR_PARCHMENT_EDGE
@@ -158,15 +168,22 @@ func _populate() -> void:
 	_vbox.add_child(_make_primary_button("Begin a new season", _on_begin))
 
 	if Session.any_save_exists():
-		var newest: String = Session.newest_slot()
-		var info: Dictionary = SaveManager.slot_info(newest)
-		var abs_day: int = GameClock.absolute_day_of(
-			int(info.get("year", 0)),
-			int(info.get("month", 1)),
-			int(info.get("day", 1))
-		)
-		var label: String = "Return to %s" % GameClock.format_absolute(abs_day)
-		_vbox.add_child(_make_secondary_button(label, _on_return))
+		var label_spacer: Control = Control.new()
+		label_spacer.custom_minimum_size.y = 8.0
+		_vbox.add_child(label_spacer)
+
+		var heading: Label = Label.new()
+		heading.text = "OR RETURN TO A STORED SEASON"
+		heading.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		heading.add_theme_font_size_override("font_size", 10)
+		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_vbox.add_child(heading)
+
+		for slot in SLOT_IDS:
+			var info: Dictionary = SaveManager.slot_info(slot)
+			if info.is_empty():
+				continue
+			_vbox.add_child(_make_slot_row(slot, info))
 
 	_vbox.add_child(_make_ghost_button("Leave the table", _on_quit))
 
@@ -273,13 +290,65 @@ func _on_begin() -> void:
 	_go_to_table()
 
 
-func _on_return() -> void:
-	var slot: String = Session.newest_slot()
-	if slot == "":
+func _on_slot_pressed(slot: String) -> void:
+	if not SaveManager.slot_exists(slot):
 		_on_begin()
 		return
 	Session.pending_load_slot = slot
 	_go_to_table()
+
+
+func _make_slot_row(slot: String, info: Dictionary) -> Control:
+	var btn: Button = Button.new()
+	btn.custom_minimum_size.y = 42.0
+	btn.focus_mode = Control.FOCUS_ALL
+	btn.add_theme_stylebox_override("normal", _ghost_bg(0))
+	btn.add_theme_stylebox_override("hover", _ghost_bg(1))
+	btn.add_theme_stylebox_override("pressed", _ghost_bg(2))
+	btn.add_theme_stylebox_override("focus", _ghost_bg(1))
+	btn.pressed.connect(func() -> void: _on_slot_pressed(slot))
+
+	var hb: HBoxContainer = HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 10)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(hb)
+
+	var label_name: Label = Label.new()
+	label_name.text = String(SLOT_LABELS.get(slot, slot))
+	label_name.add_theme_color_override("font_color", COLOR_INK)
+	label_name.add_theme_font_size_override("font_size", 13)
+	label_name.custom_minimum_size.x = 130.0
+	hb.add_child(label_name)
+
+	var col: VBoxContainer = VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 1)
+	hb.add_child(col)
+
+	var ingame: Label = Label.new()
+	ingame.text = _format_ingame(info)
+	ingame.add_theme_color_override("font_color", COLOR_INK)
+	ingame.add_theme_font_size_override("font_size", 12)
+	col.add_child(ingame)
+
+	var saved_at: String = String(info.get("saved_at", ""))
+	if saved_at != "":
+		var saved_label: Label = Label.new()
+		saved_label.text = "saved %s" % saved_at
+		saved_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		saved_label.add_theme_font_size_override("font_size", 10)
+		col.add_child(saved_label)
+
+	return btn
+
+
+func _format_ingame(info: Dictionary) -> String:
+	var abs_day: int = GameClock.absolute_day_of(
+		int(info.get("year", 0)),
+		int(info.get("month", 1)),
+		int(info.get("day", 1))
+	)
+	return GameClock.format_absolute(abs_day)
 
 
 func _on_quit() -> void:
