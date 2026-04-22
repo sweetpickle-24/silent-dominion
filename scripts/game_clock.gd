@@ -82,7 +82,7 @@ func absolute_day() -> int:
 	return absolute_day_of(year, month, day)
 
 
-static func absolute_day_of(p_year: int, p_month: int, p_day: int) -> int:
+func absolute_day_of(p_year: int, p_month: int, p_day: int) -> int:
 	var m: int = clampi(p_month, 1, MONTHS_PER_YEAR)
 	var d: int = clampi(p_day, 1, DAYS_PER_MONTH)
 	return p_year * DAYS_PER_YEAR + (m - 1) * DAYS_PER_MONTH + (d - 1)
@@ -90,7 +90,7 @@ static func absolute_day_of(p_year: int, p_month: int, p_day: int) -> int:
 
 ## Convert an absolute-day index back into (year, month, day). Returns a
 ## Dictionary { "year", "month", "day" }.
-static func date_from_absolute(abs_day: int) -> Dictionary:
+func date_from_absolute(abs_day: int) -> Dictionary:
 	var y: int = int(floor(float(abs_day) / float(DAYS_PER_YEAR)))
 	var remainder: int = abs_day - y * DAYS_PER_YEAR
 	var m: int = int(floor(float(remainder) / float(DAYS_PER_MONTH))) + 1
@@ -98,7 +98,7 @@ static func date_from_absolute(abs_day: int) -> Dictionary:
 	return { "year": y, "month": m, "day": d }
 
 
-static func format_absolute(abs_day: int) -> String:
+func format_absolute(abs_day: int) -> String:
 	var dt: Dictionary = date_from_absolute(abs_day)
 	var bce_year: int = -int(dt["year"])
 	var idx: int = clampi(int(dt["month"]), 1, MONTHS_PER_YEAR) - 1

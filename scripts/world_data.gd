@@ -132,10 +132,10 @@ func print_debug_dump() -> void:
 	print("Provinces (%d):" % provinces.size())
 	print("---------------------------------------------------")
 	for p in provinces.values():
-		var owner: String = p.owning_kingdom if not p.owning_kingdom.is_empty() else "unclaimed"
+		var owner_name: String = p.owning_kingdom if not p.owning_kingdom.is_empty() else "unclaimed"
 		print("  %s  [%s]  — %s, %s — pop %dk — owner: %s"
 			% [p.province_name, p.id, p.terrain_name(), p.climate_name(),
-				p.population, owner])
+				p.population, owner_name])
 		print("      grain %.1f | silver %.1f | iron %.1f | timber %.1f"
 			% [p.grain_production, p.silver_production,
 				p.iron_production, p.timber_production])

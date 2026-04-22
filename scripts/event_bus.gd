@@ -1,6 +1,12 @@
 extends Node
 ## Global signal hub. Autoloaded as `EventBus`.
 ##
+## Signals declared here are fired by other systems via
+## `EventBus.signal_name.emit(...)`. The parser doesn't trace those
+## cross-script emissions, so it flags every signal as "unused". The
+## class-wide ignore below silences that false positive.
+@warning_ignore_start("unused_signal")
+##
 ## Systems that want to broadcast or listen to cross-cutting events do it
 ## here instead of holding direct references to each other. This keeps the
 ## simulation, UI, and persistence layers decoupled.

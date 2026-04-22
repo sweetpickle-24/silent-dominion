@@ -170,7 +170,7 @@ func _adjust_tax_level(k: Kingdom) -> void:
 	if target == old:
 		return
 
-	k.tax_level = target
+	k.tax_level = target as Kingdom.TaxLevel
 	_emit_tax_change(k, old, target)
 
 
@@ -357,8 +357,8 @@ func restore(arr: Array) -> void:
 			continue
 		k.treasury_silver    = float(d.get("treasury_silver", k.treasury_silver))
 		k.treasury_gold      = float(d.get("treasury_gold", k.treasury_gold))
-		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition)))
-		k.tax_level          = int(d.get("tax_level", int(k.tax_level)))
+		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition))) as Kingdom.TreasuryCondition
+		k.tax_level          = int(d.get("tax_level", int(k.tax_level))) as Kingdom.TaxLevel
 		_burden_streak[id]   = int(d.get("burden_streak", 0))
 		var hist: Array = []
 		for v in d.get("history", []):

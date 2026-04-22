@@ -98,7 +98,7 @@ func _compose_body(host: Actor) -> String:
 	return "\n".join(lines)
 
 
-func _opening_line(host: Actor) -> String:
+func _opening_line(_host: Actor) -> String:
 	var openings: Array[String] = [
 		"I write without cause, which is itself a luxury.",
 		"No news of consequence this week, which is its own kind of news.",
@@ -121,7 +121,7 @@ func _tax_line(k: Kingdom) -> String:
 			return ""
 
 
-func _war_line(k: Kingdom, at_war: Array[String]) -> String:
+func _war_line(_k: Kingdom, at_war: Array[String]) -> String:
 	var enemy_names: Array[String] = []
 	for id in at_war:
 		var e: Kingdom = WorldData.get_kingdom(id)
