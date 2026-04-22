@@ -16,6 +16,7 @@ var letters: Array[Letter] = []
 
 func _ready() -> void:
 	_seed_placeholder_letters()
+	EventBus.letter_delivered.connect(add_letter)
 
 
 # --- Public API ---------------------------------------------------------------
