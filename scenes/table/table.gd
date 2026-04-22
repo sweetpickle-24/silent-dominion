@@ -15,6 +15,7 @@ const ComposeViewScript: Script         = preload("res://scripts/compose_view.gd
 const ExposureIndicatorScript: Script   = preload("res://scripts/exposure_indicator.gd")
 const LedgerViewScript: Script          = preload("res://scripts/ledger_view.gd")
 const PublicNewsViewScript: Script      = preload("res://scripts/public_news_view.gd")
+const MapViewScript: Script             = preload("res://scripts/map_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -263,7 +264,24 @@ func _play_open_animation(obj: Control) -> void:
 # --- Per-object actions -------------------------------------------------------
 
 func _on_map_clicked() -> void:
-	open_panel("The Map", _map_placeholder_text())
+	_open_map_view()
+
+
+func _open_map_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(MapViewScript)
+	view.name = "MapView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_map_view_closed)
+
+
+func _on_map_view_closed() -> void:
+	_overlay_active = false
 
 
 func _on_codebook_clicked() -> void:
