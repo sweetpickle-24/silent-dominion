@@ -25,6 +25,7 @@ Actors="*res://scripts/actor_registry.gd"
 Inbox="*res://scripts/inbox_manager.gd"
 Actions="*res://scripts/action_runner.gd"
 Exposure="*res://scripts/exposure_manager.gd"
+KingdomEconomy="*res://scripts/kingdom_economy.gd"
 SaveManager="*res://scripts/save_manager.gd"
 
 [display]
