@@ -9,6 +9,7 @@ extends Control
 ## show placeholder panels.
 
 const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
+const PendingTrayScript: Script    = preload("res://scripts/pending_tray.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -75,6 +76,30 @@ func _ready() -> void:
 	_refresh_inbox_visual()
 
 	_wire_time_dial()
+	_install_pending_tray()
+
+
+# --- Pending actions tray ----------------------------------------------------
+#
+# Built in code so the tscn stays focused on the static table objects.
+# Anchored top-right, sitting directly beneath the TimeDial so the time
+# controls and the "awaiting reply" stack read as one chronology corner.
+
+func _install_pending_tray() -> void:
+	var tray: Control = Control.new()
+	tray.set_script(PendingTrayScript)
+	tray.name = "PendingTray"
+	tray.anchor_left = 1.0
+	tray.anchor_right = 1.0
+	tray.anchor_top = 0.0
+	tray.anchor_bottom = 0.0
+	tray.offset_left = -380.0
+	tray.offset_right = -20.0
+	tray.offset_top = 96.0           # just below TimeDial (which ends at y=84)
+	tray.offset_bottom = 180.0
+	tray.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	tray.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(tray)
 
 
 func _unhandled_input(event: InputEvent) -> void:
