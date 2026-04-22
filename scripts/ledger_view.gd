@@ -180,6 +180,8 @@ func _render_list() -> void:
 	))
 	_body_vbox.add_child(_make_divider())
 
+	_build_owned_entities_panel()
+
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size.y = 440.0
@@ -199,6 +201,35 @@ func _render_list() -> void:
 		roster.add_child(_build_kingdom_row(k))
 
 	_body_vbox.add_child(_make_close_button("Set aside", func() -> void: close()))
+
+
+func _build_owned_entities_panel() -> void:
+	var active: Array[OwnedEntity] = Entities.active_entities()
+	if active.is_empty():
+		return
+	_body_vbox.add_child(_make_section_heading("OUR HOUSES AND WORKS"))
+	for e in active:
+		_body_vbox.add_child(_make_body_line("•  %s — %s in %s · %d silver/month · %s" % [
+			e.display_name,
+			e.kind_label().to_lower(),
+			_kingdom_name(e.home_kingdom),
+			_effective_monthly_yield(e),
+			e.corruption_phrase(),
+		]))
+	_body_vbox.add_child(_make_divider())
+
+
+func _effective_monthly_yield(e: OwnedEntity) -> int:
+	if e.compromised or e.corruption >= OwnedEntity.CORRUPTION_LOSS_THRESHOLD:
+		return 0
+	if e.corruption >= OwnedEntity.CORRUPTION_LEAK_THRESHOLD:
+		return int(round(e.monthly_yield_silver * 0.85))
+	return e.monthly_yield_silver
+
+
+func _kingdom_name(kid: String) -> String:
+	var k: Kingdom = WorldData.get_kingdom(kid)
+	return k.kingdom_name if k != null else kid
 
 
 func _build_kingdom_row(k: Kingdom) -> Control:
