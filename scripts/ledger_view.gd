@@ -351,6 +351,16 @@ func _render_detail(kingdom_id: String) -> void:
 	if war_cost > 0.0:
 		_body_vbox.add_child(_make_body_line(_war_burden_phrase(war_cost, expend)))
 
+	var army: Army = Armies.get_army(k.id)
+	if army != null:
+		_body_vbox.add_child(_make_divider())
+		_body_vbox.add_child(_make_section_heading("THE ARMY UNDER THE STANDARD"))
+		_body_vbox.add_child(_make_body_line(army.size_phrase().capitalize() + "."))
+		_body_vbox.add_child(_make_body_line("Quality: %s." % army.quality_phrase()))
+		_body_vbox.add_child(_make_body_line("Spirit: %s." % army.morale_phrase()))
+		_body_vbox.add_child(_make_body_line("Supply: %s." % army.supply_phrase()))
+		_body_vbox.add_child(_make_body_line("Loyalty: %s." % army.loyalty_phrase()))
+
 	_body_vbox.add_child(_make_close_button("Set aside", func() -> void: close()))
 
 

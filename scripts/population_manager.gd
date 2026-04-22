@@ -30,9 +30,10 @@ const FAMINE_LOSS: float    = 0.004
 const WAR_LOSS: float       = 0.001
 
 ## Provinces have to be at least this large before we bother announcing
-## a boom/collapse publicly. A village of five thousand halving is not
-## news the scroll should carry.
-const ANNOUNCE_MIN_POP: int = 40_000
+## a boom/collapse publicly. Populations are stored in thousands, so
+## this is 150k souls. A village of five thousand halving is not news
+## the scroll should carry.
+const ANNOUNCE_MIN_POP: int = 150
 
 const COLLAPSE_RATIO: float = 0.75
 const BOOM_RATIO: float     = 1.25
@@ -161,14 +162,16 @@ func _tick_province(p: Province) -> void:
 	# Tiny per-province noise so the numbers don't drift in lockstep.
 	rate += _rng.randf_range(-0.0005, 0.0005)
 
-	var delta: int = int(round(float(p.population) * rate))
+	# Populations here are expressed in thousands (Athens = 220). Let
+	# the fractional drift accumulate into whole integer steps instead
+	# of forcing a ±1 jerk every tick — on the scale of a continent that
+	# would boil the numbers in a year.
+	var raw: float = float(p.population) * rate
+	var fraction: float = float(p.get_meta("pop_residual", 0.0)) + raw
+	var delta: int = int(round(fraction))
+	p.set_meta("pop_residual", fraction - float(delta))
 	if delta == 0:
-		if rate > 0.0002 and p.population < 100_000:
-			delta = 1
-		elif rate < -0.0002 and p.population > 5_000:
-			delta = -1
-		else:
-			return
+		return
 
 	var new_pop: int = maxi(0, p.population + delta)
 	if new_pop == p.population:

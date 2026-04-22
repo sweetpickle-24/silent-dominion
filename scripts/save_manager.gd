@@ -161,6 +161,7 @@ func _collect_state() -> Dictionary:
 		"purse":     Purse.snapshot(),
 		"unrest":    Unrest.snapshot(),
 		"population": Population.snapshot(),
+		"armies":    Armies.snapshot(),
 		"events":    RandomEvents.snapshot(),
 		"whispers":  Whispers.snapshot(),
 		"org":       Org.snapshot(),
@@ -197,6 +198,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Unrest.restore(blob["unrest"])
 	if blob.has("population"):
 		Population.restore(blob["population"])
+	if blob.has("armies"):
+		Armies.restore(blob["armies"])
 	if blob.has("events"):
 		RandomEvents.restore(blob["events"])
 	if blob.has("whispers"):
