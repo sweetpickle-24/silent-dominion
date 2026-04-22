@@ -248,6 +248,10 @@ func _build_kingdom_row(k: Kingdom) -> Control:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left_vbox.add_child(blurb)
 
+	var strip: Control = _build_trajectory_strip(k.id, 6, 10, false)
+	if strip != null:
+		left_vbox.add_child(strip)
+
 	var tag: Label = Label.new()
 	tag.text = String(CONDITION_TAGS[k.treasury_condition])
 	tag.add_theme_color_override("font_color", CONDITION_COLORS[k.treasury_condition])
@@ -307,6 +311,15 @@ func _render_detail(kingdom_id: String) -> void:
 	sub_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tag_row.add_child(sub_l)
+
+	_body_vbox.add_child(_make_divider())
+	_body_vbox.add_child(_make_section_heading("THE LAST MONTHS"))
+
+	var strip: Control = _build_trajectory_strip(k.id, 12, 16, true)
+	if strip != null:
+		_body_vbox.add_child(strip)
+
+	_body_vbox.add_child(_make_body_line(KingdomEconomy.trajectory_phrase(k.id)))
 
 	_body_vbox.add_child(_make_divider())
 	_body_vbox.add_child(_make_section_heading("WHERE THE SILVER FLOWS FROM"))
@@ -448,3 +461,69 @@ func _make_close_button(label: String, on_press: Callable) -> Button:
 	b.add_theme_font_size_override("font_size", 13)
 	b.pressed.connect(on_press)
 	return b
+
+
+# --- Trajectory strip --------------------------------------------------------
+#
+# Renders up to `slots` horizontal blocks, one per recorded month of the
+# kingdom's treasury condition history. Oldest month on the left, current
+# on the right. Empty tail slots are rendered in a muted parchment band
+# so the widget's width stays visually consistent across kingdoms.
+
+func _build_trajectory_strip(
+	kingdom_id: String,
+	slots: int,
+	block_h: int,
+	show_caption: bool,
+) -> Control:
+	var wrap: VBoxContainer = VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 2)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	if show_caption:
+		var caption: Label = Label.new()
+		caption.text = "← older   |   newer →"
+		caption.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		caption.add_theme_font_size_override("font_size", 10)
+		wrap.add_child(caption)
+
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(row)
+
+	var history: Array = KingdomEconomy.history_for(kingdom_id)
+	# Right-align: if history has fewer entries than slots, pad empty
+	# blocks on the left so the newest always sits flush on the right.
+	var empty_head: int = maxi(0, slots - history.size())
+	var taken: Array = history
+	if history.size() > slots:
+		taken = history.slice(history.size() - slots)
+
+	for i in range(empty_head):
+		row.add_child(_make_trajectory_block(-1, block_h))
+	for cond in taken:
+		row.add_child(_make_trajectory_block(int(cond), block_h))
+
+	return wrap
+
+
+func _make_trajectory_block(condition: int, block_h: int) -> Control:
+	var panel: Panel = Panel.new()
+	panel.custom_minimum_size = Vector2(14, block_h)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	if condition < 0:
+		sb.bg_color = Color(COLOR_PARCHMENT_EDGE.r, COLOR_PARCHMENT_EDGE.g, COLOR_PARCHMENT_EDGE.b, 0.18)
+	else:
+		var c: Color = CONDITION_COLORS[condition]
+		c.a = 0.85
+		sb.bg_color = c
+	sb.corner_radius_top_left = 2
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 2
+	panel.add_theme_stylebox_override("panel", sb)
+	if condition >= 0:
+		panel.tooltip_text = String(CONDITION_TAGS[condition])
+	return panel

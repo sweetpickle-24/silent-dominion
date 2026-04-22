@@ -58,6 +58,13 @@ const MAX_RUINOUS_MONTHS:  int = 4
 
 var _burden_streak: Dictionary = {}  # kingdom_id -> months at BURDENED+
 
+## Per-kingdom rolling history of the treasury condition, one slot per
+## tick. Oldest entries drop off. Used by the Ledger to render a small
+## trajectory strip so the player can read "bleeding / holding / building"
+## at a glance instead of only seeing today's grade.
+const HISTORY_CAPACITY: int = 12
+var _history: Dictionary = {}  # kingdom_id -> Array[int]
+
 
 func _ready() -> void:
 	GameClock.month_passed.connect(_on_month_passed)
@@ -82,6 +89,7 @@ func _tick_kingdom(k: Kingdom) -> Dictionary:
 	k.treasury_silver += net
 	k.treasury_condition = _condition_for(k.treasury_silver, expenditure, net)
 	_adjust_tax_level(k)
+	_record_history(k)
 
 	return {
 		"id":          k.id,
@@ -214,6 +222,52 @@ func preview(k: Kingdom) -> Dictionary:
 	}
 
 
+## The last HISTORY_CAPACITY treasury conditions for this kingdom, oldest
+## first. The most recent entry is the current grade. If the simulation
+## has not ticked yet, the array only contains the seeded condition so
+## callers can still draw a one-slot strip.
+func history_for(kingdom_id: String) -> Array:
+	var arr: Array = _history.get(kingdom_id, [])
+	if arr.is_empty():
+		var k: Kingdom = WorldData.get_kingdom(kingdom_id)
+		if k != null:
+			return [int(k.treasury_condition)]
+	return arr.duplicate()
+
+
+## Returns one of the following phrases describing the kingdom's
+## trajectory over the last few months. Used by the Ledger detail view.
+##   "bleeding"    — conditions have worsened on net
+##   "holding"     — roughly flat
+##   "building"    — conditions have improved on net
+func trajectory_phrase(kingdom_id: String) -> String:
+	var arr: Array = history_for(kingdom_id)
+	if arr.size() < 2:
+		return "Too soon to say which way the wind sits."
+	var first: int = int(arr[0])
+	var last: int = int(arr[arr.size() - 1])
+	# Treasury conditions are ordered FLUSH(0) -> BROKE(4). Higher number
+	# means worse — so a positive delta means the kingdom is declining.
+	var delta: int = last - first
+	if delta >= 2:
+		return "The trend is plain: the crown has been bleeding."
+	if delta == 1:
+		return "The crown has slipped a step this season. Not a rout, but a drift."
+	if delta == 0:
+		return "The year holds its shape. Neither ruin nor windfall."
+	if delta == -1:
+		return "A small recovery — the ground is firmer than it was."
+	return "The crown has climbed out of the hole. Whoever advised them knew what they were doing."
+
+
+func _record_history(k: Kingdom) -> void:
+	var arr: Array = _history.get(k.id, [])
+	arr.append(int(k.treasury_condition))
+	while arr.size() > HISTORY_CAPACITY:
+		arr.pop_front()
+	_history[k.id] = arr
+
+
 # --- Save/load hooks ---------------------------------------------------------
 
 ## Collect per-kingdom treasury state. Static data (name, provinces) is
@@ -229,12 +283,14 @@ func snapshot() -> Array:
 			"treasury_condition": int(k.treasury_condition),
 			"tax_level":          int(k.tax_level),
 			"burden_streak":      int(_burden_streak.get(k.id, 0)),
+			"history":            _history.get(k.id, []).duplicate(),
 		})
 	return out
 
 
 func restore(arr: Array) -> void:
 	_burden_streak.clear()
+	_history.clear()
 	for d in arr:
 		if typeof(d) != TYPE_DICTIONARY:
 			continue
@@ -247,3 +303,7 @@ func restore(arr: Array) -> void:
 		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition)))
 		k.tax_level          = int(d.get("tax_level", int(k.tax_level)))
 		_burden_streak[id]   = int(d.get("burden_streak", 0))
+		var hist: Array = []
+		for v in d.get("history", []):
+			hist.append(int(v))
+		_history[id] = hist
