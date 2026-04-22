@@ -54,6 +54,19 @@
       "report_sender": "A trader at the harbour"
     },
     {
+      "id": "quiet_plot",
+      "display_name": "Quiet a plot",
+      "blurb": "Use your shadow network to identify whoever is sharpening a blade for the throne, and buy, flatter, or frighten them back into line. Silver burns fast; traces stay faint.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 90,
+      "exposure_cost": 4,
+      "min_days_to_resolve": 10,
+      "max_days_to_resolve": 30,
+      "base_success_chance": 0.6,
+      "report_sender": "Your go-between"
+    },
+    {
       "id": "bribe",
       "display_name": "Bribe",
       "blurb": "Offer silver in return for a concrete act. Outcome depends on the target's greed and loyalty.",

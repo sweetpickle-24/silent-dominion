@@ -130,7 +130,11 @@ func _resolve(descriptor: Dictionary) -> void:
 	# that. The returned delta is echoed to the log for debugging.
 	var rel_delta: int = _apply_relationship_effects(def, target_id, success)
 
-	var report: Letter = _build_report(def, target_id, success)
+	# Side-effects that should be resolved BEFORE the report is written,
+	# so the report text can name whoever was quieted.
+	var extras: Dictionary = _apply_special_effects(def, target_id, success)
+
+	var report: Letter = _build_report(def, target_id, success, extras)
 	EventBus.letter_delivered.emit(report)
 
 	if success:
@@ -144,6 +148,27 @@ func _resolve(descriptor: Dictionary) -> void:
 		"summary":      report.subject,
 		"rel_delta":    rel_delta,
 	})
+
+
+## Side-effects that aren't pure "report flavour" — the player's act of
+## issuing this letter actually mutates the simulation. Returns a dict
+## of extras consumed by `_build_report` so the report can reference
+## whom (or what) was affected. Keep this limited to things that only
+## one specific action does; everything broad goes in
+## `_apply_relationship_effects` or `_maybe_publish_public_trace`.
+func _apply_special_effects(def: ActionDefinition, target_id: String, success: bool) -> Dictionary:
+	var out: Dictionary = {}
+	match def.id:
+		&"quiet_plot":
+			var plotter: Actor = WorldAI.top_plotter_in(target_id)
+			if plotter != null:
+				out["plotter_name"] = plotter.display_name()
+				out["plotter_id"]   = String(plotter.id)
+				if success:
+					WorldAI.cool_plotter(plotter.id)
+		_:
+			pass
+	return out
 
 
 ## A botched covert move leaves loose threads someone may follow. Nudge
@@ -309,7 +334,7 @@ func _apply_relationship_effects(def: ActionDefinition, target_id: String, succe
 
 # --- Report authoring --------------------------------------------------------
 
-func _build_report(def: ActionDefinition, target_id: String, success: bool) -> Letter:
+func _build_report(def: ActionDefinition, target_id: String, success: bool, extras: Dictionary = {}) -> Letter:
 	var target_name: String = _lookup_target_name(def.target_kind, target_id)
 	# GameClock stores years as negative (BCE arithmetic); GameDate stores
 	# them as positive (display). Flip here.
@@ -333,11 +358,13 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool) -> L
 		subject = "From your host at court"
 	elif def.id == &"host_agitate":
 		subject = "The streets are hot"
+	elif def.id == &"quiet_plot":
+		subject = "On the matter in %s" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
 	var linked_name: String = _linked_target(def.target_kind, target_id, target_name)
-	var body: String = _body_for(def, linked_name, success)
+	var body: String = _body_for(def, linked_name, success, extras)
 
 	return Letter.create(letter_id, def.report_sender, date, subject, body, &"action")
 
@@ -351,7 +378,7 @@ func _linked_target(kind: ActionDefinition.TargetKind, id: String, display: Stri
 	return display
 
 
-func _body_for(def: ActionDefinition, target: String, success: bool) -> String:
+func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dictionary = {}) -> String:
 	var outcome_lines: String = (
 		"The matter proceeded as you willed."
 		if success else
@@ -393,6 +420,20 @@ func _body_for(def: ActionDefinition, target: String, success: bool) -> String:
 			if success:
 				return "The markets were crying by the third night. A trader beaten, a loaf overturned, and then the right word passed through the right mouth. By the week's end the city was in the street. What the crown does next is their problem, not ours.\n\nYours in the work,\n%s" % target
 			return "I could not get the spark to take. The city is tired but not yet angry. I lost two contacts to the watch. I am well; do not send the usual signal until I send mine first.\n\n— %s" % target
+
+		&"quiet_plot":
+			var p_name: String = String(extras.get("plotter_name", ""))
+			var p_id:   String = String(extras.get("plotter_id", ""))
+			var linked_plotter: String = p_name
+			if p_id != "" and p_name != "":
+				linked_plotter = "[url=actor:%s][color=#702020][b]%s[/b][/color][/url]" % [p_id, p_name]
+			if p_name.is_empty():
+				if success:
+					return "I sent word through the quiet mouths in %s. If a knife was being sharpened for the throne there, it has gone back into its sheath — or else it was never as near the hand as we feared. The court is calm for now." % target
+				return "I could find no plot in %s to quiet. Either none was ripe, or it was hidden deeper than our coin reaches. The silver is spent either way; such work rarely leaves receipts." % target
+			if success:
+				return "The name was %s.\n\nI put silver in the right palms, a promise or two in the right ears, and the ambition was talked back to its cage. They will not move on the crown this season, perhaps not this year. Watch them — a plot laid down is not the same as a plot abandoned." % linked_plotter
+			return "I believe the hand at the hilt was %s. I could not buy them, flatter them, or frighten them into standing down. The blade is still being sharpened. Another instrument will be needed — and soon." % linked_plotter
 
 		_:
 			return "%s %s" % [outcome_lines, target]

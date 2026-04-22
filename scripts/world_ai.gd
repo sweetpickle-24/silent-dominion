@@ -412,3 +412,40 @@ func _actor_link(a: Actor) -> String:
 func _kingdom_name(id: String) -> String:
 	var k: Kingdom = WorldData.get_kingdom(id)
 	return k.kingdom_name if k != null else id
+
+
+# --- Public plot API ---------------------------------------------------------
+
+## Return the plotter in `kingdom_id` with the highest current
+## (ambition - loyalty) whose role is among COUP_ROLES. Used by the
+## "quiet_plot" action to figure out whom to talk down. Returns null if
+## no qualified plotter exists.
+func top_plotter_in(kingdom_id: String) -> Actor:
+	var best: Actor = null
+	var best_score: int = -9999
+	for a in Actors.actors_in_kingdom(kingdom_id):
+		if not a.is_alive():
+			continue
+		if not (a.role in COUP_ROLES):
+			continue
+		if a.ambition < COUP_AMBITION_FLOOR or a.loyalty > COUP_LOYALTY_CEILING:
+			continue
+		var score: int = a.ambition - a.loyalty
+		if score > best_score:
+			best_score = score
+			best = a
+	return best
+
+
+## Cool a specific plotter off. Pulls ambition down and loyalty up just
+## far enough to put them outside the COUP_ROLES bracket, so the monthly
+## coup roll will skip them until traits drift back. Also clears any
+## active warning cooldown, so if they do drift back a fresh warning
+## will fire instead of being suppressed.
+func cool_plotter(actor_id: StringName) -> void:
+	var a: Actor = Actors.get_actor(actor_id)
+	if a == null:
+		return
+	a.ambition = clampi(a.ambition - 15, 0, 100)
+	a.loyalty  = clampi(a.loyalty + 15, 0, 100)
+	_plot_warning_last_day.erase(a.id)
