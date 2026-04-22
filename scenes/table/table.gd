@@ -897,7 +897,7 @@ var _unread_dots: Dictionary = {}  # StringName -> Panel
 func _install_object_unread_dots() -> void:
 	_unread_dots[Notifications.KEY_LEDGER]   = _make_unread_dot(_ledger)
 	_unread_dots[Notifications.KEY_DOSSIERS] = _make_unread_dot(_dossiers)
-	_unread_dots[Notifications.KEY_MAP]      = _make_unread_dot(_map)
+	_unread_dots[Notifications.KEY_MAP]      = _make_unread_dot(_map_scroll)
 
 	Notifications.changed.connect(_refresh_object_unread_dots)
 	_refresh_object_unread_dots()
