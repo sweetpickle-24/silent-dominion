@@ -180,12 +180,18 @@ func _kill_actor(a: Actor) -> void:
 			_kingdom_name(a.kingdom_id), _actor_link(a), title,
 		],
 	})
+	if a.role == Actor.Role.RULER:
+		_handle_succession(a)
 
 
 func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 	var success: bool = _rng.randf() < 0.35
 	if success:
 		ruler.death_year = GameClock.year
+		# Self-inflicted succession: the heir takes the throne directly,
+		# bypassing the regency/ambition lottery. Promote in place before
+		# the dispatch so the roster read in the scroll is already true.
+		heir.role = Actor.Role.RULER
 		_publish({
 			"kind":       &"assassination",
 			"kingdom_id": ruler.kingdom_id,
@@ -205,6 +211,66 @@ func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 				_kingdom_name(ruler.kingdom_id), _actor_link(ruler), _actor_link(heir),
 			],
 		})
+
+
+## A ruler has died. Find the most plausible successor already on the
+## roster and promote them; if nothing fits, leave the seat empty and
+## mark it as a regency in the public dispatch.
+func _handle_succession(dead_ruler: Actor) -> void:
+	var kid: String = dead_ruler.kingdom_id
+	var k: Kingdom = WorldData.get_kingdom(kid)
+	if k == null:
+		return
+
+	# Preferred pool: living, non-ruler actors in the same kingdom.
+	# HEIR beats ADVISOR beats GENERAL beats anyone else. Within a
+	# tier, pick the most ambitious — the one who wanted it most.
+	var pools: Array = [
+		[Actor.Role.HEIR],
+		[Actor.Role.ADVISOR, Actor.Role.GENERAL],
+		[Actor.Role.PRIEST, Actor.Role.MERCHANT, Actor.Role.PHILOSOPHER, Actor.Role.COMMONER],
+	]
+	var successor: Actor = null
+	for pool in pools:
+		successor = _pick_successor(kid, pool)
+		if successor != null:
+			break
+
+	if successor == null:
+		_publish({
+			"kind":       &"regency",
+			"kingdom_id": kid,
+			"actors":     [String(dead_ruler.id)],
+			"headline":   "A regency is declared in %s" % k.kingdom_name,
+			"body":       "No heir was named or survives. The council of %s governs in its own name while the crown remains empty. This will hold until it does not." % k.kingdom_name,
+		})
+		return
+
+	var prior_role: String = TraitCues.role_title(successor.role).to_lower()
+	successor.role = Actor.Role.RULER
+	_publish({
+		"kind":       &"succession",
+		"kingdom_id": kid,
+		"actors":     [String(dead_ruler.id), String(successor.id)],
+		"headline":   "%s takes the seat in %s" % [successor.given_name, k.kingdom_name],
+		"body":       "With the death of %s, the %s %s has been raised to the throne of %s. The oaths are not yet dry. Every nearby court is composing the first letter of the new era." % [
+			_actor_link(dead_ruler), prior_role, _actor_link(successor), k.kingdom_name,
+		],
+	})
+
+
+func _pick_successor(kingdom_id: String, roles: Array) -> Actor:
+	var best: Actor = null
+	for a in Actors.actors_in_kingdom(kingdom_id):
+		if not a.is_alive():
+			continue
+		if a.role == Actor.Role.RULER:
+			continue
+		if not (a.role in roles):
+			continue
+		if best == null or a.ambition > best.ambition:
+			best = a
+	return best
 
 
 func _emit_war_declaration(a_id: String, b_id: String) -> void:
