@@ -56,7 +56,7 @@ func _on_public_event(event: Dictionary) -> void:
 	match event.get("kind", &"misc"):
 		&"death", &"assassination", &"succession", &"host_won", &"assassination_attempt", &"plot_brewing", &"host_turned":
 			_bump(KEY_DOSSIERS, 1)
-		&"war_declaration", &"peace_declaration", &"tax_change", &"unrest", &"plague", &"famine", &"earthquake", &"recovery":
+		&"war_declaration", &"peace_declaration", &"tax_change", &"unrest", &"plague", &"famine", &"earthquake", &"recovery", &"fiscal_crisis", &"fiscal_recovery":
 			_bump(KEY_MAP, 1)
 
 

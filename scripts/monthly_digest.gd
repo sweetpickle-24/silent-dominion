@@ -64,6 +64,7 @@ func _on_public_event(event: Dictionary) -> void:
 		&"succession":            _successions += 1
 		&"ruler_decree":          _decrees += 1
 		&"treasury_crisis":       _treasury_crises += 1
+		&"fiscal_crisis":         _treasury_crises += 1
 		&"war_declaration":       _wars += 1
 		&"peace_declaration":     _peaces += 1
 		&"tax_change":            _tax_shifts += 1

@@ -105,8 +105,10 @@ func _tick_kingdom(k: Kingdom) -> Dictionary:
 	var expenditure: float = _monthly_expenditure(k) + war_cost
 	var net: float         = income - expenditure
 
+	var before_condition: int = int(k.treasury_condition)
 	k.treasury_silver += net
 	k.treasury_condition = _condition_for(k.treasury_silver, expenditure, net)
+	_maybe_emit_treasury_transition(k, before_condition, int(k.treasury_condition))
 	_adjust_tax_level(k)
 	_record_history(k)
 
@@ -296,6 +298,59 @@ func _emit_tax_change(k: Kingdom, from_level: int, to_level: int) -> void:
 		"kingdom_id": k.id,
 		"headline":   headline,
 		"body":       body,
+	})
+
+
+## Emit a public dispatch when the treasury condition crosses a line
+## the player ought to see from the scroll. Specifically: slipping
+## into STRAINED or worse is announced, and climbing back out of
+## INDEBTED/BROKE is announced as recovery. Small drifts between
+## neighbouring good bands (FLUSH <-> STABLE) stay quiet — the
+## player can open the Ledger for the detail.
+func _maybe_emit_treasury_transition(k: Kingdom, before: int, after: int) -> void:
+	if before == after:
+		return
+	var getting_worse: bool = after > before
+	var into_crisis: bool = after >= int(Kingdom.TreasuryCondition.STRAINED)
+	var out_of_crisis: bool = (
+		before >= int(Kingdom.TreasuryCondition.INDEBTED)
+		and after <= int(Kingdom.TreasuryCondition.STRAINED)
+	)
+	if getting_worse and into_crisis:
+		_emit_treasury_decline(k, before, after)
+	elif not getting_worse and out_of_crisis:
+		_emit_treasury_recovery(k, before, after)
+
+
+func _emit_treasury_decline(k: Kingdom, _before: int, after: int) -> void:
+	var headline: String
+	var body: String
+	match after:
+		int(Kingdom.TreasuryCondition.STRAINED):
+			headline = "The books are tightening in %s" % k.kingdom_name
+			body = "The crown of %s has passed from sound footing to strained. The grain is still moving, the soldiers are still paid; but somewhere a ledger has been shown to someone, and the tone at court has changed." % k.kingdom_name
+		int(Kingdom.TreasuryCondition.INDEBTED):
+			headline = "%s runs on borrowed silver" % k.kingdom_name
+			body = "The crown of %s is no longer solvent on its own income. The bankers have been seen at the palace gate and they did not come for the hospitality. Expect the crown to reach somewhere — new taxes, a sold office, or a dangerous loan." % k.kingdom_name
+		int(Kingdom.TreasuryCondition.BROKE):
+			headline = "A crown out of coin: %s" % k.kingdom_name
+			body = "The treasury of %s is empty. Soldiers go unpaid past their date; the bread price at court has quietly risen; the envoys sent abroad this season will travel light. Someone, somewhere, is going to have to break." % k.kingdom_name
+		_:
+			return
+	EventBus.public_event.emit({
+		"kind":       &"fiscal_crisis",
+		"kingdom_id": k.id,
+		"headline":   headline,
+		"body":       body,
+	})
+
+
+func _emit_treasury_recovery(k: Kingdom, _before: int, _after: int) -> void:
+	EventBus.public_event.emit({
+		"kind":       &"fiscal_recovery",
+		"kingdom_id": k.id,
+		"headline":   "%s finds its footing" % k.kingdom_name,
+		"body":       "The books in %s are readable again. Soldiers paid on time, creditors quieter, the palace gates no longer watched by men in plain coats. Whatever was done — a tax, a loan, a province sold off — has bought the crown some air." % k.kingdom_name,
 	})
 
 
