@@ -133,11 +133,85 @@ func _resolve(descriptor: Dictionary) -> void:
 	var report: Letter = _build_report(def, target_id, success)
 	EventBus.letter_delivered.emit(report)
 
+	if success:
+		_maybe_publish_public_trace(def, target_id)
+
 	EventBus.action_resolved.emit(action_id, {
 		"success":      success,
 		"target_id":    target_id,
 		"summary":      report.subject,
 		"rel_delta":    rel_delta,
+	})
+
+
+## For successful actions that produce an observable consequence in the
+## world, drop a matching public dispatch. Phase 0 covers rumour, idea
+## plant, and host-agitation. Keeps the player's silent hand visible
+## through the scroll, never by name.
+func _maybe_publish_public_trace(def: ActionDefinition, target_id: String) -> void:
+	match def.id:
+		&"seed_rumour":
+			_publish_rumour_trace(target_id)
+		&"plant_idea":
+			_publish_idea_trace(target_id)
+		&"host_agitate":
+			_publish_agitate_trace(target_id)
+
+
+func _publish_rumour_trace(target_id: String) -> void:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+	if a == null:
+		return
+	var k: Kingdom = WorldData.get_kingdom(a.kingdom_id)
+	var kname: String = k.kingdom_name if k != null else a.kingdom_id
+	var whispers: Array[String] = [
+		"keeps bad company",
+		"has debts they cannot name",
+		"lies badly about where they spent the last festival",
+		"is spoken of unkindly at another court",
+		"is not the friend of the crown they claim to be",
+	]
+	var line: String = whispers[_rng.randi_range(0, whispers.size() - 1)]
+	EventBus.public_event.emit({
+		"kind":       &"rumour",
+		"kingdom_id": a.kingdom_id,
+		"actors":     [String(a.id)],
+		"headline":   "A rumour fixes on %s" % a.given_name,
+		"body":       "In %s the talk turns, quietly but persistently, to [url=actor:%s][b]%s[/b][/url] — who, it is said, %s. No one can name the first mouth it passed through. No one needs to." % [
+			kname, String(a.id), a.display_name(), line,
+		],
+	})
+
+
+func _publish_idea_trace(target_id: String) -> void:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+	if a == null:
+		return
+	var k: Kingdom = WorldData.get_kingdom(a.kingdom_id)
+	var kname: String = k.kingdom_name if k != null else a.kingdom_id
+	EventBus.public_event.emit({
+		"kind":       &"idea_planted",
+		"kingdom_id": a.kingdom_id,
+		"actors":     [String(a.id)],
+		"headline":   "%s speaks in a new key" % a.given_name,
+		"body":       "Those close to [url=actor:%s][b]%s[/b][/url] in %s say they have taken up an argument they were not making a month ago. They speak it as their own. Perhaps it is." % [
+			String(a.id), a.display_name(), kname,
+		],
+	})
+
+
+func _publish_agitate_trace(host_id: String) -> void:
+	var host: Actor = Actors.get_actor(StringName(host_id))
+	if host == null:
+		return
+	var k: Kingdom = WorldData.get_kingdom(host.kingdom_id)
+	var kname: String = k.kingdom_name if k != null else host.kingdom_id
+	EventBus.public_event.emit({
+		"kind":       &"unrest",
+		"kingdom_id": host.kingdom_id,
+		"actors":     [String(host.id)],
+		"headline":   "The streets of %s turn" % kname,
+		"body":       "A night of broken stalls and raised voices in %s. The watch made some arrests. Most of those arrested were the wrong ones. The city has not yet cooled." % kname,
 	})
 
 

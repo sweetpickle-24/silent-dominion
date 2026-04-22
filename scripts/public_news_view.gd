@@ -35,6 +35,9 @@ const KIND_DOTS: Dictionary = {
 	&"host_won":              Color(0.18, 0.34, 0.22, 1.0),
 	&"tax_change":            Color(0.62, 0.45, 0.10, 1.0),
 	&"peace_declaration":     Color(0.18, 0.34, 0.22, 1.0),
+	&"rumour":                Color(0.44, 0.36, 0.70, 1.0),
+	&"idea_planted":          Color(0.44, 0.36, 0.70, 1.0),
+	&"unrest":                Color(0.72, 0.28, 0.12, 1.0),
 	&"misc":                  Color(0.22, 0.14, 0.06, 0.7),
 }
 
