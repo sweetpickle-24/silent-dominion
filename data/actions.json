@@ -302,6 +302,45 @@
       "max_days_to_resolve": 70,
       "base_success_chance": 0.6,
       "report_sender": "Your archivist"
+    },
+    {
+      "id": "sweep_for_rivals",
+      "display_name": "Sweep for strangers",
+      "blurb": "Put our own operatives to the quiet work of looking for theirs. Watch the wrong gates, trace the unusual payments, sit at the tables the locals do not sit at. Sooner or later a face that does not belong to this region will sit at the wrong table twice.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 80,
+      "exposure_cost": 3,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 45,
+      "base_success_chance": 0.65,
+      "report_sender": "Your counter-intelligence chief"
+    },
+    {
+      "id": "neutralize_rival_operative",
+      "display_name": "Neutralise a rival operative",
+      "blurb": "We have a name now. Take it off the board — burn them publicly, hand them to the crown, make sure the next one sent here knows what this city does to them. Loud, expensive, unambiguous.",
+      "tier": "HIGH",
+      "target_kind": "KINGDOM",
+      "silver_cost": 220,
+      "exposure_cost": 8,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 40,
+      "base_success_chance": 0.7,
+      "report_sender": "Your counter-intelligence chief"
+    },
+    {
+      "id": "turn_rival_operative",
+      "display_name": "Turn a rival operative",
+      "blurb": "Do not burn them. Own them. A rival's ear in our city is worth more than a rival's corpse in it. Every month their handler hears what we decide they should hear — and every month we hear, cleanly, what their side is asking about.",
+      "tier": "HIGH",
+      "target_kind": "KINGDOM",
+      "silver_cost": 260,
+      "exposure_cost": 4,
+      "min_days_to_resolve": 21,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.55,
+      "report_sender": "Your counter-intelligence chief"
     }
   ]
 }

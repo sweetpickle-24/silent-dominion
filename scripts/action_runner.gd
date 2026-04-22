@@ -686,6 +686,12 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_cross_reference_pattern(target_id, success, out)
 		&"match_fingerprint":
 			_apply_match_fingerprint(target_id, success, out)
+		&"sweep_for_rivals":
+			_apply_sweep_for_rivals(target_id, success, out)
+		&"neutralize_rival_operative":
+			_apply_neutralize_rival(target_id, success, out)
+		&"turn_rival_operative":
+			_apply_turn_rival(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -984,6 +990,120 @@ func _apply_match_fingerprint(target_id: String, success: bool, out: Dictionary)
 	out["confirmation"]  = Fingerprints.confirmation_for(sid)
 
 
+## §14.6 counter-intel sweep. Detects the highest-heat undetected
+## rival operative in the region. If nothing is placed, we return
+## &"all_clear" — which is itself useful information (the player
+## can stop spending on sweeps here).
+func _apply_sweep_for_rivals(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	if not success:
+		out["verdict"] = &"inconclusive"
+		return
+
+	if Rivals.undetected_operatives_in(target_id).is_empty():
+		if Rivals.operatives_in(target_id).is_empty():
+			out["verdict"] = &"all_clear"
+		else:
+			out["verdict"] = &"already_tracked"
+		return
+
+	var op: Dictionary = Rivals.detect_first_available(target_id)
+	if op.is_empty():
+		out["verdict"] = &"all_clear"
+		return
+	var sid: StringName = StringName(String(op.get("society_id", "")))
+	var soc: RivalSociety = Rivals.get_society(sid)
+	# A known society: name them. An unknown one: describe generically.
+	var known: bool = Fingerprints.confirmation_for(sid) >= 75
+	out["verdict"]           = &"operative_detected"
+	out["operative_id"]      = String(op.get("id", ""))
+	out["operative_name"]    = String(op.get("name", ""))
+	out["operative_cover"]   = String(op.get("cover_role", ""))
+	out["operative_society"] = soc.display_name if (soc != null and known) else "an unrecognised organisation"
+	# Fingerprint confirmation gets a small bump because a live
+	# operative is the richest possible evidence.
+	if not known:
+		Fingerprints.bump_confirmation(sid, 8)
+
+
+## §14.6 neutralisation. Burns one detected-and-live rival operative
+## and docks their society's foothold.
+func _apply_neutralize_rival(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	# Need at least one detected, live, non-turned operative.
+	var eligible: bool = false
+	for e in Rivals.detected_operatives_in(target_id):
+		if bool(e.get("turned", false)) or bool(e.get("neutralized", false)):
+			continue
+		eligible = true
+		break
+	if not eligible:
+		out["verdict"] = &"no_target"
+		return
+
+	if not success:
+		out["verdict"] = &"botched"
+		# A failed burn makes the air hot: the target society now
+		# knows someone is hunting them here.
+		Exposure.bump(6.0, "neutralise_failed")
+		return
+
+	var op: Dictionary = Rivals.neutralize_first_eligible(target_id)
+	if op.is_empty():
+		out["verdict"] = &"no_target"
+		return
+	var sid: StringName = StringName(String(op.get("society_id", "")))
+	var soc: RivalSociety = Rivals.get_society(sid)
+	out["verdict"]           = &"neutralised"
+	out["operative_name"]    = String(op.get("name", ""))
+	out["operative_cover"]   = String(op.get("cover_role", ""))
+	out["operative_society"] = soc.display_name if soc != null else "an unrecognised organisation"
+	Exposure.bump(3.0, "neutralise_success")
+
+
+## §14.6 turn. Flips one detected rival operative into a double. Fails
+## quietly on misses (the target never knows), loudly on botched
+## rolls (the target knows and tells their side we know).
+func _apply_turn_rival(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	var eligible: Dictionary = {}
+	for e in Rivals.detected_operatives_in(target_id):
+		if bool(e.get("turned", false)) or bool(e.get("neutralized", false)):
+			continue
+		eligible = e
+		break
+	if eligible.is_empty():
+		out["verdict"] = &"no_target"
+		return
+
+	if not success:
+		# Botched: they now know the approach was made and have taken
+		# that upward. Raise their heat so they may be burned by their
+		# own side in the monthly tick.
+		eligible["heat"] = mini(100, int(eligible.get("heat", 0)) + 30)
+		Exposure.bump(5.0, "turn_failed")
+		out["verdict"]           = &"botched"
+		out["operative_name"]    = String(eligible.get("name", ""))
+		return
+
+	var op: Dictionary = Rivals.turn_first_eligible(target_id)
+	if op.is_empty():
+		out["verdict"] = &"no_target"
+		return
+	var sid: StringName = StringName(String(op.get("society_id", "")))
+	var soc: RivalSociety = Rivals.get_society(sid)
+	out["verdict"]           = &"turned"
+	out["operative_name"]    = String(op.get("name", ""))
+	out["operative_cover"]   = String(op.get("cover_role", ""))
+	out["operative_society"] = soc.display_name if soc != null else "an unrecognised organisation"
+
+
 ## A botched move leaves loose threads. The *player's* exposure meter
 ## only pays the tail if there was no coverage — otherwise §14.2
 ## compartmentalisation kicks in and the heat sticks to the cell that
@@ -1269,6 +1389,28 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"no_match":               subject = "No match in the library for %s" % target_name
 			&"insufficient_evidence":  subject = "Not ready to match fingerprints on %s" % target_name
 			_:                         subject = "Library cross-check on %s" % target_name
+	elif def.id == &"sweep_for_rivals":
+		var sv: StringName = StringName(String(extras.get("verdict", "")))
+		match sv:
+			&"operative_detected":  subject = "A face that does not belong in %s" % target_name
+			&"all_clear":           subject = "%s is clean of foreign hands" % target_name
+			&"already_tracked":     subject = "No new strangers in %s" % target_name
+			&"inconclusive":        subject = "Sweep on %s returned nothing" % target_name
+			_:                      subject = "Counter-intelligence sweep in %s" % target_name
+	elif def.id == &"neutralize_rival_operative":
+		var nv: StringName = StringName(String(extras.get("verdict", "")))
+		match nv:
+			&"neutralised":  subject = "%s is off the board in %s" % [String(extras.get("operative_name", "The operative")), target_name]
+			&"botched":      subject = "A burn in %s went wrong" % target_name
+			&"no_target":    subject = "No operative to burn in %s" % target_name
+			_:               subject = "On a hostile operative in %s" % target_name
+	elif def.id == &"turn_rival_operative":
+		var tv: StringName = StringName(String(extras.get("verdict", "")))
+		match tv:
+			&"turned":     subject = "%s now serves us in %s" % [String(extras.get("operative_name", "A rival")), target_name]
+			&"botched":    subject = "The turn failed in %s" % target_name
+			&"no_target":  subject = "No operative to turn in %s" % target_name
+			_:             subject = "On turning an operative in %s" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -1340,6 +1482,12 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _cross_reference_pattern_body(extras)
 		&"match_fingerprint":
 			return _match_fingerprint_body(extras)
+		&"sweep_for_rivals":
+			return _sweep_for_rivals_body(extras)
+		&"neutralize_rival_operative":
+			return _neutralize_rival_body(extras)
+		&"turn_rival_operative":
+			return _turn_rival_body(extras)
 
 		&"host_sway_court":
 			if success:
@@ -1691,6 +1839,98 @@ func _match_fingerprint_body(extras: Dictionary) -> String:
 				+ "not the fifth."
 				) % [region, soc, conf]
 	return "The match attempt on %s produced no result." % region
+
+
+## §14.6 counter-intel sweep body.
+func _sweep_for_rivals_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"all_clear":
+			return ("Six weeks of patient watching in %s. No face sat twice at the wrong table. "
+				+ "No payment moved along a ledger that should not have existed. If there is a "
+				+ "foreign hand working here, it is doing so more carefully than we can read. "
+				+ "I would rather you save the silver for a region where we have warmer threads."
+				) % region
+		&"already_tracked":
+			return ("The strangers in %s we already know about are the strangers still in %s. "
+				+ "Nothing new on the sheets. They are being quieter than last month — which may "
+				+ "mean they know we are looking, or it may mean they have nothing on this season."
+				) % [region, region]
+		&"inconclusive":
+			return ("The sweep in %s closed with nothing firm. Two leads turned into locals; a "
+				+ "third turned into a corpse before we could ask it anything useful. We are no "
+				+ "worse off than we were a month ago. We are also no better."
+				) % region
+		&"operative_detected":
+			var nm: String    = String(extras.get("operative_name", "A stranger"))
+			var role: String  = String(extras.get("operative_cover", "an inconspicuous office"))
+			var soc: String   = String(extras.get("operative_society", "an unrecognised organisation"))
+			return ("A face in %s that should not be here.\n\n"
+				+ "[b]%s[/b], a %s, has been in the wrong rooms twice this season. Their payments "
+				+ "do not come from the house they appear to work for. Their correspondence leaves "
+				+ "the region through a post we do not control.\n\n"
+				+ "They are working, on the best reading we have, for [i]%s[/i].\n\n"
+				+ "They do not yet know we see them. What you do with this is yours to decide."
+				) % [region, nm, role, soc]
+	return "The counter-intelligence sweep in %s produced no report." % region
+
+
+func _neutralize_rival_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_target":
+			return ("There is no detected rival operative currently live in %s for us to neutralise. "
+				+ "Sweep first; identify a name; and come back to this letter."
+				) % region
+		&"botched":
+			return ("The burn in %s went wrong in every meaningful way. Our chosen vessel drank the "
+				+ "wrong cup, our chosen magistrate refused the brief, and the whole matter became a "
+				+ "rumour before it became an arrest. The target walks free, they know we tried, and "
+				+ "their side has a story now that explains why they should be left to run. Expect "
+				+ "them to be harder to catch the next time."
+				)
+		&"neutralised":
+			var nm: String    = String(extras.get("operative_name", "The operative"))
+			var role: String  = String(extras.get("operative_cover", "their cover role"))
+			var soc: String   = String(extras.get("operative_society", "the organisation behind them"))
+			return ("It is done. [b]%s[/b] will no longer work against us in %s.\n\n"
+				+ "The crown was given exactly enough to do the arresting; the crowd was given "
+				+ "exactly enough to do the hating. Their handlers inside %s watched the whole "
+				+ "spectacle and asked no questions the courts could answer. The cover as %s dies "
+				+ "with them.\n\n"
+				+ "The foothold of %s in this region is quietly smaller than it was last month."
+				) % [nm, region, soc, role, soc]
+	return "On the matter of a rival operative in %s, no clear report." % region
+
+
+func _turn_rival_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_target":
+			return ("There is no detected, live, un-turned rival operative currently in %s. "
+				+ "Nothing for us to turn. Sweep first."
+				) % region
+		&"botched":
+			var nm: String = String(extras.get("operative_name", "The operative"))
+			return ("We reached for [b]%s[/b] and closed around nothing. They saw the approach for what it was, "
+				+ "stood up from the table, and left without finishing the cup. They have taken that meeting "
+				+ "upward. Whether their side burns them for being approached, or feeds them back to us as a "
+				+ "fake turn, we will know in weeks, not in years. Expect noise either way."
+				) % nm
+		&"turned":
+			var nm: String    = String(extras.get("operative_name", "The operative"))
+			var role: String  = String(extras.get("operative_cover", "their cover role"))
+			var soc: String   = String(extras.get("operative_society", "their organisation"))
+			return ("[b]%s[/b] now carries upward, to %s, exactly the words we choose to put in their mouth.\n\n"
+				+ "They remain on post as %s. Their wage continues. Their handlers continue to write to them. "
+				+ "The only thing that has quietly changed is the shape of the letters they send back.\n\n"
+				+ "We will have a slow, steady drip on %s from this region for as long as they hold. Count on "
+				+ "a year; hope for three. Every month they live is a month their side watches the wrong door."
+				) % [nm, soc, role, soc]
+	return "On turning an operative in %s, no clear report." % region
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

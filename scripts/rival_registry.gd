@@ -192,8 +192,23 @@ const TEMPO_MONTHLY_CHANCE: Dictionary = {
 
 var societies: Dictionary = {}  # StringName id -> RivalSociety
 var op_log: Array = []          # Dictionaries of past ops (capped)
+var operatives: Dictionary = {} # String operative_id -> Dictionary
 
 const OP_LOG_MAX: int = 400
+
+# Roster of flavour name fragments used to stamp a rival operative when
+# one is seeded. Kept local — we never reveal these to the player
+# before the sweep action resolves.
+const _FIRST_NAMES: Array[String] = [
+	"Hesiod", "Kallias", "Agathon", "Manius", "Drusa", "Hipponax",
+	"Eumenes", "Lysias", "Nikias", "Thraso", "Orestes", "Phaidra",
+	"Vibius", "Tanaquil", "Appia", "Numa", "Zenon", "Demetria",
+]
+const _TRADES: Array[String] = [
+	"grain factor", "customs clerk", "copyist", "priest of minor office",
+	"moneychanger", "harbourmaster's aide", "gatekeeper", "scribe",
+	"physician", "horse trader", "caravan agent", "minor landlord",
+]
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _seeded: bool = false
@@ -233,6 +248,88 @@ func total_foothold_in(kingdom_id: String) -> int:
 	return n
 
 
+## All rival operatives currently placed in a kingdom. Returns the
+## raw state dicts — callers are expected to read, not mutate. Use
+## `detect_operative`, `turn_operative`, `neutralize_operative`
+## to change state so the audit trail stays in one place.
+func operatives_in(kingdom_id: String, include_neutralized: bool = false) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in operatives.values():
+		if String(e.get("kingdom_id", "")) != kingdom_id:
+			continue
+		if not include_neutralized and bool(e.get("neutralized", false)):
+			continue
+		out.append(e)
+	return out
+
+
+func detected_operatives_in(kingdom_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in operatives_in(kingdom_id):
+		if bool(e.get("detected", false)):
+			out.append(e)
+	return out
+
+
+func undetected_operatives_in(kingdom_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in operatives_in(kingdom_id):
+		if not bool(e.get("detected", false)):
+			out.append(e)
+	return out
+
+
+## Flip the `detected` flag on one operative. Returns the operative
+## (so the caller can render a detection report) or {} if no
+## plausible candidate exists. Picks the hottest un-detected target,
+## biased by the player's confirmation on the controlling society.
+func detect_first_available(kingdom_id: String) -> Dictionary:
+	var pool: Array[Dictionary] = undetected_operatives_in(kingdom_id)
+	if pool.is_empty():
+		return {}
+	var best: Dictionary = {}
+	var best_score: int = -1
+	for e in pool:
+		var sid: StringName = StringName(String(e.get("society_id", "")))
+		var score: int = int(e.get("heat", 0)) + Fingerprints.confirmation_for(sid) / 2
+		if score > best_score:
+			best_score = score
+			best = e
+	if best.is_empty():
+		return {}
+	best["detected"] = true
+	return best
+
+
+## Turn the first eligible (detected, not-turned, not-neutralized)
+## operative in the kingdom. Returns the operative or {}. A turned
+## operative acts as a slow intelligence drip on their controlling
+## society (handled in _on_month_passed).
+func turn_first_eligible(kingdom_id: String) -> Dictionary:
+	for e in detected_operatives_in(kingdom_id):
+		if bool(e.get("turned", false)) or bool(e.get("neutralized", false)):
+			continue
+		e["turned"] = true
+		return e
+	return {}
+
+
+## Neutralise the first eligible (detected, not-neutralized) operative
+## in the kingdom. Also docks the society's foothold there.
+func neutralize_first_eligible(kingdom_id: String) -> Dictionary:
+	for e in detected_operatives_in(kingdom_id):
+		if bool(e.get("neutralized", false)):
+			continue
+		e["neutralized"] = true
+		e["turned"] = false
+		var sid: StringName = StringName(String(e.get("society_id", "")))
+		var s: RivalSociety = get_society(sid)
+		if s != null:
+			s.bump_foothold(kingdom_id, -15)
+		return e
+	return {}
+
+
 ## Recent ops in a kingdom. The fingerprint chain will walk this list
 ## to build a pattern view when the player cross-references.
 func recent_ops_in(kingdom_id: String, lookback_days: int = 720) -> Array:
@@ -254,6 +351,38 @@ func _on_month_passed(_y: int, _m: int) -> void:
 	for s in societies.values():
 		_tick_society(s)
 	_decay_inactive_footholds()
+	_tick_turned_operatives()
+
+
+## Turned operatives feed us a slow trickle of intelligence on their
+## society and occasionally raise the fingerprint confirmation. They
+## are also, per §5 and §14.6, running a risk of discovery — every
+## month a turned op's controller rolls against them, and eventually
+## they get burned by the other side.
+func _tick_turned_operatives() -> void:
+	for e in operatives.values():
+		if not bool(e.get("turned", false)):
+			continue
+		if bool(e.get("neutralized", false)):
+			continue
+		var sid: StringName = StringName(String(e.get("society_id", "")))
+		# Quiet intel drip. Caps out at 85 — final confirmation still
+		# requires a library match.
+		if Fingerprints.confirmation_for(sid) < 85:
+			Fingerprints.bump_confirmation(sid, 3)
+		# Discovery roll. Rises with heat; halved for strongholds
+		# because their controller has more local eyes.
+		var heat: int = int(e.get("heat", 0))
+		var chance: float = 0.03 + float(heat) * 0.002
+		var s: RivalSociety = get_society(sid)
+		var kid: String = String(e.get("kingdom_id", ""))
+		if s != null and s.stronghold_kingdoms.has(kid):
+			chance *= 1.6
+		if _rng.randf() < chance:
+			e["neutralized"] = true
+			e["turned"] = false
+			# The player's exposure ticks because a scene was made.
+			Exposure.bump(4.0, "double_agent_burned")
 
 
 func _tick_society(s: RivalSociety) -> void:
@@ -314,10 +443,59 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 	s.ops_count += 1
 	s.bump_foothold(kingdom_id, 4 if s.stronghold_kingdoms.has(kingdom_id) else 6)
 
+	# An active operation heats any placed operative by this society
+	# in this kingdom (they were the ones carrying the silver). Heat
+	# is what makes a sweep detect them.
+	for op_entry in operatives.values():
+		if String(op_entry.get("society_id", "")) == String(s.id) \
+				and String(op_entry.get("kingdom_id", "")) == kingdom_id \
+				and not bool(op_entry.get("neutralized", false)):
+			op_entry["heat"] = mini(100, int(op_entry.get("heat", 0)) + 6)
+
+	# Seed operatives on strong footholds. We keep the density low (a
+	# kingdom with no operatives gets one; then one more per ~25 foothold)
+	# because every operative is a detection surface for the player and
+	# a memory cost for us.
+	_maybe_seed_operative(s, kingdom_id)
+
 	# Ops elsewhere marginally accelerate instability: the target
 	# kingdom gets a small exposure-analogue bump we surface as unrest.
 	EventBus.public_event.emit(op)
 	society_acted.emit(s.id, op)
+
+
+func _maybe_seed_operative(s: RivalSociety, kingdom_id: String) -> void:
+	if s.foothold_in(kingdom_id) < 30:
+		return
+	var already: int = 0
+	for e in operatives.values():
+		if String(e.get("society_id", "")) == String(s.id) \
+				and String(e.get("kingdom_id", "")) == kingdom_id \
+				and not bool(e.get("neutralized", false)):
+			already += 1
+	var cap: int = 1 + (s.foothold_in(kingdom_id) / 30)
+	if already >= cap:
+		return
+	# 35% chance per triggering op once under cap.
+	if _rng.randf() > 0.35:
+		return
+
+	var id: String = "riv_%s_%s_%d" % [String(s.id), kingdom_id, GameClock.absolute_day()]
+	var first: String = _FIRST_NAMES[_rng.randi_range(0, _FIRST_NAMES.size() - 1)]
+	var trade: String = _TRADES[_rng.randi_range(0, _TRADES.size() - 1)]
+	var entry: Dictionary = {
+		"id":           id,
+		"name":         first,
+		"cover_role":   trade,
+		"society_id":   String(s.id),
+		"kingdom_id":   kingdom_id,
+		"detected":     false,
+		"turned":       false,
+		"neutralized":  false,
+		"heat":         10,
+		"placed_day":   GameClock.absolute_day(),
+	}
+	operatives[id] = entry
 
 
 # --- Internals: operation selection ---------------------------------------
@@ -528,15 +706,17 @@ func snapshot() -> Dictionary:
 	for s in societies.values():
 		arr.append(s.to_dict())
 	return {
-		"societies": arr,
-		"op_log":    op_log.duplicate(true),
-		"seeded":    _seeded,
+		"societies":  arr,
+		"op_log":     op_log.duplicate(true),
+		"operatives": operatives.duplicate(true),
+		"seeded":     _seeded,
 	}
 
 
 func restore(d: Dictionary) -> void:
 	societies.clear()
 	op_log.clear()
+	operatives.clear()
 	_seeded = bool(d.get("seeded", false))
 	var arr: Variant = d.get("societies", [])
 	if arr is Array:
@@ -550,3 +730,7 @@ func restore(d: Dictionary) -> void:
 		for entry in log_arr:
 			if entry is Dictionary:
 				op_log.append(entry.duplicate(true))
+	var ops_v: Variant = d.get("operatives", {})
+	if ops_v is Dictionary:
+		for k in ops_v:
+			operatives[String(k)] = (ops_v[k] as Dictionary).duplicate(true)
