@@ -42,172 +42,68 @@ const KINGDOM_COLORS: Dictionary = {
 	"etruscan_league": Color(0.44, 0.48, 0.24, 1.0),
 }
 
-# Hand-authored province polygons in normalised map coordinates
-# (0..1 on each axis, origin top-left). Each province is a closed
-# ring — first and last points are not repeated. The shapes are
-# deliberately stylised: this is a 500 BCE papyrus map, not a
-# satellite view. See docs/07-interface/map-and-zoom.md.
-var PROVINCE_POLYGONS: Dictionary = {
-	# --- Greek / Aegean world ------------------------------------------------
-	"macedon":              PackedVector2Array([
-		Vector2(0.445, 0.340), Vector2(0.498, 0.335), Vector2(0.515, 0.380),
-		Vector2(0.500, 0.420), Vector2(0.462, 0.422), Vector2(0.438, 0.395),
-	]),
-	"thrace":               PackedVector2Array([
-		Vector2(0.515, 0.282), Vector2(0.592, 0.280), Vector2(0.610, 0.316),
-		Vector2(0.580, 0.345), Vector2(0.520, 0.338), Vector2(0.498, 0.318),
-	]),
-	"attica":               PackedVector2Array([
-		Vector2(0.508, 0.530), Vector2(0.545, 0.528), Vector2(0.560, 0.558),
-		Vector2(0.540, 0.582), Vector2(0.508, 0.580), Vector2(0.498, 0.555),
-	]),
-	"corinthia":             PackedVector2Array([
-		Vector2(0.472, 0.540), Vector2(0.508, 0.540), Vector2(0.510, 0.568),
-		Vector2(0.478, 0.575), Vector2(0.462, 0.562),
-	]),
-	"argolis":              PackedVector2Array([
-		Vector2(0.485, 0.582), Vector2(0.528, 0.580), Vector2(0.540, 0.612),
-		Vector2(0.512, 0.630), Vector2(0.478, 0.618),
-	]),
-	"laconia":              PackedVector2Array([
-		Vector2(0.468, 0.625), Vector2(0.528, 0.625), Vector2(0.540, 0.680),
-		Vector2(0.508, 0.710), Vector2(0.475, 0.692), Vector2(0.458, 0.660),
-	]),
+# Preloaded basemap texture. The map image is an aged papyrus view
+# of the Mediterranean world circa 500 BCE with real coastlines and
+# no text. Province polygons overlay tinted political colours on top,
+# CK3-style, so the underlying geography stays readable.
+const BASEMAP_PATH: String = "res://assets/map/mediterranean_500bce.png"
+const BASEMAP_ASPECT: float = 1.5  # natural aspect ratio (w/h) of the generated image
 
-	# --- Anatolia / Persia ---------------------------------------------------
-	"lydia":                PackedVector2Array([
-		Vector2(0.615, 0.385), Vector2(0.700, 0.380), Vector2(0.718, 0.430),
-		Vector2(0.682, 0.450), Vector2(0.620, 0.438),
-	]),
-	"ionia":                PackedVector2Array([
-		Vector2(0.585, 0.452), Vector2(0.648, 0.450), Vector2(0.662, 0.490),
-		Vector2(0.622, 0.512), Vector2(0.588, 0.498),
-	]),
-	"media":                PackedVector2Array([
-		Vector2(0.762, 0.360), Vector2(0.860, 0.360), Vector2(0.878, 0.430),
-		Vector2(0.838, 0.462), Vector2(0.770, 0.448), Vector2(0.750, 0.402),
-	]),
-	"persis":               PackedVector2Array([
-		Vector2(0.822, 0.500), Vector2(0.902, 0.498), Vector2(0.922, 0.560),
-		Vector2(0.882, 0.605), Vector2(0.828, 0.598), Vector2(0.808, 0.548),
-	]),
+# Overlay alpha — province fill uses this for the colour tint so the
+# underlying coastline reads through. Borders are drawn at full alpha.
+const OVERLAY_ALPHA: float       = 0.42
+const OVERLAY_ALPHA_HOVER: float = 0.56
+const OVERLAY_ALPHA_SELECT: float = 0.62
 
-	# --- Egypt / North Africa ------------------------------------------------
-	"lower_egypt":          PackedVector2Array([
-		Vector2(0.628, 0.660), Vector2(0.702, 0.660), Vector2(0.712, 0.710),
-		Vector2(0.668, 0.728), Vector2(0.625, 0.702),
-	]),
-	"upper_egypt":          PackedVector2Array([
-		Vector2(0.660, 0.728), Vector2(0.718, 0.728), Vector2(0.732, 0.865),
-		Vector2(0.690, 0.892), Vector2(0.662, 0.852),
-	]),
-	"africa_proconsularis": PackedVector2Array([
-		Vector2(0.262, 0.698), Vector2(0.362, 0.688), Vector2(0.398, 0.740),
-		Vector2(0.360, 0.768), Vector2(0.282, 0.760), Vector2(0.248, 0.728),
-	]),
-	"libya_coast":          PackedVector2Array([
-		Vector2(0.402, 0.762), Vector2(0.528, 0.758), Vector2(0.560, 0.812),
-		Vector2(0.518, 0.842), Vector2(0.420, 0.838), Vector2(0.388, 0.800),
-	]),
+# Province polygons are built procedurally in `_ready()` because
+# GDScript disallows PackedVector2Array in `const`. Every province
+# is a hexagon placed at a hand-tuned centre in the basemap's
+# normalised space (0..1 on each axis, origin top-left). Centres
+# are calibrated against the generated basemap, NOT perfect lat/lon.
+var PROVINCE_POLYGONS: Dictionary = {}
 
-	# --- Italian peninsula ---------------------------------------------------
-	"etruria":              PackedVector2Array([
-		Vector2(0.282, 0.382), Vector2(0.348, 0.380), Vector2(0.362, 0.422),
-		Vector2(0.328, 0.445), Vector2(0.282, 0.430),
-	]),
-	"latium":               PackedVector2Array([
-		Vector2(0.302, 0.445), Vector2(0.362, 0.445), Vector2(0.375, 0.478),
-		Vector2(0.342, 0.495), Vector2(0.300, 0.482),
-	]),
-	"campania":             PackedVector2Array([
-		Vector2(0.322, 0.495), Vector2(0.378, 0.492), Vector2(0.395, 0.540),
-		Vector2(0.360, 0.560), Vector2(0.328, 0.548),
-	]),
-	"sicily":               PackedVector2Array([
-		Vector2(0.332, 0.608), Vector2(0.415, 0.605), Vector2(0.432, 0.640),
-		Vector2(0.400, 0.662), Vector2(0.338, 0.650), Vector2(0.320, 0.628),
-	]),
+# Retained only to silence an earlier reference; superseded by the
+# basemap image. Kept as an empty array so older code paths that
+# iterate it stay safe.
+var LANDMASS_POLYGONS: Array = []
 
-	# --- Gaul ----------------------------------------------------------------
-	"gallia_belgica":       PackedVector2Array([
-		Vector2(0.108, 0.058), Vector2(0.242, 0.055), Vector2(0.262, 0.148),
-		Vector2(0.205, 0.178), Vector2(0.135, 0.170), Vector2(0.090, 0.115),
-	]),
-	"gallia_celtica":       PackedVector2Array([
-		Vector2(0.058, 0.190), Vector2(0.195, 0.180), Vector2(0.238, 0.265),
-		Vector2(0.185, 0.318), Vector2(0.092, 0.312), Vector2(0.048, 0.248),
-	]),
-	"massalia":             PackedVector2Array([
-		Vector2(0.180, 0.332), Vector2(0.258, 0.328), Vector2(0.278, 0.380),
-		Vector2(0.238, 0.402), Vector2(0.182, 0.390),
-	]),
-
-	# --- Seas (drawn as sea, selectable like any other province) -------------
-	"aegean_sea":           PackedVector2Array([
-		Vector2(0.540, 0.430), Vector2(0.605, 0.438), Vector2(0.602, 0.510),
-		Vector2(0.558, 0.525), Vector2(0.528, 0.492),
-	]),
-	"ionian_sea":           PackedVector2Array([
-		Vector2(0.380, 0.520), Vector2(0.455, 0.528), Vector2(0.460, 0.608),
-		Vector2(0.398, 0.618), Vector2(0.360, 0.568),
-	]),
-	"tyrrhenian_sea":       PackedVector2Array([
-		Vector2(0.232, 0.500), Vector2(0.298, 0.498), Vector2(0.310, 0.578),
-		Vector2(0.260, 0.598), Vector2(0.218, 0.552),
-	]),
-	"black_sea_coast":      PackedVector2Array([
-		Vector2(0.582, 0.178), Vector2(0.718, 0.178), Vector2(0.738, 0.248),
-		Vector2(0.690, 0.272), Vector2(0.598, 0.260), Vector2(0.570, 0.220),
-	]),
+# Source-of-truth province centres + hex radii (in basemap normalised
+# space). Translated into polygons on ready. Keep this tuned against
+# the generated basemap; if you regenerate the basemap, retune here.
+var _PROVINCE_SPEC: Dictionary = {
+	# --- Greek / Aegean -----------------------------------------------------
+	"macedon":              [Vector2(0.470, 0.348), Vector2(0.026, 0.022), 0.0],
+	"thrace":               [Vector2(0.522, 0.302), Vector2(0.028, 0.020), 0.0],
+	"attica":               [Vector2(0.498, 0.475), Vector2(0.020, 0.020), 0.0],
+	"corinthia":            [Vector2(0.478, 0.502), Vector2(0.018, 0.018), 0.0],
+	"argolis":              [Vector2(0.498, 0.522), Vector2(0.018, 0.018), 0.0],
+	"laconia":              [Vector2(0.482, 0.560), Vector2(0.022, 0.022), 0.0],
+	# --- Anatolia / Persia --------------------------------------------------
+	"ionia":                [Vector2(0.558, 0.440), Vector2(0.026, 0.022), 0.0],
+	"lydia":                [Vector2(0.592, 0.388), Vector2(0.028, 0.024), 0.0],
+	"media":                [Vector2(0.790, 0.350), Vector2(0.040, 0.032), 0.0],
+	"persis":               [Vector2(0.860, 0.500), Vector2(0.038, 0.032), 0.0],
+	# --- Egypt / North Africa ----------------------------------------------
+	"lower_egypt":          [Vector2(0.650, 0.585), Vector2(0.028, 0.024), 0.0],
+	"upper_egypt":          [Vector2(0.675, 0.760), Vector2(0.026, 0.055), 0.0],
+	"africa_proconsularis": [Vector2(0.288, 0.608), Vector2(0.030, 0.028), 0.0],
+	"libya_coast":          [Vector2(0.478, 0.680), Vector2(0.042, 0.028), 0.0],
+	# --- Italy --------------------------------------------------------------
+	"etruria":              [Vector2(0.302, 0.322), Vector2(0.022, 0.028), 0.0],
+	"latium":               [Vector2(0.322, 0.380), Vector2(0.020, 0.025), 0.0],
+	"campania":             [Vector2(0.344, 0.448), Vector2(0.022, 0.028), 0.0],
+	"sicily":               [Vector2(0.372, 0.580), Vector2(0.030, 0.022), 0.0],
+	# --- Gaul ---------------------------------------------------------------
+	"gallia_belgica":       [Vector2(0.222, 0.108), Vector2(0.044, 0.036), 0.0],
+	"gallia_celtica":       [Vector2(0.180, 0.222), Vector2(0.046, 0.042), 0.0],
+	"massalia":             [Vector2(0.228, 0.302), Vector2(0.030, 0.024), 0.0],
+	# --- Seas ---------------------------------------------------------------
+	"aegean_sea":           [Vector2(0.532, 0.442), Vector2(0.024, 0.020), 0.0],
+	"ionian_sea":           [Vector2(0.418, 0.502), Vector2(0.030, 0.024), 0.0],
+	"tyrrhenian_sea":       [Vector2(0.258, 0.420), Vector2(0.028, 0.026), 0.0],
+	"black_sea_coast":      [Vector2(0.615, 0.228), Vector2(0.048, 0.028), 0.0],
 }
 
-# Rough landmass silhouettes drawn under the province polygons. They
-# fill any gaps between adjacent provinces so the continents read as
-# solid land; the province colouring is painted on top. Hand-authored
-# to roughly match the polygon groupings above.
-var LANDMASS_POLYGONS: Array = [
-	# Southern Europe / Greece
-	PackedVector2Array([
-		Vector2(0.420, 0.258), Vector2(0.620, 0.258), Vector2(0.628, 0.350),
-		Vector2(0.555, 0.440), Vector2(0.560, 0.530), Vector2(0.565, 0.610),
-		Vector2(0.540, 0.700), Vector2(0.462, 0.720), Vector2(0.438, 0.640),
-		Vector2(0.440, 0.540), Vector2(0.420, 0.440),
-	]),
-	# Anatolia + Persia land
-	PackedVector2Array([
-		Vector2(0.580, 0.358), Vector2(0.740, 0.348), Vector2(0.878, 0.340),
-		Vector2(0.935, 0.420), Vector2(0.935, 0.560), Vector2(0.888, 0.620),
-		Vector2(0.800, 0.620), Vector2(0.748, 0.560), Vector2(0.668, 0.520),
-		Vector2(0.602, 0.500), Vector2(0.580, 0.430),
-	]),
-	# Italian peninsula
-	PackedVector2Array([
-		Vector2(0.258, 0.358), Vector2(0.378, 0.358), Vector2(0.412, 0.548),
-		Vector2(0.392, 0.590), Vector2(0.352, 0.578), Vector2(0.318, 0.538),
-		Vector2(0.288, 0.468),
-	]),
-	# Sicily island
-	PackedVector2Array([
-		Vector2(0.318, 0.598), Vector2(0.430, 0.598), Vector2(0.440, 0.660),
-		Vector2(0.350, 0.668), Vector2(0.308, 0.638),
-	]),
-	# Gaul
-	PackedVector2Array([
-		Vector2(0.038, 0.040), Vector2(0.285, 0.040), Vector2(0.298, 0.368),
-		Vector2(0.260, 0.408), Vector2(0.190, 0.412), Vector2(0.050, 0.345),
-		Vector2(0.020, 0.220),
-	]),
-	# North Africa coast
-	PackedVector2Array([
-		Vector2(0.210, 0.678), Vector2(0.580, 0.752), Vector2(0.598, 0.898),
-		Vector2(0.318, 0.920), Vector2(0.190, 0.860),
-	]),
-	# Egypt (Nile strip)
-	PackedVector2Array([
-		Vector2(0.598, 0.650), Vector2(0.742, 0.650), Vector2(0.755, 0.910),
-		Vector2(0.668, 0.928), Vector2(0.610, 0.840),
-	]),
-]
 
 # --- Layout constants --------------------------------------------------------
 
@@ -256,6 +152,8 @@ func _ready() -> void:
 	anchor_bottom = 1.0
 	mouse_filter = MOUSE_FILTER_STOP
 
+	_build_polygons_from_spec()
+	_basemap = _load_basemap()
 	_build_dimmer()
 	_build_sheet()
 	_build_cartouche()
@@ -454,6 +352,44 @@ var _pixel_polys: Dictionary = {}
 var _pixel_landmasses: Array = []
 var _hovered_province_id: String = ""
 
+## Rect inside the _map_layer where the basemap image is drawn,
+## letterboxed to preserve aspect ratio. Polygon coordinates are
+## mapped into this rect so they line up with the drawn geography.
+var _map_rect: Rect2 = Rect2()
+var _basemap: Texture2D = null
+
+
+func _build_polygons_from_spec() -> void:
+	PROVINCE_POLYGONS.clear()
+	for pid in _PROVINCE_SPEC.keys():
+		var entry: Array = _PROVINCE_SPEC[pid]
+		var centre: Vector2 = entry[0]
+		var radius: Vector2 = entry[1]
+		var rotation: float = float(entry[2]) if entry.size() > 2 else 0.0
+		PROVINCE_POLYGONS[pid] = _hex_polygon(centre, radius, rotation)
+
+
+static func _hex_polygon(centre: Vector2, radius: Vector2, rotation: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for i in range(6):
+		var a: float = rotation + float(i) * (PI / 3.0)
+		out.append(Vector2(
+			centre.x + cos(a) * radius.x,
+			centre.y + sin(a) * radius.y,
+		))
+	return out
+
+
+func _load_basemap() -> Texture2D:
+	var tex: Texture2D = load(BASEMAP_PATH) as Texture2D
+	if tex != null:
+		return tex
+	var img: Image = Image.new()
+	if img.load(BASEMAP_PATH) == OK:
+		return ImageTexture.create_from_image(img)
+	push_warning("[MapView] basemap missing at %s" % BASEMAP_PATH)
+	return null
+
 
 func _render_canvas() -> void:
 	if _map_layer == null:
@@ -468,51 +404,61 @@ func _refresh_map() -> void:
 	if rect.x <= 0.0 or rect.y <= 0.0:
 		call_deferred("_refresh_map")
 		return
+	# Letterbox the basemap inside the canvas so the drawn geography
+	# never gets horizontally or vertically squashed. Polygons live in
+	# the letterboxed rect's local space.
+	var fit_w: float = rect.x
+	var fit_h: float = rect.x / BASEMAP_ASPECT
+	if fit_h > rect.y:
+		fit_h = rect.y
+		fit_w = rect.y * BASEMAP_ASPECT
+	var off: Vector2 = Vector2((rect.x - fit_w) * 0.5, (rect.y - fit_h) * 0.5)
+	_map_rect = Rect2(off, Vector2(fit_w, fit_h))
 	_map_layer.size = rect
-	_rebuild_pixel_polys(rect)
+	_rebuild_pixel_polys(_map_rect)
 	(_map_layer as MapCanvas).queue_redraw()
 	_apply_transform()
 
 
-func _rebuild_pixel_polys(rect: Vector2) -> void:
+func _rebuild_pixel_polys(rect: Rect2) -> void:
 	_pixel_polys.clear()
 	for pid in PROVINCE_POLYGONS.keys():
 		_pixel_polys[pid] = _norm_poly_to_px(PROVINCE_POLYGONS[pid], rect)
-	_pixel_landmasses.clear()
-	for lm in LANDMASS_POLYGONS:
-		_pixel_landmasses.append(_norm_poly_to_px(lm, rect))
 
 
-func _norm_poly_to_px(norm: PackedVector2Array, rect: Vector2) -> PackedVector2Array:
+func _norm_poly_to_px(norm: PackedVector2Array, rect: Rect2) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
 	for p in norm:
-		out.append(Vector2(p.x * rect.x, p.y * rect.y))
+		out.append(Vector2(
+			rect.position.x + p.x * rect.size.x,
+			rect.position.y + p.y * rect.size.y,
+		))
 	return out
 
 
-## Called by `MapCanvas._draw()`. Everything rendered here is in the
-## layer's own local space; the pan/zoom transform is applied by the
-## layer's `scale` and `position`.
+## Called by `MapCanvas._draw()`. All coordinates are in the layer's
+## local space. The pan/zoom transform is applied by the layer's
+## `scale` and `position`, not here.
 func draw_map_canvas(c: Control) -> void:
-	if _pixel_polys.is_empty():
+	if _map_rect.size == Vector2.ZERO:
 		return
 
-	var rect: Vector2 = c.size
-	# 1. Deep-water backdrop, slightly darker than the canvas panel
-	# behind it. Gives the drawn landmasses a sea to sit on.
-	c.draw_rect(Rect2(Vector2.ZERO, rect), Color(0.58, 0.70, 0.76, 0.55), true)
+	# 1. Deep-water wash behind the basemap — only visible in the
+	# letterbox bands when the canvas aspect differs from the image.
+	c.draw_rect(
+		Rect2(Vector2.ZERO, c.size),
+		Color(0.48, 0.58, 0.64, 0.40),
+		true
+	)
 
-	# 2. Continents — a single sandy silhouette per landmass, drawn
-	# first so provinces sit on top of them and any gaps between
-	# province polygons read as land rather than sea.
-	var land_fill: Color   = Color(0.82, 0.72, 0.52, 1.0)
-	var land_stroke: Color = Color(0.42, 0.30, 0.16, 0.55)
-	for land in _pixel_landmasses:
-		c.draw_colored_polygon(land, land_fill)
-		_draw_closed_polyline(c, land, land_stroke, 1.5)
+	# 2. The real basemap — geography (coastlines, rivers, mountains)
+	# drawn once, covering the letterboxed rect.
+	if _basemap != null:
+		c.draw_texture_rect(_basemap, _map_rect, false)
 
-	# 3. Province polygons — filled in kingdom colour (or sea blue
-	# for sea provinces), with a slightly stronger outline on top.
+	# 3. Political overlay — each province tints its region with the
+	# owning kingdom's colour. Alpha is deliberately low so the map
+	# reads through, CK3-style. Sea provinces keep a cooler tint.
 	for pid in _pixel_polys.keys():
 		var p: Province = WorldData.get_province(pid)
 		if p == null:
@@ -521,17 +467,18 @@ func draw_map_canvas(c: Control) -> void:
 		var is_sea: bool = p.owning_kingdom.is_empty()
 		var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
 		var border: Color = COLOR_SEA_BORDER if is_sea else _kingdom_border(p.owning_kingdom)
-		var fill: Color = base
-		if pid == _hovered_province_id:
-			fill = base.lightened(0.18)
+		var alpha: float = OVERLAY_ALPHA
 		if pid == _selected_province_id:
-			fill = base.lightened(0.08)
+			alpha = OVERLAY_ALPHA_SELECT
+		elif pid == _hovered_province_id:
+			alpha = OVERLAY_ALPHA_HOVER
+		var fill: Color = Color(base.r, base.g, base.b, alpha)
 		c.draw_colored_polygon(poly, fill)
-		_draw_closed_polyline(c, poly, border, 1.4 if pid == _selected_province_id else 1.0)
+		_draw_closed_polyline(c, poly, border, 1.6 if pid == _selected_province_id else 1.1)
 
-	# 4. Labels on top — province name at the polygon centroid, plus
-	# an owner short tag for land provinces. Fonts scale inversely
-	# with zoom so they stay legible zoomed in or out.
+	# 4. Labels — province name at polygon centroid, owner tag below
+	# for land provinces. Sizes scale inversely with zoom so they
+	# stay legible at any zoom level.
 	var font: Font = ThemeDB.fallback_font
 	var base_size: float = 11.0
 	var label_size: int = int(clampf(base_size / max(_zoom, 0.6), 9.0, 14.0))
@@ -542,36 +489,34 @@ func draw_map_canvas(c: Control) -> void:
 			continue
 		var poly: PackedVector2Array = _pixel_polys[pid]
 		var is_sea: bool = p.owning_kingdom.is_empty()
-		var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
-		var ink: Color = _readable_ink(base)
 		var centroid: Vector2 = _poly_centroid(poly)
+		# Labels use dark sepia ink so they read against both the
+		# papyrus basemap and the kingdom tint.
+		var ink: Color = Color(0.16, 0.10, 0.05, 0.95) if not is_sea else Color(0.10, 0.18, 0.25, 0.9)
+		# Draw a tiny offset "shadow" for legibility over busy map detail.
+		var halo: Color = Color(1.0, 0.96, 0.88, 0.70) if not is_sea else Color(0.92, 0.96, 1.0, 0.65)
 		var name_w: float = font.get_string_size(
 			p.province_name, HORIZONTAL_ALIGNMENT_CENTER, -1, label_size
 		).x
-		c.draw_string(
-			font,
-			Vector2(centroid.x - name_w * 0.5, centroid.y),
-			p.province_name,
-			HORIZONTAL_ALIGNMENT_CENTER,
-			-1,
-			label_size,
-			ink,
-		)
+		var name_pos: Vector2 = Vector2(centroid.x - name_w * 0.5, centroid.y)
+		c.draw_string(font, name_pos + Vector2(1, 1), p.province_name,
+			HORIZONTAL_ALIGNMENT_CENTER, -1, label_size, halo)
+		c.draw_string(font, name_pos, p.province_name,
+			HORIZONTAL_ALIGNMENT_CENTER, -1, label_size, ink)
 		if not is_sea:
 			var owner_text: String = _owner_short(p)
 			if owner_text != "" and owner_text != "—":
 				var ow: float = font.get_string_size(
 					owner_text, HORIZONTAL_ALIGNMENT_CENTER, -1, owner_size
 				).x
-				c.draw_string(
-					font,
-					Vector2(centroid.x - ow * 0.5, centroid.y + label_size + 1.0),
-					owner_text,
-					HORIZONTAL_ALIGNMENT_CENTER,
-					-1,
-					owner_size,
-					ink.darkened(0.15),
+				var owner_pos: Vector2 = Vector2(
+					centroid.x - ow * 0.5,
+					centroid.y + label_size + 1.0,
 				)
+				c.draw_string(font, owner_pos + Vector2(1, 1), owner_text,
+					HORIZONTAL_ALIGNMENT_CENTER, -1, owner_size, halo)
+				c.draw_string(font, owner_pos, owner_text,
+					HORIZONTAL_ALIGNMENT_CENTER, -1, owner_size, ink.darkened(0.05))
 
 
 func _draw_closed_polyline(c: Control, poly: PackedVector2Array, col: Color, width: float) -> void:
@@ -627,7 +572,7 @@ func _render_placeholder_detail() -> void:
 	_detail_vbox.add_child(l)
 
 	var note: Label = Label.new()
-	note.text = "Every tile is a province. Colour denotes the crown it serves; the dark band along its foot brightens as that crown's coffers degrade."
+	note.text = "Colour washes denote the crown that holds each land. Wheel to zoom, drag on empty sea to shift the sheet. Click a land to read it."
 	note.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	note.add_theme_font_size_override("font_size", 11)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
