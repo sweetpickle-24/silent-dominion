@@ -160,8 +160,8 @@ func strain_of(id: StringName) -> int:
 		OrgMember.Layer.LIEUTENANT:  cap = MAX_COORDINATORS_PER_LIEUTENANT
 		OrgMember.Layer.COORDINATOR: cap = MAX_OPERATIVES_PER_COORDINATOR
 		_:                           return 0
-	var load: int = reports_to(id)
-	return maxi(0, load - cap)
+	var n: int = reports_to(id)
+	return maxi(0, n - cap)
 
 
 ## Qualitative status used in the Roster view — keeps numbers out of
@@ -207,7 +207,9 @@ func promote_actor_to_coordinator(actor_id: StringName) -> OrgMember:
 	m.layer           = OrgMember.Layer.COORDINATOR
 	m.region_id       = a.kingdom_id
 	m.superior_id     = _find_lieutenant_over(a.kingdom_id)
+	@warning_ignore("integer_division")
 	m.trust           = clampi(40 + a.loyalty / 3 + a.relationship / 4, 10, 85)
+	@warning_ignore("integer_division")
 	m.skill           = clampi(30 + a.intellect / 3 + a.charisma / 5 + _rng.randi_range(-5, 10), 15, 80)
 	m.heat            = 0
 	m.tenure_days     = 0

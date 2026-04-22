@@ -86,7 +86,8 @@ func effective_discretion() -> int:
 	if compromised:
 		return 0
 	if is_suspicious():
-		return int(discretion / 2)
+		@warning_ignore("integer_division")
+		return discretion / 2
 	return discretion
 
 

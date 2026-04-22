@@ -19,6 +19,7 @@ extends Node
 
 signal house_added(house: BankingHouse)
 signal house_updated(house: BankingHouse)
+@warning_ignore("unused_signal")
 signal house_dissolved(house: BankingHouse, reason: StringName)
 signal iou_added(iou: Dictionary)
 signal iou_settled(iou: Dictionary)
@@ -379,7 +380,9 @@ func _seed_starter_houses() -> void:
 				break
 
 	if chosen.size() >= 1:
-		var extra_a: Array[String] = [chosen[1]] if chosen.size() >= 2 else []
+		var extra_a: Array[String] = []
+		if chosen.size() >= 2:
+			extra_a.append(chosen[1])
 		_spawn_starter_house(chosen[0], "The House of %s" % _house_surname(chosen[0]),
 			"merchant consortium", extra_a)
 	if chosen.size() >= 2:

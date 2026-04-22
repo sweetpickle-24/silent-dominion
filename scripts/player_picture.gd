@@ -92,6 +92,7 @@ func freshness_phrase(kingdom_id: String) -> String:
 		return "current"
 	if months < 12:
 		return "%d months old" % months
+	@warning_ignore("integer_division")
 	var years: int = months / 12
 	if years == 1:
 		return "a year old"
@@ -187,9 +188,9 @@ func _on_month_passed(_y: int, _m: int) -> void:
 		var decay: int = _decay_for(kid_s)
 		if decay <= 0:
 			# Coordinator present: soft-lift to the floor rather than decay.
-			var floor: int = COORDINATOR_FLOOR if _coordinator_in(kid_s) else 0
-			if floor > 0 and score_for(kid_s) < floor:
-				set_visibility(kid_s, floor)
+			var lower_bound: int = COORDINATOR_FLOOR if _coordinator_in(kid_s) else 0
+			if lower_bound > 0 and score_for(kid_s) < lower_bound:
+				set_visibility(kid_s, lower_bound)
 			continue
 		var prev: int = score_for(kid_s)
 		if prev <= 0:

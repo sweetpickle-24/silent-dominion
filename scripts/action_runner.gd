@@ -522,6 +522,7 @@ func _apply_bribe_effects(def: ActionDefinition, target_id: String, outcome: int
 		BribeOutcome.CLEAN_SUCCESS:
 			# Retainer bribes open a dependent relationship.
 			if def.id == &"bribe_retainer" and a != null:
+				@warning_ignore("integer_division")
 				var monthly: int = maxi(20, def.silver_cost / 6)
 				Finance.register_retainer(a.id, monthly)
 				extras["retainer_opened"] = true
@@ -599,7 +600,7 @@ func _apply_bribe_effects(def: ActionDefinition, target_id: String, outcome: int
 func _on_retainer_turned(retainer: Dictionary) -> void:
 	var actor_id: String = String(retainer.get("actor_id", ""))
 	var a: Actor = Actors.get_actor(StringName(actor_id))
-	var name: String = a.display_name() if a != null else actor_id
+	var display: String = a.display_name() if a != null else actor_id
 	if a != null:
 		Actors.adjust_relationship(a.id, -25)
 	Exposure.bump(8.0, "retainer_turned")
@@ -610,7 +611,7 @@ func _on_retainer_turned(retainer: Dictionary) -> void:
 		+ "They are carrying what they know of your network into a room you are not in. "
 		+ "Their memory of the arrangement is imperfect, but it is more than we want "
 		+ "any stranger to carry.\n\nWe must assume the approach was lost."
-	) % name
+	) % display
 	var letter: Letter = Letter.create(
 		StringName("retainer_turned_%d" % Time.get_ticks_msec()),
 		"Your paymaster",

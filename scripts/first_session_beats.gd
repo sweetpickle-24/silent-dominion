@@ -131,17 +131,17 @@ func _beat_week_courtship() -> void:
 	var anchor: Actor = _best_prospect_in_any_kingdom()
 	if anchor == null:
 		return
-	var name: String = anchor.display_name()
+	var who: String = anchor.display_name()
 	var body: String = (
 		"A man with a Corinthian accent has been buying %s's wine all week. Not cheaply; not quietly. "
 		+ "He asks questions that do not belong in a wineshop — about %s's debts, their brother's "
 		+ "marriage, their standing with the archon. I have not placed him in any house I know. "
 		+ "Either he is a rival of ours, or he is acting for one.\n\n"
 		+ "If we intend %s to be ours, we should not be the second hand they learn the weight of."
-	) % [name, name, name]
+	) % [who, who, who]
 	_send(
 		"Your watcher in the quarter",
-		"Someone else is asking after %s" % name,
+		"Someone else is asking after %s" % who,
 		body,
 		&"intel"
 	)
@@ -153,17 +153,17 @@ func _beat_month_surprise() -> void:
 	var anchor: Actor = _best_prospect_in_any_kingdom()
 	if anchor == null:
 		return
-	var name: String = anchor.display_name()
+	var who: String = anchor.display_name()
 	var body: String = (
 		"I arranged for %s to be offered the magistracy we discussed. They turned it down. "
 		+ "Not loudly — a polite 'not this season' — but without asking my counsel, and without "
 		+ "waiting for what I would have said next.\n\n"
 		+ "It is worth remembering that our people have their own reasons. When we ask them to move, "
 		+ "we are bargaining with them. We are not giving orders."
-	) % name
+	) % who
 	_send(
 		"Your go-between",
-		"%s has chosen their own course" % name,
+		"%s has chosen their own course" % who,
 		body,
 		&"intel"
 	)
@@ -233,7 +233,7 @@ func _beat_year3_contradiction() -> void:
 			continue
 		if m.tenure_days >= 90 and (seasoned == null or m.tenure_days > seasoned.tenure_days):
 			seasoned = m
-	var name: String = seasoned.display_name if seasoned != null else "one of our sources"
+	var who: String = seasoned.display_name if seasoned != null else "one of our sources"
 
 	var body: String = (
 		"Two letters reached me this week that cannot both be true.\n\n"
@@ -245,7 +245,7 @@ func _beat_year3_contradiction() -> void:
 		+ "It may not. The tools to learn which are in your hands: cross-reference against the public "
 		+ "record, audit the source, or send a second pair of eyes over the same ground.\n\n"
 		+ "Do not act on either account until you know which one is lying."
-	) % name
+	) % who
 	_send(
 		"Your archivist",
 		"Two reports that cannot both stand",
