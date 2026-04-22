@@ -293,7 +293,31 @@ func spawn_actor(kingdom_id: String, role: int, _reason: StringName = &"generate
 	a.role        = role as Actor.Role
 	a.kingdom_id  = kingdom_id
 	a.province_id = _default_province(kingdom_id)
-	_randomise_traits(a, role)
+	_randomise_traits(a, role, a.province_id)
+	a.relationship = 0
+	add_actor(a)
+	return a
+
+
+## Generate a fresh minor actor (merchant, priest, philosopher) in a
+## specific province. Used by the CharacterGenerator to thicken the
+## ambient cast outside the structural court roles. Traits go through
+## the same regional-weighting path as replacement spawns.
+func spawn_minor_in_province(province_id: String, role: int) -> Actor:
+	var p: Province = WorldData.get_province(province_id)
+	if p == null or p.population <= 0:
+		return null
+	var a: Actor = Actor.new()
+	var now_year: int = -GameClock.year
+	a.id          = StringName(_generate_id(p.owning_kingdom, role))
+	a.given_name  = _generate_given_name(p.owning_kingdom)
+	a.epithet     = ""
+	a.birth_year  = now_year - _generate_age_for_role(role)
+	a.death_year  = 0
+	a.role        = role as Actor.Role
+	a.kingdom_id  = p.owning_kingdom
+	a.province_id = p.id
+	_randomise_traits(a, role, p.id)
 	a.relationship = 0
 	add_actor(a)
 	return a
@@ -359,7 +383,14 @@ func _default_province(kingdom_id: String) -> String:
 ## priests more pious). The ranges stay inside [10, 90] so no actor
 ## is generated with an extreme trait on day one — extremes are for
 ## handcrafted actors and for drift over time.
-func _randomise_traits(a: Actor, role: int) -> void:
+##
+## Regional weighting (§8.11) is applied on top when we have a
+## province context: a restless region breeds more paranoid, more
+## ambitious people; a prosperous merchant-run city breeds less pious
+## ones; a war-battered kingdom breeds harder, less curious ones.
+## The weights are tiny (±6 typically) so any single generation is
+## recognisable — it's only over centuries that the drift bites.
+func _randomise_traits(a: Actor, role: int, province_id: String = "") -> void:
 	for k in Actor.TRAIT_KEYS:
 		a.set(k, clampi(50 + _rng.randi_range(-20, 20), 10, 90))
 	match role:
@@ -378,6 +409,72 @@ func _randomise_traits(a: Actor, role: int) -> void:
 			a.curiosity = clampi(a.curiosity + 10, 10, 90)
 		_:
 			pass
+	_apply_regional_weights(a, province_id)
+
+
+## Read the state of the actor's home province + kingdom and nudge the
+## trait dial accordingly. A province in revolt for a generation is not
+## producing the same crop as one that has been at peace. Kept gentle.
+func _apply_regional_weights(a: Actor, province_id: String) -> void:
+	if province_id.is_empty():
+		return
+	var p: Province = WorldData.get_province(province_id)
+	if p == null:
+		return
+
+	var band: StringName = p.unrest_band()
+	if band == &"seething" or band == &"in revolt":
+		a.paranoia     = clampi(a.paranoia     + 8, 10, 90)
+		a.ambition     = clampi(a.ambition     + 5, 10, 90)
+		a.loyalty      = clampi(a.loyalty      - 6, 10, 90)
+		a.ruthlessness = clampi(a.ruthlessness + 3, 10, 90)
+	elif band == &"restless":
+		a.paranoia = clampi(a.paranoia + 3, 10, 90)
+		a.loyalty  = clampi(a.loyalty  - 2, 10, 90)
+
+	# Post-plague / post-famine provinces breed pious, worn populations.
+	if p.has_meta("prod_modifier"):
+		var cause: String = String((p.get_meta("prod_modifier") as Dictionary).get("cause", ""))
+		if cause == "plague":
+			a.piety      = clampi(a.piety      + 6, 10, 90)
+			a.resilience = clampi(a.resilience + 3, 10, 90)
+		elif cause == "famine":
+			a.greed = clampi(a.greed + 4, 10, 90)
+			a.piety = clampi(a.piety + 3, 10, 90)
+
+	var k: Kingdom = WorldData.get_kingdom(p.owning_kingdom)
+	if k == null:
+		return
+
+	# Kingdoms under sustained strain breed less trusting, harder heirs.
+	match k.treasury_condition:
+		Kingdom.TreasuryCondition.INDEBTED, Kingdom.TreasuryCondition.BROKE:
+			a.loyalty      = clampi(a.loyalty      - 4, 10, 90)
+			a.paranoia     = clampi(a.paranoia     + 3, 10, 90)
+		_:
+			pass
+
+	if k.tax_level == Kingdom.TaxLevel.RUINOUS:
+		a.loyalty = clampi(a.loyalty - 3, 10, 90)
+	elif k.tax_level == Kingdom.TaxLevel.INDULGENT:
+		a.ambition = clampi(a.ambition - 2, 10, 90)
+
+	# A province with a harbour and roads breeds worldlier, more curious
+	# people; less piety, more intellect.
+	if p.has_building(&"harbour"):
+		a.curiosity = clampi(a.curiosity + 4, 10, 90)
+		a.greed     = clampi(a.greed     + 2, 10, 90)
+		a.piety     = clampi(a.piety     - 2, 10, 90)
+	if p.has_building(&"road_network"):
+		a.intellect = clampi(a.intellect + 2, 10, 90)
+		a.curiosity = clampi(a.curiosity + 2, 10, 90)
+
+	# War on the kingdom's borders flattens curiosity and lifts
+	# ruthlessness — a military culture.
+	if Relations.ids_in_state(k.id, int(Relations.RelationState.AT_WAR)).size() > 0:
+		a.curiosity    = clampi(a.curiosity    - 4, 10, 90)
+		a.ruthlessness = clampi(a.ruthlessness + 3, 10, 90)
+		a.resilience   = clampi(a.resilience   + 2, 10, 90)
 
 
 # --- Debug -------------------------------------------------------------------
