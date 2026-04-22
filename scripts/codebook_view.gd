@@ -282,6 +282,16 @@ func _render() -> void:
 
 	_divider()
 
+	_section("WHISPERS, AFTER YOU PLANT THEM",
+		"A rumour, a planted argument, or a night in the streets does not end with the first dispatch. It lives on the tongues of others for a while, then fades. You will see follow-up lines in the Public News until a whisper goes quiet.",
+		&"whispers")
+	_entry("Loud",    "Newly seeded. The market is talking. Expect follow-ups.", COLOR_WAX)
+	_entry("Carried", "Past the first fire, but still passed around in the same rooms.", COLOR_ACCENT)
+	_entry("Fading",  "Half-remembered. A final dispatch may name its decline.", COLOR_INK_MUTED)
+	_entry("Dead",    "Dropped. The Public News will not return to it.", COLOR_INK_MUTED)
+
+	_divider()
+
 	_section("WHAT LANDS IN THE INBOX",
 		"Every letter the player receives is one of a few kinds.",
 		&"inbox")

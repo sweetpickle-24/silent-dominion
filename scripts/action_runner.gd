@@ -162,6 +162,7 @@ func _publish_rumour_trace(target_id: String) -> void:
 	var a: Actor = Actors.get_actor(StringName(target_id))
 	if a == null:
 		return
+	Whispers.register(&"rumour", a.id)
 	var k: Kingdom = WorldData.get_kingdom(a.kingdom_id)
 	var kname: String = k.kingdom_name if k != null else a.kingdom_id
 	var whispers: Array[String] = [
@@ -187,6 +188,7 @@ func _publish_idea_trace(target_id: String) -> void:
 	var a: Actor = Actors.get_actor(StringName(target_id))
 	if a == null:
 		return
+	Whispers.register(&"idea", a.id)
 	var k: Kingdom = WorldData.get_kingdom(a.kingdom_id)
 	var kname: String = k.kingdom_name if k != null else a.kingdom_id
 	EventBus.public_event.emit({
@@ -204,6 +206,7 @@ func _publish_agitate_trace(host_id: String) -> void:
 	var host: Actor = Actors.get_actor(StringName(host_id))
 	if host == null:
 		return
+	Whispers.register(&"agitate", host.id)
 	var k: Kingdom = WorldData.get_kingdom(host.kingdom_id)
 	var kname: String = k.kingdom_name if k != null else host.kingdom_id
 	EventBus.public_event.emit({

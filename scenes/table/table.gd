@@ -265,6 +265,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F1:
 			WorldData.print_debug_dump()
 			Actors.print_debug_dump()
+			Whispers.debug_dump()
 			get_viewport().set_input_as_handled()
 			return
 		KEY_F5:

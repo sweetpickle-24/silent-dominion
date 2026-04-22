@@ -161,6 +161,7 @@ func _collect_state() -> Dictionary:
 		"purse":     Purse.snapshot(),
 		"unrest":    Unrest.snapshot(),
 		"events":    RandomEvents.snapshot(),
+		"whispers":  Whispers.snapshot(),
 	}
 
 
@@ -187,6 +188,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Unrest.restore(blob["unrest"])
 	if blob.has("events"):
 		RandomEvents.restore(blob["events"])
+	if blob.has("whispers"):
+		Whispers.restore(blob["whispers"])
 
 
 # --- Clock -------------------------------------------------------------------
