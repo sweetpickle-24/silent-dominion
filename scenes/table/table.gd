@@ -21,6 +21,7 @@ const SlotsViewScript: Script           = preload("res://scripts/slots_view.gd")
 const ArchiveIndicatorScript: Script    = preload("res://scripts/archive_indicator.gd")
 const CodebookViewScript: Script        = preload("res://scripts/codebook_view.gd")
 const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd")
+const RosterViewScript: Script          = preload("res://scripts/roster_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -31,6 +32,7 @@ const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd
 @onready var _public_news: Control    = $Objects/PublicNews
 @onready var _ledger: Control         = $Objects/Ledger
 @onready var _dossiers: Control       = $Objects/Dossiers
+@onready var _roster: Control         = $Objects/Roster
 @onready var _compose: Control        = $Objects/Compose
 
 @onready var _inbox_seal: Panel       = $Objects/Inbox/Letter1/WaxSeal
@@ -78,6 +80,7 @@ func _ready() -> void:
 	_wire_object(_public_news, _on_public_news_clicked)
 	_wire_object(_ledger, _on_ledger_clicked)
 	_wire_object(_dossiers, _on_dossiers_clicked)
+	_wire_object(_roster, _on_roster_clicked)
 	_wire_object(_compose, _on_compose_clicked)
 
 	_dimmer.gui_input.connect(_on_dimmer_input)
@@ -320,6 +323,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_D:
 			_on_dossiers_clicked()
 			get_viewport().set_input_as_handled()
+		KEY_O:
+			_on_roster_clicked()
+			get_viewport().set_input_as_handled()
 		KEY_R:
 			_on_memoirs_clicked()
 			get_viewport().set_input_as_handled()
@@ -350,6 +356,7 @@ func _hotkey_sheet_text() -> String:
 		+ "  M           — Map\n"
 		+ "  L           — Ledger\n"
 		+ "  D           — Dossiers\n"
+		+ "  O           — Organisation (Roster)\n"
 		+ "  C           — Compose a letter\n"
 		+ "  B           — Codebook\n"
 		+ "\n"
@@ -585,6 +592,27 @@ func _on_dossier_view_closed() -> void:
 	_overlay_active = false
 
 
+func _on_roster_clicked() -> void:
+	_open_roster_view()
+
+
+func _open_roster_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(RosterViewScript)
+	view.name = "RosterView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_roster_view_closed)
+
+
+func _on_roster_view_closed() -> void:
+	_overlay_active = false
+
+
 func _on_compose_clicked() -> void:
 	_open_compose_view()
 
@@ -662,7 +690,7 @@ func _on_letter_view_closed() -> void:
 
 func _all_objects() -> Array:
 	return [_map_scroll, _inbox, _codebook, _memoirs,
-			_public_news, _ledger, _dossiers, _compose]
+			_public_news, _ledger, _dossiers, _roster, _compose]
 
 
 # --- Placeholder panel (map / codebook) ---------------------------------------

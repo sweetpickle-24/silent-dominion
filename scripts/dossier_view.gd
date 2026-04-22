@@ -499,6 +499,8 @@ func _show_detail(actor: Actor) -> void:
 
 	_body_vbox.add_child(_make_divider())
 
+	_maybe_build_org_section(actor)
+
 	_body_vbox.add_child(_make_section_heading("LETTERS ON THIS NAME"))
 	var linked: Array[Letter] = _letters_mentioning(actor)
 	if linked.is_empty():
@@ -537,6 +539,113 @@ func _show_detail(actor: Actor) -> void:
 	))
 
 	_body_vbox.add_child(_make_close_button(func() -> void: close()))
+
+
+# --- Organisation section ---------------------------------------------------
+#
+# Surfaces the player's two org-facing verbs against this dossier:
+#   - "Raise as coordinator" if the actor is a loyal host and not yet
+#     in the cell. Issues `promote_coordinator`.
+#   - "Elevate to lieutenant" if the actor is already a seasoned,
+#     trusted coordinator. Issues `promote_lieutenant`.
+# If the actor is already in the org, shows their current posting
+# instead. If they're a ruler, shows nothing — rulers are not tools.
+
+func _maybe_build_org_section(actor: Actor) -> void:
+	if actor.role == Actor.Role.RULER:
+		return
+
+	_body_vbox.add_child(_make_section_heading("ORGANISATION"))
+
+	var existing: OrgMember = Org.member_for_actor(actor.id)
+	if existing != null:
+		var role_phrase: String = "%s in %s" % [
+			existing.layer_name(),
+			_kingdom_name_of(existing.region_id),
+		]
+		var status_line: Label
+		if existing.burned:
+			status_line = _make_body_line(
+				"Formerly your %s. Burned — no longer reachable through our work." % role_phrase
+			)
+			status_line.add_theme_color_override("font_color", Color(0.62, 0.18, 0.12, 1.0))
+		else:
+			status_line = _make_body_line(
+				"They are your %s. Their cover: %s." % [role_phrase, existing.cover]
+			)
+			status_line.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
+		_body_vbox.add_child(status_line)
+
+		# Lieutenant elevation — shown only if the member meets the
+		# thresholds. Don't taunt the player with a disabled button;
+		# say plainly why it isn't offered.
+		if not existing.burned \
+				and existing.layer == OrgMember.Layer.COORDINATOR:
+			if existing.trust >= 70 and existing.tenure_days >= 365:
+				_body_vbox.add_child(_make_promote_lieutenant_button(actor))
+			else:
+				_body_vbox.add_child(_make_body_line(
+					"They are not yet seasoned or trusted enough to raise further."
+				))
+		_body_vbox.add_child(_make_divider())
+		return
+
+	# Not in the org yet. Only loyal hosts can be promoted to coordinator.
+	if actor.is_host():
+		_body_vbox.add_child(_make_body_line(
+			"A trusted host. They could be raised into the work as your coordinator in "
+			+ _kingdom_name_of(actor.kingdom_id)
+			+ " — a conversation that cannot be taken back."
+		))
+		_body_vbox.add_child(_make_promote_coordinator_button(actor))
+	else:
+		_body_vbox.add_child(_make_body_line(
+			"Not yet loyal enough to be asked for more. Keep cultivating."
+		))
+	_body_vbox.add_child(_make_divider())
+
+
+func _make_promote_coordinator_button(actor: Actor) -> Button:
+	var def: ActionDefinition = Actions.get_definition(&"promote_coordinator")
+	var cost_hint: String = ""
+	if def != null:
+		cost_hint = "  (%d silver · HIGH exposure)" % def.silver_cost
+	var b: Button = Button.new()
+	b.text = "Raise %s as coordinator%s" % [actor.display_name(), cost_hint]
+	b.custom_minimum_size.y = 34.0
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_color_override("font_color", COLOR_INK)
+	b.add_theme_font_size_override("font_size", 13)
+	b.pressed.connect(func() -> void:
+		var handle: int = Actions.issue(&"promote_coordinator", String(actor.id))
+		if handle == Scheduler.INVALID_HANDLE:
+			return
+		close())
+	return b
+
+
+func _make_promote_lieutenant_button(actor: Actor) -> Button:
+	var def: ActionDefinition = Actions.get_definition(&"promote_lieutenant")
+	var cost_hint: String = ""
+	if def != null:
+		cost_hint = "  (%d silver · HIGH exposure)" % def.silver_cost
+	var b: Button = Button.new()
+	b.text = "Elevate %s to lieutenant%s" % [actor.display_name(), cost_hint]
+	b.custom_minimum_size.y = 34.0
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_color_override("font_color", COLOR_INK)
+	b.add_theme_font_size_override("font_size", 13)
+	b.pressed.connect(func() -> void:
+		var handle: int = Actions.issue(&"promote_lieutenant", String(actor.id))
+		if handle == Scheduler.INVALID_HANDLE:
+			return
+		close())
+	return b
+
+
+func _kingdom_name_of(kid: String) -> String:
+	var k: Kingdom = WorldData.get_kingdom(kid)
+	return k.kingdom_name if k != null else kid
 
 
 # --- Widget factories --------------------------------------------------------

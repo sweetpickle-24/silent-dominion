@@ -1030,6 +1030,126 @@ text = "Dossiers"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+; ---- Roster (right-centre, ribbon-tied bundle of index cards) ---------------
+
+[node name="Roster" type="Control" parent="Objects"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -240.0
+offset_top = 320.0
+offset_right = -48.0
+offset_bottom = 478.0
+grow_horizontal = 0
+mouse_filter = 0
+rotation = -0.08
+
+[node name="CardBack" type="Panel" parent="Objects/Roster"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 12.0
+offset_right = 14.0
+offset_bottom = 12.0
+rotation = 0.09
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_card")
+
+[node name="CardMid" type="Panel" parent="Objects/Roster"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = 6.0
+offset_bottom = 4.0
+rotation = -0.05
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_card")
+
+[node name="CardTop" type="Panel" parent="Objects/Roster"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_card")
+
+[node name="LineA" type="Panel" parent="Objects/Roster/CardTop"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 18.0
+offset_top = 22.0
+offset_right = 160.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_line")
+
+[node name="LineB" type="Panel" parent="Objects/Roster/CardTop"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 18.0
+offset_top = 40.0
+offset_right = 138.0
+offset_bottom = 42.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_line")
+
+[node name="LineC" type="Panel" parent="Objects/Roster/CardTop"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 18.0
+offset_top = 58.0
+offset_right = 152.0
+offset_bottom = 60.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_line")
+
+[node name="LineD" type="Panel" parent="Objects/Roster/CardTop"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 18.0
+offset_top = 76.0
+offset_right = 126.0
+offset_bottom = 78.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_dossier_line")
+
+[node name="Ribbon" type="Panel" parent="Objects/Roster"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -110.0
+offset_top = -8.0
+offset_right = 110.0
+offset_bottom = 8.0
+grow_horizontal = 2
+grow_vertical = 2
+rotation = 0.18
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_wax_seal")
+
+[node name="Label" type="Label" parent="Objects/Roster"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -26.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.3, 0.2, 0.1, 0.85)
+theme_override_font_sizes/font_size = 16
+text = "Roster"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 ; ---- Compose kit (bottom-left: parchment, quill, inkwell, wax, seal ring) --
 
 [node name="Compose" type="Control" parent="Objects"]

@@ -119,6 +119,33 @@
       "base_success_chance": 0.5,
       "report_sender": "Your host",
       "requires_host_target": true
+    },
+    {
+      "id": "promote_coordinator",
+      "display_name": "Raise a coordinator",
+      "blurb": "Bring a trusted host fully into your work. They stop being an instrument and start being a hand of their own — running a cell in their city, picking their own operatives, answering only to you. A very dangerous conversation to have; once spoken, it cannot be taken back.",
+      "tier": "HIGH",
+      "target_kind": "ACTOR",
+      "silver_cost": 800,
+      "exposure_cost": 18,
+      "min_days_to_resolve": 60,
+      "max_days_to_resolve": 120,
+      "base_success_chance": 0.7,
+      "report_sender": "A private letter",
+      "requires_host_target": true
+    },
+    {
+      "id": "promote_lieutenant",
+      "display_name": "Elevate to lieutenant",
+      "blurb": "Raise a seasoned coordinator to the second-highest rank in your organisation. They will know the shape of what you are, though not what you are. Years of seasoning inside the cell are the only test that matters — do not rush it.",
+      "tier": "HIGH",
+      "target_kind": "ACTOR",
+      "silver_cost": 2500,
+      "exposure_cost": 30,
+      "min_days_to_resolve": 120,
+      "max_days_to_resolve": 240,
+      "base_success_chance": 0.65,
+      "report_sender": "A private letter"
     }
   ]
 }

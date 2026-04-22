@@ -60,6 +60,18 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 				[action_id, target_id])
 			return Scheduler.INVALID_HANDLE
 
+	# Org-specific preconditions: promote_coordinator requires a loyal
+	# non-ruler host who isn't already in the org; promote_lieutenant
+	# requires an existing seasoned Coordinator.
+	if action_id == &"promote_coordinator":
+		if not _valid_coordinator_candidate(target_id):
+			push_warning("[Actions] promote_coordinator: '%s' is not a valid candidate." % target_id)
+			return Scheduler.INVALID_HANDLE
+	elif action_id == &"promote_lieutenant":
+		if not _valid_lieutenant_candidate(target_id):
+			push_warning("[Actions] promote_lieutenant: '%s' is not a valid coordinator." % target_id)
+			return Scheduler.INVALID_HANDLE
+
 	if not Exposure.allows_tier(def.tier):
 		push_warning("[Actions] Action '%s' blocked by exposure level: %s" %
 			[action_id, Exposure.level_name()])
@@ -75,7 +87,16 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 	if def.silver_cost > 0:
 		Purse.spend(def.silver_cost)
 
-	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve)
+	# Routing (§14.2). If the player has a coordinator in the target's
+	# kingdom, the dispatch goes through them: a modest delay is added,
+	# exposure is dampened, and a coordinator id rides on the descriptor
+	# so the resolution handler can tilt success and award trust.
+	var coord: OrgMember = _coordinator_for_target(def, target_id)
+	var dispatch_delay: int = 0
+	if coord != null:
+		dispatch_delay = _rng.randi_range(5, 12)
+
+	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve) + dispatch_delay
 	var fire_day: int = GameClock.absolute_day() + delay
 
 	var descriptor: Dictionary = {
@@ -86,13 +107,126 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		"fire_day":      fire_day,
 		"silver_cost":   def.silver_cost,
 		"exposure_cost": def.exposure_cost,
+		"coordinator_id": String(coord.id) if coord != null else "",
 	}
 
 	var handle: int = Scheduler.schedule_task_on_day(fire_day, descriptor)
 	EventBus.action_issued.emit(action_id, descriptor.duplicate(true))
-	print("[Actions] Issued '%s' vs '%s'; resolves in %d days (day %d)." %
-		[action_id, target_id, delay, fire_day])
+	print("[Actions] Issued '%s' vs '%s'; resolves in %d days (day %d)%s." %
+		[action_id, target_id, delay, fire_day,
+		"" if coord == null else " via %s" % coord.display_name])
 	return handle
+
+
+## Coordinator routing only applies to actions that have a concrete
+## kingdom-bound target. Promotions and rituals don't route — they're
+## done by the player directly with the candidate.
+func _coordinator_for_target(def: ActionDefinition, target_id: String) -> OrgMember:
+	if def.id == &"promote_coordinator" or def.id == &"promote_lieutenant":
+		return null
+	var kid: String = _kingdom_of_target(def, target_id)
+	if kid.is_empty():
+		return null
+	return Org.coverage_for(kid)
+
+
+func _kingdom_of_target(def: ActionDefinition, target_id: String) -> String:
+	match def.target_kind:
+		ActionDefinition.TargetKind.ACTOR:
+			var a: Actor = Actors.get_actor(StringName(target_id))
+			return a.kingdom_id if a != null else ""
+		ActionDefinition.TargetKind.KINGDOM:
+			return target_id
+		ActionDefinition.TargetKind.PROVINCE:
+			var p: Province = WorldData.get_province(target_id)
+			return p.owning_kingdom if p != null else ""
+		_:
+			return ""
+
+
+func _valid_coordinator_candidate(target_id: String) -> bool:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+	if a == null or not a.is_alive():
+		return false
+	if a.role == Actor.Role.RULER:
+		return false
+	if not a.is_host():
+		return false
+	if Org.is_actor_member(a.id):
+		return false
+	return true
+
+
+func _valid_lieutenant_candidate(target_id: String) -> bool:
+	var m: OrgMember = Org.member_for_actor(StringName(target_id))
+	if m == null or m.burned:
+		return false
+	if m.layer != OrgMember.Layer.COORDINATOR:
+		return false
+	if m.trust < 70:
+		return false
+	if m.tenure_days < 365:
+		return false
+	return true
+
+
+## Voluntarily burn a coordinator's cell (§14.2 rollback). Unlike a
+## pending action, this resolves immediately: the coordinator and every
+## operative under them are marked burned; the player's global Exposure
+## ticks up a little (voluntary burns still leave smoke); a letter is
+## dropped into the inbox so the act is recorded in the Memoirs.
+##
+## Returns true if the cell was actually severed, false if the id was
+## invalid, already burned, or not a coordinator.
+func sever_cell(coord_id: StringName) -> bool:
+	var coord: OrgMember = Org.get_member(coord_id)
+	if coord == null or coord.burned:
+		return false
+	if coord.layer != OrgMember.Layer.COORDINATOR:
+		return false
+
+	var region: String = coord.region_id
+	var k: Kingdom = WorldData.get_kingdom(region)
+	var region_name: String = k.kingdom_name if k != null else region
+	var coord_name: String = coord.display_name
+
+	# Burn every operative under them first so the cascade in
+	# OrgRegistry.burn_member doesn't misfire heat upward.
+	var ops: Array[OrgMember] = []
+	for m in Org.all_members():
+		if not m.burned and m.superior_id == coord_id \
+				and m.layer == OrgMember.Layer.OPERATIVE:
+			ops.append(m)
+	for op in ops:
+		Org.burn_member(op.id, &"severed")
+
+	Org.burn_member(coord_id, &"severed")
+
+	# Cost of a voluntary rollback. Smaller than a failed HIGH action
+	# would cost but not free — rumours travel, neighbours notice a
+	# merchant who vanished overnight.
+	Exposure.bump(3.0, "severed_cell")
+
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var body: String = (
+		"I have ordered the cell around %s dissolved. The operatives are out of the "
+		+ "city by the second watch; the ledgers have been burned; the rented rooms "
+		+ "surrendered to their landlords with a month's silver in apology.\n\n"
+		+ "%s themselves is warned but not reached. They will notice the absence "
+		+ "of their hands over the coming weeks. Whether they keep silent, or go "
+		+ "looking, is no longer something we control.\n\n"
+		+ "The %s work is dark now. We will rebuild when you judge the heat has passed."
+	) % [region_name, coord_name, region_name]
+	var letter: Letter = Letter.create(
+		StringName("sever_%s_%d" % [coord_id, Time.get_ticks_msec()]),
+		"Your factotum",
+		date,
+		"The %s cell has been burned" % region_name,
+		body,
+		&"action"
+	)
+	EventBus.letter_delivered.emit(letter)
+	return true
 
 
 func pending_count() -> int:
@@ -116,6 +250,8 @@ func _on_task_due(descriptor: Dictionary) -> void:
 func _resolve(descriptor: Dictionary) -> void:
 	var action_id: StringName = StringName(String(descriptor.get("action_id", "")))
 	var target_id: String     = String(descriptor.get("target_id", ""))
+	var coord_id:  StringName = StringName(String(descriptor.get("coordinator_id", "")))
+	var coord: OrgMember = Org.get_member(coord_id) if coord_id != &"" else null
 
 	var def: ActionDefinition = get_definition(action_id)
 	if def == null:
@@ -123,6 +259,14 @@ func _resolve(descriptor: Dictionary) -> void:
 		return
 
 	var success_chance: float = _modified_success_chance(def, target_id)
+	if coord != null and not coord.burned:
+		# Skilled coverage lifts the ceiling. Capped so a 90-skill
+		# coordinator doesn't make everything a coin flip -> near-cert.
+		# Uses effective_skill so an over-stretched coord is actually
+		# less reliable than a comfortable one, per §14.1.
+		var usable: int = Org.effective_skill(coord.id)
+		success_chance = clampf(success_chance + float(usable) / 400.0, 0.05, 0.97)
+
 	var success: bool = _rng.randf() < success_chance
 
 	# Apply relationship changes BEFORE the report is built so the tone
@@ -134,20 +278,62 @@ func _resolve(descriptor: Dictionary) -> void:
 	# so the report text can name whoever was quieted.
 	var extras: Dictionary = _apply_special_effects(def, target_id, success)
 
+	# Promotions are structural state changes to the Org, not flavour.
+	# Handle them here so the report can describe the new role.
+	_apply_org_effects(def, target_id, success, extras)
+
+	if coord != null and not coord.burned:
+		extras["coordinator_name"] = coord.display_name
+		extras["coordinator_id"]   = String(coord.id)
+
 	var report: Letter = _build_report(def, target_id, success, extras)
 	EventBus.letter_delivered.emit(report)
 
 	if success:
 		_maybe_publish_public_trace(def, target_id)
-	else:
-		_apply_failure_exposure(def)
+	_apply_failure_consequences(def, success, coord)
+
+	# Feed the organisation. Successful routed work builds trust and a
+	# pinch of skill; failure bleeds both and heats the operative layer.
+	if coord != null and not coord.burned:
+		if success:
+			Org.adjust_trust(coord.id, 2)
+		else:
+			Org.adjust_trust(coord.id, -2)
 
 	EventBus.action_resolved.emit(action_id, {
-		"success":      success,
-		"target_id":    target_id,
-		"summary":      report.subject,
-		"rel_delta":    rel_delta,
+		"success":        success,
+		"target_id":      target_id,
+		"summary":        report.subject,
+		"rel_delta":      rel_delta,
+		"routed_via":     String(coord.id) if coord != null else "",
 	})
+
+
+## Org-structural side effects — the promotion lines on the scroll
+## have to actually change the Roster, not just describe it. Hooked
+## in before the report is authored so the letter can name the new
+## coordinator/lieutenant in-role.
+func _apply_org_effects(def: ActionDefinition, target_id: String, success: bool, extras: Dictionary) -> void:
+	if not success:
+		return
+	match def.id:
+		&"promote_coordinator":
+			var m: OrgMember = Org.promote_actor_to_coordinator(StringName(target_id))
+			if m != null:
+				extras["new_member_id"]   = String(m.id)
+				extras["new_member_name"] = m.display_name
+				extras["new_layer"]       = m.layer_name()
+		&"promote_lieutenant":
+			var existing: OrgMember = Org.member_for_actor(StringName(target_id))
+			if existing != null:
+				var lt: OrgMember = Org.promote_coordinator_to_lieutenant(existing.id)
+				if lt != null:
+					extras["new_member_id"]   = String(lt.id)
+					extras["new_member_name"] = lt.display_name
+					extras["new_layer"]       = lt.layer_name()
+		_:
+			pass
 
 
 ## Side-effects that aren't pure "report flavour" — the player's act of
@@ -192,12 +378,13 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 	return out
 
 
-## A botched covert move leaves loose threads someone may follow. Nudge
-## exposure up by a small amount that scales with the action's tier.
-## Doesn't push the meter into a new band on its own, but stacks across
-## a bad season. Passive/watch actions are exempt — nothing happens
-## there that can be traced back.
-func _apply_failure_exposure(def: ActionDefinition) -> void:
+## A botched move leaves loose threads. The *player's* exposure meter
+## only pays the tail if there was no coverage — otherwise §14.2
+## compartmentalisation kicks in and the heat sticks to the cell that
+## ran the job, risking an operative (and, cascading, the coordinator).
+func _apply_failure_consequences(def: ActionDefinition, success: bool, coord: OrgMember) -> void:
+	if success:
+		return
 	if def.exposure_cost <= 0.0:
 		return
 	var tail: float = 0.0
@@ -205,8 +392,21 @@ func _apply_failure_exposure(def: ActionDefinition) -> void:
 		ActionDefinition.Tier.DEEP_SHADOW: tail = 1.0
 		ActionDefinition.Tier.ACTIVE:      tail = 2.0
 		ActionDefinition.Tier.HIGH:        tail = 4.0
-	if tail > 0.0:
+	if tail <= 0.0:
+		return
+
+	if coord == null or coord.burned:
+		# Direct contact; the heat comes back to you.
 		Exposure.bump(tail, "failed_" + String(def.id))
+		return
+
+	# Routed work: the heat lands on the operative assigned to the job,
+	# not the player. If nobody is free, the coordinator eats it.
+	var op: OrgMember = Org.operative_for_coordinator(coord.id)
+	if op != null:
+		Org.bump_heat(op.id, int(tail * 12.0), StringName("failed_" + String(def.id)))
+	else:
+		Org.bump_heat(coord.id, int(tail * 8.0), StringName("failed_" + String(def.id)))
 
 
 ## For successful actions that produce an observable consequence in the
@@ -383,6 +583,18 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 		subject = "On the matter in %s" % target_name
 	elif def.id == &"fan_border":
 		subject = "From the frontier of %s" % target_name
+	elif def.id == &"promote_coordinator":
+		subject = (
+			"A coordinator answers to you"
+			if success else
+			"A conversation that never happened"
+		)
+	elif def.id == &"promote_lieutenant":
+		subject = (
+			"You have a second-in-command"
+			if success else
+			"The elevation is deferred"
+		)
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -457,6 +669,22 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			if after == int(Relations.RelationState.HOSTILE):
 				return "Work begun. The frontier between %s and %s is worse for our attention — a step closer to what you're after, though not yet where we want it. Another push may finish it." % [target, n_name]
 			return "Something shifted on the border with %s. Not yet the shape you wanted, but a colder wind than last month. Patience." % n_name
+		&"promote_coordinator":
+			if success:
+				return (
+					"It is done. %s met you at the old house in the hill and did not leave until the small hours. They understand what is being asked. They accepted, in their own words, without flinching.\n\nFrom this month on, the city's work runs through them. You will not meet hands beneath their rank again unless the world forces you to."
+				) % target
+			return (
+				"I could not finish the conversation with %s. What I had to say was too large for the room — they asked questions I could not answer without risking the whole shape, and so I let them believe it had been the heat, the wine, my own tiredness. They leave the meeting thinking they were nearly offered a business, nothing more.\n\nYou have not lost them. But you have not gained them either. Try again when the season is calmer."
+			) % target
+		&"promote_lieutenant":
+			if success:
+				return (
+					"I have told %s what they are to me, by degrees, across the last two winters. They now know what kind of thing the organisation is, if not yet what the organisation serves. From this day, their coordinators answer to them; they answer to me; I answer to no one they can name.\n\nThe chain above them has a hand at its top. They do not know whose."
+				) % target
+			return (
+				"The elevation failed. Not by their disloyalty — by mine. I moved too fast; they sensed a shape behind the shape and asked one question too many. I took the conversation back, gave them a different explanation, and let the evening end in coin.\n\nThey are still your coordinator. They are still ours. But it is not yet time to lift them further."
+			) % target
 		&"quiet_plot":
 			var p_name: String = String(extras.get("plotter_name", ""))
 			var p_id:   String = String(extras.get("plotter_id", ""))
