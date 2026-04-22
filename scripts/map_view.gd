@@ -358,6 +358,9 @@ func _render_detail(p: Province) -> void:
 	_detail_vbox.add_child(_make_heading("SOULS"))
 	_detail_vbox.add_child(_make_line(_population_phrase(p.population)))
 	if p.population > 0:
+		var trend: String = Population.phrase_for(p.id)
+		if trend != "":
+			_detail_vbox.add_child(_make_line(trend))
 		_detail_vbox.add_child(_make_heading("MOOD"))
 		_detail_vbox.add_child(_make_line(p.unrest_phrase()))
 	_detail_vbox.add_child(_make_heading("WHAT IT PRODUCES"))
