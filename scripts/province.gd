@@ -41,6 +41,20 @@ enum Climate {
 ## through unrest_phrase() / unrest_band().
 @export var unrest: int = 0
 
+## Completed infrastructure projects built in this province (§8.7).
+## Persistent once finished. Recognised kinds:
+##   &"road_network"  — kingdom-wide trade boost
+##   &"city_walls"    — softens war attrition against the province
+##   &"granary"       — softens famine/plague unrest bumps
+##   &"harbour"       — coastal only; boosts silver production
+## The Infrastructure autoload owns the construction pipeline; this
+## field only records what has been completed.
+@export var buildings: Array[StringName] = []
+
+
+func has_building(kind: StringName) -> bool:
+	return buildings.has(kind)
+
 
 static func from_dict(d: Dictionary) -> Province:
 	var p: Province = Province.new()
@@ -55,6 +69,9 @@ static func from_dict(d: Dictionary) -> Province:
 	p.timber_production = float(d.get("timber_production", 0.0))
 	p.owning_kingdom    = String(d.get("owning_kingdom", ""))
 	p.unrest            = int(d.get("unrest", 0))
+	p.buildings = []
+	for b in d.get("buildings", []):
+		p.buildings.append(StringName(String(b)))
 	return p
 
 

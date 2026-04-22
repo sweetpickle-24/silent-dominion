@@ -157,7 +157,12 @@ func _tick_province(p: Province) -> void:
 			p.owning_kingdom, int(Relations.RelationState.AT_WAR)
 		).size()
 		if fronts > 0:
-			rate -= WAR_LOSS * float(fronts)
+			var war_drag: float = WAR_LOSS * float(fronts)
+			# City walls save the population when the frontier moves —
+			# the province is still a target, but a harder one.
+			if p.has_building(&"city_walls"):
+				war_drag *= 0.5
+			rate -= war_drag
 
 	# Tiny per-province noise so the numbers don't drift in lockstep.
 	rate += _rng.randf_range(-0.0005, 0.0005)

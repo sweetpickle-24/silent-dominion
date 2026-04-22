@@ -371,6 +371,11 @@ func _render_detail(p: Province) -> void:
 		for phrase in prod:
 			_detail_vbox.add_child(_make_line("•  %s" % phrase))
 
+	var infra: String = Infrastructure.phrase_for(p.id)
+	if infra != "":
+		_detail_vbox.add_child(_make_heading("ON THE GROUND"))
+		_detail_vbox.add_child(_make_line(infra))
+
 	if k != null:
 		_detail_vbox.add_child(_make_divider())
 		_detail_vbox.add_child(_make_heading("THE CROWN IT FEEDS"))

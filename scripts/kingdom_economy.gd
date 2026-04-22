@@ -139,6 +139,13 @@ func _monthly_income(k: Kingdom) -> float:
 			+ p.iron_production
 			+ p.timber_production
 		)
+		# Infrastructure lifts production once built.
+		#   road_network : +8% on everything it carries
+		#   harbour      : +15% on silver (coastal trade)
+		if p.has_building(&"road_network"):
+			province_total *= 1.08
+		if p.has_building(&"harbour"):
+			province_total += p.silver_production * 0.15
 		var unrest_mult: float = float(UNREST_YIELD_MULTIPLIER.get(p.unrest_band(), 1.0))
 		annual += province_total * unrest_mult
 	var mult: float = float(TAX_LEVEL_MULTIPLIER.get(k.tax_level, 1.0))

@@ -70,7 +70,12 @@ func _roll_plague(p: Province) -> void:
 	if _is_modifier_active(p):
 		return
 	_apply_production_modifier(p, PLAGUE_YIELD, PLAGUE_MONTHS, &"plague")
-	Unrest.bump(p.id, UNREST_PLAGUE)
+	# A crown granary doesn't stop pestilence but it softens the panic
+	# in the markets — less run on the bakers, less unrest.
+	var bump: int = UNREST_PLAGUE
+	if p.has_building(&"granary"):
+		bump = int(round(float(bump) * 0.7))
+	Unrest.bump(p.id, bump)
 	_publish_plague(p)
 
 
@@ -80,7 +85,10 @@ func _roll_famine(p: Province) -> void:
 	if _is_modifier_active(p):
 		return
 	_apply_production_modifier(p, FAMINE_YIELD, FAMINE_MONTHS, &"famine")
-	Unrest.bump(p.id, UNREST_FAMINE)
+	var bump: int = UNREST_FAMINE
+	if p.has_building(&"granary"):
+		bump = int(round(float(bump) * 0.5))
+	Unrest.bump(p.id, bump)
 	_publish_famine(p)
 
 
