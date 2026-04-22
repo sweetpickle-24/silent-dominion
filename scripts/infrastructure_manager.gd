@@ -199,13 +199,17 @@ func _commit_project(k: Kingdom, choice: Dictionary) -> void:
 	_in_progress[p.id] = arr
 
 	project_started.emit(k.id, p.id, kind)
-	EventBus.public_event.emit({
-		"kind":       &"construction_start",
-		"kingdom_id": k.id,
-		"province":   p.id,
-		"headline":   "The crown of %s breaks ground in %s" % [k.kingdom_name, p.province_name],
-		"body":       _start_body(k, p, kind),
-	})
+	# Ground-breaking is colour, not record. A ribbon-cutting (the
+	# "construction_done" event further down) is structural and always
+	# fires. The opener stays quiet for kingdoms we have no eyes on.
+	if Fidelity.is_high(k.id):
+		EventBus.public_event.emit({
+			"kind":       &"construction_start",
+			"kingdom_id": k.id,
+			"province":   p.id,
+			"headline":   "The crown of %s breaks ground in %s" % [k.kingdom_name, p.province_name],
+			"body":       _start_body(k, p, kind),
+		})
 
 
 func _on_task_due(descriptor: Dictionary) -> void:

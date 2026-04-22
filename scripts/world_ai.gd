@@ -182,6 +182,10 @@ func _maybe_emit_plot_warning(plotter: Actor, ruler: Actor) -> void:
 		return
 	if _rng.randf() >= COUP_WARN_CHANCE:
 		return
+	# Plot whispers in a court the player has no eyes on are useless
+	# noise — and the host channel below couldn't fire there anyway.
+	if Fidelity.is_low(plotter.kingdom_id):
+		return
 	_plot_warning_last_day[plotter.id] = today
 	var k: Kingdom = WorldData.get_kingdom(plotter.kingdom_id)
 	var kname: String = k.kingdom_name if k != null else plotter.kingdom_id
@@ -369,6 +373,11 @@ func _roll_war_declaration() -> void:
 # --- Event authors -----------------------------------------------------------
 
 func _emit_decree(ruler: Actor, k: Kingdom) -> void:
+	# Court flavour from a kingdom we have no eyes on is noise — let
+	# the ruler issue their decree, just don't spam the scroll with it
+	# (§9.6 low-fidelity AI).
+	if Fidelity.is_low(k.id):
+		return
 	var decrees_bank: Array[String] = [
 		"orders a new census of able-bodied men",
 		"commands a sacrifice on the grand altar",
@@ -419,15 +428,25 @@ func _kill_actor(a: Actor) -> void:
 	var was_host: bool = a.is_host()
 	a.death_year = GameClock.year
 	var title: String = TraitCues.role_title(a.role).to_lower()
-	_publish({
-		"kind":       &"death",
-		"kingdom_id": a.kingdom_id,
-		"actors":     [String(a.id)],
-		"headline":   "%s is no more" % a.given_name,
-		"body":       "Word has travelled from %s. %s, %s, is dead. The manner of it was, as they say, unremarkable: age, at length, comes for all." % [
-			_kingdom_name(a.kingdom_id), _actor_link(a), title,
-		],
-	})
+	# Rulers and dead hosts always make the scroll, regardless of
+	# coverage — a king's death is structural and a turned host is
+	# the player's own intelligence. Other deaths in low-fidelity
+	# kingdoms stay quiet.
+	var announce: bool = (
+		a.role == Actor.Role.RULER
+		or was_host
+		or Fidelity.is_high(a.kingdom_id)
+	)
+	if announce:
+		_publish({
+			"kind":       &"death",
+			"kingdom_id": a.kingdom_id,
+			"actors":     [String(a.id)],
+			"headline":   "%s is no more" % a.given_name,
+			"body":       "Word has travelled from %s. %s, %s, is dead. The manner of it was, as they say, unremarkable: age, at length, comes for all." % [
+				_kingdom_name(a.kingdom_id), _actor_link(a), title,
+			],
+		})
 	EventBus.actor_died.emit(a.id, was_host, &"age")
 	if a.role == Actor.Role.RULER:
 		_handle_succession(a)
@@ -461,6 +480,10 @@ func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 		})
 		EventBus.actor_died.emit(ruler.id, ruler_was_host, &"assassination")
 	else:
+		# A foiled palace blade in a kingdom the player can't see is
+		# rumour, not record. Don't promote it to the scroll.
+		if Fidelity.is_low(ruler.kingdom_id):
+			return
 		_publish({
 			"kind":       &"assassination_attempt",
 			"kingdom_id": ruler.kingdom_id,
