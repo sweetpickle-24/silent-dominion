@@ -1,19 +1,21 @@
 extends Control
 ## Full-screen overlay for the MapScroll object on the table.
 ##
-## Phase-0 map: no true geography, just a parchment sheet with every
-## province rendered as a small card placed at hand-tuned normalised
-## co-ordinates that roughly match the ancient Mediterranean. Each
-## card's background is coloured by its owning kingdom so the whole
-## sheet reads as a political survey at a glance.
+## The map is drawn as real polygons: each province is a hand-authored
+## ring in normalised [0,1] coordinates, rendered via a dedicated
+## `MapCanvas` child that delegates `_draw()` back to this view. The
+## polygons sit on top of a few broader "landmass" silhouettes so that
+## gaps between adjacent provinces read as land, not sea. The whole
+## drawing layer is pan- and zoom-transformed from the outer clipped
+## canvas, which handles all input (wheel for zoom, left-drag on empty
+## area to pan, left-click on a province to select it).
 ##
-## Click a province to open a detail pane on the right with its
-## terrain, climate, and qualitative production read-out. Sea
-## provinces are styled differently and unclaimed.
-##
-## The map re-renders itself on KingdomEconomy.tick so condition
-## changes propagate immediately; the coloured border of each card
-## leans harder on red as the owner's treasury degrades.
+## Visual contract (cf. docs/07-interface/map-and-zoom.md,
+## docs/08-map-and-provinces/provinces.md):
+##   - era-appropriate papyrus aesthetic — not a modern satellite view.
+##   - provinces coloured by owning kingdom; seas styled distinctly.
+##   - province border reddens as the owner's treasury degrades.
+##   - selecting a province opens a detail pane on the right.
 
 signal closed
 
@@ -40,56 +42,187 @@ const KINGDOM_COLORS: Dictionary = {
 	"etruscan_league": Color(0.44, 0.48, 0.24, 1.0),
 }
 
-# Hand-tuned normalised positions for each province. 0,0 top-left,
-# 1,1 bottom-right of the canvas. Stored (x, y) pairs.
-const PROVINCE_COORDS: Dictionary = {
-	# Greek world
-	"attica":           Vector2(0.52, 0.56),
-	"laconia":          Vector2(0.51, 0.66),
-	"corinthia":        Vector2(0.49, 0.56),
-	"argolis":          Vector2(0.51, 0.60),
-	"macedon":          Vector2(0.48, 0.36),
-	"thrace":           Vector2(0.56, 0.30),
-	# Anatolia / Persia
-	"ionia":            Vector2(0.62, 0.50),
-	"lydia":            Vector2(0.66, 0.44),
-	"media":            Vector2(0.82, 0.42),
-	"persis":           Vector2(0.88, 0.56),
-	# Egypt / Africa
-	"lower_egypt":      Vector2(0.66, 0.70),
-	"upper_egypt":      Vector2(0.70, 0.82),
-	"africa_proconsularis": Vector2(0.34, 0.72),
-	"libya_coast":      Vector2(0.48, 0.82),
-	# Italy
-	"etruria":          Vector2(0.32, 0.42),
-	"latium":           Vector2(0.34, 0.47),
-	"campania":         Vector2(0.36, 0.52),
-	"sicily":           Vector2(0.38, 0.63),
-	# Gaul
-	"gallia_belgica":   Vector2(0.18, 0.12),
-	"gallia_celtica":   Vector2(0.14, 0.27),
-	"massalia":         Vector2(0.22, 0.36),
-	# Sea provinces
-	"aegean_sea":       Vector2(0.54, 0.48),
-	"ionian_sea":       Vector2(0.40, 0.56),
-	"tyrrhenian_sea":   Vector2(0.28, 0.55),
-	"black_sea_coast":  Vector2(0.64, 0.22),
+# Hand-authored province polygons in normalised map coordinates
+# (0..1 on each axis, origin top-left). Each province is a closed
+# ring — first and last points are not repeated. The shapes are
+# deliberately stylised: this is a 500 BCE papyrus map, not a
+# satellite view. See docs/07-interface/map-and-zoom.md.
+var PROVINCE_POLYGONS: Dictionary = {
+	# --- Greek / Aegean world ------------------------------------------------
+	"macedon":              PackedVector2Array([
+		Vector2(0.445, 0.340), Vector2(0.498, 0.335), Vector2(0.515, 0.380),
+		Vector2(0.500, 0.420), Vector2(0.462, 0.422), Vector2(0.438, 0.395),
+	]),
+	"thrace":               PackedVector2Array([
+		Vector2(0.515, 0.282), Vector2(0.592, 0.280), Vector2(0.610, 0.316),
+		Vector2(0.580, 0.345), Vector2(0.520, 0.338), Vector2(0.498, 0.318),
+	]),
+	"attica":               PackedVector2Array([
+		Vector2(0.508, 0.530), Vector2(0.545, 0.528), Vector2(0.560, 0.558),
+		Vector2(0.540, 0.582), Vector2(0.508, 0.580), Vector2(0.498, 0.555),
+	]),
+	"corinthia":             PackedVector2Array([
+		Vector2(0.472, 0.540), Vector2(0.508, 0.540), Vector2(0.510, 0.568),
+		Vector2(0.478, 0.575), Vector2(0.462, 0.562),
+	]),
+	"argolis":              PackedVector2Array([
+		Vector2(0.485, 0.582), Vector2(0.528, 0.580), Vector2(0.540, 0.612),
+		Vector2(0.512, 0.630), Vector2(0.478, 0.618),
+	]),
+	"laconia":              PackedVector2Array([
+		Vector2(0.468, 0.625), Vector2(0.528, 0.625), Vector2(0.540, 0.680),
+		Vector2(0.508, 0.710), Vector2(0.475, 0.692), Vector2(0.458, 0.660),
+	]),
+
+	# --- Anatolia / Persia ---------------------------------------------------
+	"lydia":                PackedVector2Array([
+		Vector2(0.615, 0.385), Vector2(0.700, 0.380), Vector2(0.718, 0.430),
+		Vector2(0.682, 0.450), Vector2(0.620, 0.438),
+	]),
+	"ionia":                PackedVector2Array([
+		Vector2(0.585, 0.452), Vector2(0.648, 0.450), Vector2(0.662, 0.490),
+		Vector2(0.622, 0.512), Vector2(0.588, 0.498),
+	]),
+	"media":                PackedVector2Array([
+		Vector2(0.762, 0.360), Vector2(0.860, 0.360), Vector2(0.878, 0.430),
+		Vector2(0.838, 0.462), Vector2(0.770, 0.448), Vector2(0.750, 0.402),
+	]),
+	"persis":               PackedVector2Array([
+		Vector2(0.822, 0.500), Vector2(0.902, 0.498), Vector2(0.922, 0.560),
+		Vector2(0.882, 0.605), Vector2(0.828, 0.598), Vector2(0.808, 0.548),
+	]),
+
+	# --- Egypt / North Africa ------------------------------------------------
+	"lower_egypt":          PackedVector2Array([
+		Vector2(0.628, 0.660), Vector2(0.702, 0.660), Vector2(0.712, 0.710),
+		Vector2(0.668, 0.728), Vector2(0.625, 0.702),
+	]),
+	"upper_egypt":          PackedVector2Array([
+		Vector2(0.660, 0.728), Vector2(0.718, 0.728), Vector2(0.732, 0.865),
+		Vector2(0.690, 0.892), Vector2(0.662, 0.852),
+	]),
+	"africa_proconsularis": PackedVector2Array([
+		Vector2(0.262, 0.698), Vector2(0.362, 0.688), Vector2(0.398, 0.740),
+		Vector2(0.360, 0.768), Vector2(0.282, 0.760), Vector2(0.248, 0.728),
+	]),
+	"libya_coast":          PackedVector2Array([
+		Vector2(0.402, 0.762), Vector2(0.528, 0.758), Vector2(0.560, 0.812),
+		Vector2(0.518, 0.842), Vector2(0.420, 0.838), Vector2(0.388, 0.800),
+	]),
+
+	# --- Italian peninsula ---------------------------------------------------
+	"etruria":              PackedVector2Array([
+		Vector2(0.282, 0.382), Vector2(0.348, 0.380), Vector2(0.362, 0.422),
+		Vector2(0.328, 0.445), Vector2(0.282, 0.430),
+	]),
+	"latium":               PackedVector2Array([
+		Vector2(0.302, 0.445), Vector2(0.362, 0.445), Vector2(0.375, 0.478),
+		Vector2(0.342, 0.495), Vector2(0.300, 0.482),
+	]),
+	"campania":             PackedVector2Array([
+		Vector2(0.322, 0.495), Vector2(0.378, 0.492), Vector2(0.395, 0.540),
+		Vector2(0.360, 0.560), Vector2(0.328, 0.548),
+	]),
+	"sicily":               PackedVector2Array([
+		Vector2(0.332, 0.608), Vector2(0.415, 0.605), Vector2(0.432, 0.640),
+		Vector2(0.400, 0.662), Vector2(0.338, 0.650), Vector2(0.320, 0.628),
+	]),
+
+	# --- Gaul ----------------------------------------------------------------
+	"gallia_belgica":       PackedVector2Array([
+		Vector2(0.108, 0.058), Vector2(0.242, 0.055), Vector2(0.262, 0.148),
+		Vector2(0.205, 0.178), Vector2(0.135, 0.170), Vector2(0.090, 0.115),
+	]),
+	"gallia_celtica":       PackedVector2Array([
+		Vector2(0.058, 0.190), Vector2(0.195, 0.180), Vector2(0.238, 0.265),
+		Vector2(0.185, 0.318), Vector2(0.092, 0.312), Vector2(0.048, 0.248),
+	]),
+	"massalia":             PackedVector2Array([
+		Vector2(0.180, 0.332), Vector2(0.258, 0.328), Vector2(0.278, 0.380),
+		Vector2(0.238, 0.402), Vector2(0.182, 0.390),
+	]),
+
+	# --- Seas (drawn as sea, selectable like any other province) -------------
+	"aegean_sea":           PackedVector2Array([
+		Vector2(0.540, 0.430), Vector2(0.605, 0.438), Vector2(0.602, 0.510),
+		Vector2(0.558, 0.525), Vector2(0.528, 0.492),
+	]),
+	"ionian_sea":           PackedVector2Array([
+		Vector2(0.380, 0.520), Vector2(0.455, 0.528), Vector2(0.460, 0.608),
+		Vector2(0.398, 0.618), Vector2(0.360, 0.568),
+	]),
+	"tyrrhenian_sea":       PackedVector2Array([
+		Vector2(0.232, 0.500), Vector2(0.298, 0.498), Vector2(0.310, 0.578),
+		Vector2(0.260, 0.598), Vector2(0.218, 0.552),
+	]),
+	"black_sea_coast":      PackedVector2Array([
+		Vector2(0.582, 0.178), Vector2(0.718, 0.178), Vector2(0.738, 0.248),
+		Vector2(0.690, 0.272), Vector2(0.598, 0.260), Vector2(0.570, 0.220),
+	]),
 }
+
+# Rough landmass silhouettes drawn under the province polygons. They
+# fill any gaps between adjacent provinces so the continents read as
+# solid land; the province colouring is painted on top. Hand-authored
+# to roughly match the polygon groupings above.
+var LANDMASS_POLYGONS: Array = [
+	# Southern Europe / Greece
+	PackedVector2Array([
+		Vector2(0.420, 0.258), Vector2(0.620, 0.258), Vector2(0.628, 0.350),
+		Vector2(0.555, 0.440), Vector2(0.560, 0.530), Vector2(0.565, 0.610),
+		Vector2(0.540, 0.700), Vector2(0.462, 0.720), Vector2(0.438, 0.640),
+		Vector2(0.440, 0.540), Vector2(0.420, 0.440),
+	]),
+	# Anatolia + Persia land
+	PackedVector2Array([
+		Vector2(0.580, 0.358), Vector2(0.740, 0.348), Vector2(0.878, 0.340),
+		Vector2(0.935, 0.420), Vector2(0.935, 0.560), Vector2(0.888, 0.620),
+		Vector2(0.800, 0.620), Vector2(0.748, 0.560), Vector2(0.668, 0.520),
+		Vector2(0.602, 0.500), Vector2(0.580, 0.430),
+	]),
+	# Italian peninsula
+	PackedVector2Array([
+		Vector2(0.258, 0.358), Vector2(0.378, 0.358), Vector2(0.412, 0.548),
+		Vector2(0.392, 0.590), Vector2(0.352, 0.578), Vector2(0.318, 0.538),
+		Vector2(0.288, 0.468),
+	]),
+	# Sicily island
+	PackedVector2Array([
+		Vector2(0.318, 0.598), Vector2(0.430, 0.598), Vector2(0.440, 0.660),
+		Vector2(0.350, 0.668), Vector2(0.308, 0.638),
+	]),
+	# Gaul
+	PackedVector2Array([
+		Vector2(0.038, 0.040), Vector2(0.285, 0.040), Vector2(0.298, 0.368),
+		Vector2(0.260, 0.408), Vector2(0.190, 0.412), Vector2(0.050, 0.345),
+		Vector2(0.020, 0.220),
+	]),
+	# North Africa coast
+	PackedVector2Array([
+		Vector2(0.210, 0.678), Vector2(0.580, 0.752), Vector2(0.598, 0.898),
+		Vector2(0.318, 0.920), Vector2(0.190, 0.860),
+	]),
+	# Egypt (Nile strip)
+	PackedVector2Array([
+		Vector2(0.598, 0.650), Vector2(0.742, 0.650), Vector2(0.755, 0.910),
+		Vector2(0.668, 0.928), Vector2(0.610, 0.840),
+	]),
+]
 
 # --- Layout constants --------------------------------------------------------
 
 const SHEET_W: float   = 1020.0
 const SHEET_H: float   = 680.0
 const PANEL_W: float   = 280.0
-const TILE_SIZE: Vector2 = Vector2(116, 40)
-const TILE_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
 
 # --- Pan / zoom --------------------------------------------------------------
 #
-# All tiles live on an inner `_map_layer` Control that sits inside the
-# clipped `_canvas`. Panning drags that layer; zooming scales it around
-# the cursor. The tiles themselves do not know about zoom — they render
-# at a fixed 1x pixel size and let the layer's transform do the work.
+# The polygon drawing lives on an inner `_map_layer` (a `MapCanvas`)
+# sitting inside the clipped `_canvas`. That layer is `MOUSE_FILTER_IGNORE`
+# so every mouse event bubbles through to `_canvas.gui_input`, which is
+# the single source of truth for pan / zoom / click. Zoom is anchored
+# on the cursor; pan is left-click-drag on empty sea; a short click
+# hit-tests against polygon geometry to select a province.
 const ZOOM_MIN:   float = 0.60
 const ZOOM_MAX:   float = 3.00
 const ZOOM_STEP:  float = 1.15
@@ -249,15 +382,18 @@ func _build_sheet() -> void:
 	_canvas.clip_contents = true
 	_canvas.gui_input.connect(_on_canvas_gui_input)
 	_canvas.resized.connect(_on_canvas_resized)
+	_canvas.mouse_exited.connect(_on_canvas_mouse_exited)
 	row.add_child(_canvas)
 
-	# Inner layer that we pan and scale. Tiles are added as children of
-	# this layer; the canvas only provides the clipped viewport and
-	# catches the gui input for pan/zoom.
-	_map_layer = Control.new()
+	# Inner layer that pans and scales. This is a custom Control
+	# whose `_draw()` delegates back to us (`draw_map_canvas`). It
+	# ignores mouse events so every click / drag / wheel reaches the
+	# clipped `_canvas` above, which does the actual input work.
+	_map_layer = MapCanvas.new()
+	(_map_layer as MapCanvas).drawer = self
 	_map_layer.anchor_right = 0.0
 	_map_layer.anchor_bottom = 0.0
-	_map_layer.mouse_filter = MOUSE_FILTER_PASS
+	_map_layer.mouse_filter = MOUSE_FILTER_IGNORE
 	_canvas.add_child(_map_layer)
 
 	# Detail column on the right.
@@ -309,124 +445,175 @@ func _build_sheet() -> void:
 	footer.add_child(close_btn)
 
 
-# --- Canvas: province tiles --------------------------------------------------
+# --- Canvas: province polygons ----------------------------------------------
+
+## Cache of cached pixel-space polygons keyed by province id. Recomputed
+## whenever the canvas resizes. Used by both `_draw()` and the
+## point-in-polygon hit tester so both agree on geometry.
+var _pixel_polys: Dictionary = {}
+var _pixel_landmasses: Array = []
+var _hovered_province_id: String = ""
+
 
 func _render_canvas() -> void:
 	if _map_layer == null:
 		return
-	for child in _map_layer.get_children():
-		child.queue_free()
-	# Deferred so _canvas.size has been computed by the layout pass.
-	call_deferred("_place_tiles")
+	call_deferred("_refresh_map")
 
 
-func _place_tiles() -> void:
+func _refresh_map() -> void:
 	if _canvas == null or _map_layer == null:
 		return
 	var rect: Vector2 = _canvas.size
 	if rect.x <= 0.0 or rect.y <= 0.0:
-		call_deferred("_place_tiles")
+		call_deferred("_refresh_map")
 		return
-	# Size the inner layer to match the viewport so the first frame
-	# is centered; pan/zoom then moves it around inside the clip.
 	_map_layer.size = rect
-	for pid in PROVINCE_COORDS.keys():
-		var p: Province = WorldData.get_province(pid)
-		if p == null:
-			continue
-		var pos_norm: Vector2 = PROVINCE_COORDS[pid]
-		var tile: Control = _build_tile(p)
-		tile.position = Vector2(
-			pos_norm.x * rect.x - TILE_SIZE.x * 0.5,
-			pos_norm.y * rect.y - TILE_SIZE.y * 0.5
-		)
-		_map_layer.add_child(tile)
+	_rebuild_pixel_polys(rect)
+	(_map_layer as MapCanvas).queue_redraw()
 	_apply_transform()
 
 
-func _build_tile(p: Province) -> Control:
-	var btn: Button = Button.new()
-	btn.text = ""
-	btn.custom_minimum_size = TILE_SIZE
-	btn.size = TILE_SIZE
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.pivot_offset = TILE_SIZE * 0.5
-	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var is_sea: bool = p.owning_kingdom.is_empty()
-	var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
-	var border: Color = COLOR_SEA_BORDER if is_sea else _kingdom_border(p.owning_kingdom)
-
-	var sb: StyleBoxFlat = StyleBoxFlat.new()
-	sb.bg_color = base
-	sb.border_color = border
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 3
-	sb.corner_radius_top_right = 3
-	sb.corner_radius_bottom_left = 3
-	sb.corner_radius_bottom_right = 3
-	sb.shadow_color = Color(0, 0, 0, 0.18)
-	sb.shadow_size = 3
-	sb.shadow_offset = Vector2(0, 1)
-	btn.add_theme_stylebox_override("normal", sb)
-
-	var hover_sb: StyleBoxFlat = sb.duplicate()
-	hover_sb.bg_color = base.lightened(0.15)
-	btn.add_theme_stylebox_override("hover", hover_sb)
-	btn.add_theme_stylebox_override("pressed", hover_sb)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.anchor_right = 1.0
-	margin.anchor_bottom = 1.0
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_top", 2)
-	margin.add_theme_constant_override("margin_bottom", 2)
-	margin.mouse_filter = MOUSE_FILTER_IGNORE
-	btn.add_child(margin)
-
-	var v: VBoxContainer = VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	v.mouse_filter = MOUSE_FILTER_IGNORE
-	margin.add_child(v)
-
-	var name_l: Label = Label.new()
-	name_l.text = p.province_name
-	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_l.add_theme_color_override("font_color", _readable_ink(base))
-	name_l.add_theme_font_size_override("font_size", 11)
-	v.add_child(name_l)
-
-	var owner_l: Label = Label.new()
-	owner_l.text = _owner_short(p)
-	owner_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	owner_l.add_theme_color_override("font_color", _readable_ink(base).darkened(0.1))
-	owner_l.add_theme_font_size_override("font_size", 9)
-	v.add_child(owner_l)
-
-	btn.mouse_entered.connect(func() -> void:
-		_tile_hover(btn, true)
-		_show_cartouche_for(p, btn))
-	btn.mouse_exited.connect(func() -> void:
-		_tile_hover(btn, false)
-		_hide_cartouche_if(btn))
-	btn.pressed.connect(func() -> void: _on_tile_clicked(p))
-	return btn
+func _rebuild_pixel_polys(rect: Vector2) -> void:
+	_pixel_polys.clear()
+	for pid in PROVINCE_POLYGONS.keys():
+		_pixel_polys[pid] = _norm_poly_to_px(PROVINCE_POLYGONS[pid], rect)
+	_pixel_landmasses.clear()
+	for lm in LANDMASS_POLYGONS:
+		_pixel_landmasses.append(_norm_poly_to_px(lm, rect))
 
 
-func _tile_hover(btn: Button, on: bool) -> void:
-	var tw: Tween = create_tween()
-	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(btn, "scale", TILE_HOVER_SCALE if on else Vector2.ONE, 0.12)
+func _norm_poly_to_px(norm: PackedVector2Array, rect: Vector2) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for p in norm:
+		out.append(Vector2(p.x * rect.x, p.y * rect.y))
+	return out
 
 
-func _on_tile_clicked(p: Province) -> void:
+## Called by `MapCanvas._draw()`. Everything rendered here is in the
+## layer's own local space; the pan/zoom transform is applied by the
+## layer's `scale` and `position`.
+func draw_map_canvas(c: Control) -> void:
+	if _pixel_polys.is_empty():
+		return
+
+	var rect: Vector2 = c.size
+	# 1. Deep-water backdrop, slightly darker than the canvas panel
+	# behind it. Gives the drawn landmasses a sea to sit on.
+	c.draw_rect(Rect2(Vector2.ZERO, rect), Color(0.58, 0.70, 0.76, 0.55), true)
+
+	# 2. Continents — a single sandy silhouette per landmass, drawn
+	# first so provinces sit on top of them and any gaps between
+	# province polygons read as land rather than sea.
+	var land_fill: Color   = Color(0.82, 0.72, 0.52, 1.0)
+	var land_stroke: Color = Color(0.42, 0.30, 0.16, 0.55)
+	for land in _pixel_landmasses:
+		c.draw_colored_polygon(land, land_fill)
+		_draw_closed_polyline(c, land, land_stroke, 1.5)
+
+	# 3. Province polygons — filled in kingdom colour (or sea blue
+	# for sea provinces), with a slightly stronger outline on top.
+	for pid in _pixel_polys.keys():
+		var p: Province = WorldData.get_province(pid)
+		if p == null:
+			continue
+		var poly: PackedVector2Array = _pixel_polys[pid]
+		var is_sea: bool = p.owning_kingdom.is_empty()
+		var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
+		var border: Color = COLOR_SEA_BORDER if is_sea else _kingdom_border(p.owning_kingdom)
+		var fill: Color = base
+		if pid == _hovered_province_id:
+			fill = base.lightened(0.18)
+		if pid == _selected_province_id:
+			fill = base.lightened(0.08)
+		c.draw_colored_polygon(poly, fill)
+		_draw_closed_polyline(c, poly, border, 1.4 if pid == _selected_province_id else 1.0)
+
+	# 4. Labels on top — province name at the polygon centroid, plus
+	# an owner short tag for land provinces. Fonts scale inversely
+	# with zoom so they stay legible zoomed in or out.
+	var font: Font = ThemeDB.fallback_font
+	var base_size: float = 11.0
+	var label_size: int = int(clampf(base_size / max(_zoom, 0.6), 9.0, 14.0))
+	var owner_size: int = int(clampf(9.0 / max(_zoom, 0.6), 8.0, 12.0))
+	for pid in _pixel_polys.keys():
+		var p: Province = WorldData.get_province(pid)
+		if p == null:
+			continue
+		var poly: PackedVector2Array = _pixel_polys[pid]
+		var is_sea: bool = p.owning_kingdom.is_empty()
+		var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
+		var ink: Color = _readable_ink(base)
+		var centroid: Vector2 = _poly_centroid(poly)
+		var name_w: float = font.get_string_size(
+			p.province_name, HORIZONTAL_ALIGNMENT_CENTER, -1, label_size
+		).x
+		c.draw_string(
+			font,
+			Vector2(centroid.x - name_w * 0.5, centroid.y),
+			p.province_name,
+			HORIZONTAL_ALIGNMENT_CENTER,
+			-1,
+			label_size,
+			ink,
+		)
+		if not is_sea:
+			var owner_text: String = _owner_short(p)
+			if owner_text != "" and owner_text != "—":
+				var ow: float = font.get_string_size(
+					owner_text, HORIZONTAL_ALIGNMENT_CENTER, -1, owner_size
+				).x
+				c.draw_string(
+					font,
+					Vector2(centroid.x - ow * 0.5, centroid.y + label_size + 1.0),
+					owner_text,
+					HORIZONTAL_ALIGNMENT_CENTER,
+					-1,
+					owner_size,
+					ink.darkened(0.15),
+				)
+
+
+func _draw_closed_polyline(c: Control, poly: PackedVector2Array, col: Color, width: float) -> void:
+	if poly.size() < 2:
+		return
+	var closed: PackedVector2Array = poly.duplicate()
+	closed.append(poly[0])
+	c.draw_polyline(closed, col, width, true)
+
+
+func _poly_centroid(poly: PackedVector2Array) -> Vector2:
+	if poly.is_empty():
+		return Vector2.ZERO
+	var acc: Vector2 = Vector2.ZERO
+	for p in poly:
+		acc += p
+	return acc / float(poly.size())
+
+
+## Convert a canvas-local point (the mouse position as received in
+## `_canvas.gui_input`) to the layer's own coordinate space, where the
+## polygon geometry lives.
+func _canvas_to_layer(canvas_pt: Vector2) -> Vector2:
+	if _zoom <= 0.0001:
+		return canvas_pt - _pan
+	return (canvas_pt - _pan) / _zoom
+
+
+func _find_province_at(canvas_pt: Vector2) -> Province:
+	var layer_pt: Vector2 = _canvas_to_layer(canvas_pt)
+	for pid in _pixel_polys.keys():
+		if Geometry2D.is_point_in_polygon(layer_pt, _pixel_polys[pid]):
+			var p: Province = WorldData.get_province(pid)
+			if p != null:
+				return p
+	return null
+
+
+func _on_province_clicked(p: Province) -> void:
 	_selected_province_id = p.id
 	_render_detail(p)
+	(_map_layer as MapCanvas).queue_redraw()
 
 
 # --- Detail panel ------------------------------------------------------------
@@ -577,17 +764,25 @@ func _build_legend_swatch(k: Kingdom) -> Control:
 
 # --- Hooks -------------------------------------------------------------------
 
+func _on_canvas_mouse_exited() -> void:
+	if _hovered_province_id != "":
+		_hovered_province_id = ""
+		if _cartouche != null:
+			_cartouche.visible = false
+			_cartouche_target = null
+		if _map_layer != null:
+			(_map_layer as MapCanvas).queue_redraw()
+
+
 func _on_canvas_resized() -> void:
-	# The canvas size is what drives tile positions. On the first
-	# layout pass the size can tick from 0 up to its final value in
-	# several steps; re-place tiles each time rather than locking in
-	# the first (possibly tiny) rect.
-	_render_canvas()
+	# The canvas size drives pixel polygon geometry. Rebuild on every
+	# resize so the map fills the current viewport rather than being
+	# stuck to the first (often tiny) layout pass.
+	_refresh_map()
 
 
 func _on_economy_tick(_snap: Array) -> void:
-	_render_canvas()
-	# If a province is selected, re-render its detail so condition cues refresh.
+	_refresh_map()
 	if not _selected_province_id.is_empty():
 		var p: Province = WorldData.get_province(_selected_province_id)
 		if p != null:
@@ -603,6 +798,8 @@ func _on_relation_changed(_a: String, _b: String, _s: int) -> void:
 
 
 func _on_unrest_changed(province_id: String) -> void:
+	if _map_layer != null:
+		(_map_layer as MapCanvas).queue_redraw()
 	if province_id != _selected_province_id:
 		return
 	var p: Province = WorldData.get_province(province_id)
@@ -706,6 +903,11 @@ func _make_divider() -> HSeparator:
 # Zoom: mouse wheel anchored on the cursor, so zooming in keeps the
 # province under the pointer roughly under the pointer.
 
+var _press_pos: Vector2 = Vector2.ZERO
+var _press_dragged: bool = false
+const _CLICK_SLOP: float = 4.0
+
+
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
@@ -719,14 +921,49 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			if mb.pressed:
 				_panning = true
 				_pan_anchor = mb.position
+				_press_pos = mb.position
+				_press_dragged = false
 				accept_event()
 			else:
+				# On release: if the cursor didn't travel far, treat it
+				# as a click and hit-test against province polygons.
+				# Otherwise it was a pan drag and we swallow it.
+				var was_panning: bool = _panning
 				_panning = false
-	elif event is InputEventMouseMotion and _panning:
+				if was_panning and not _press_dragged:
+					var p: Province = _find_province_at(mb.position)
+					if p != null:
+						_on_province_clicked(p)
+				accept_event()
+	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event
-		_pan += mm.relative
-		_apply_transform()
+		if _panning:
+			if not _press_dragged and mm.position.distance_to(_press_pos) > _CLICK_SLOP:
+				_press_dragged = true
+			if _press_dragged:
+				_pan += mm.relative
+				_apply_transform()
+		else:
+			_update_hover(mm.position)
 		accept_event()
+
+
+func _update_hover(canvas_pt: Vector2) -> void:
+	var p: Province = _find_province_at(canvas_pt)
+	var new_id: String = "" if p == null else p.id
+	if new_id == _hovered_province_id:
+		if p != null:
+			_position_cartouche_at_mouse(canvas_pt)
+		return
+	_hovered_province_id = new_id
+	if p == null:
+		if _cartouche != null:
+			_cartouche.visible = false
+			_cartouche_target = null
+	else:
+		_show_cartouche_at(p, canvas_pt)
+	if _map_layer != null:
+		(_map_layer as MapCanvas).queue_redraw()
 
 
 func _zoom_at(canvas_pt: Vector2, factor: float) -> void:
@@ -800,6 +1037,30 @@ func _build_cartouche() -> void:
 	_cartouche.add_child(_cartouche_vbox)
 
 
+func _show_cartouche_at(p: Province, canvas_pt: Vector2) -> void:
+	_show_cartouche_for(p, null)
+	_position_cartouche_at_mouse(canvas_pt)
+
+
+func _position_cartouche_at_mouse(canvas_pt: Vector2) -> void:
+	if _cartouche == null or not _cartouche.visible:
+		return
+	# `canvas_pt` is in _canvas-local space; translate to global.
+	var global_anchor: Vector2 = _canvas.global_position + canvas_pt
+	var card_size: Vector2 = _cartouche.size
+	var viewport_rect: Rect2 = get_viewport_rect()
+	var x: float = global_anchor.x - card_size.x * 0.5
+	var y: float = global_anchor.y - card_size.y - 14.0
+	if y < viewport_rect.position.y + 8.0:
+		y = global_anchor.y + 18.0
+	x = clampf(
+		x,
+		viewport_rect.position.x + 6.0,
+		viewport_rect.position.x + viewport_rect.size.x - card_size.x - 6.0,
+	)
+	_cartouche.position = Vector2(x, y)
+
+
 func _show_cartouche_for(p: Province, over: Control) -> void:
 	if _cartouche == null:
 		return
@@ -827,34 +1088,10 @@ func _show_cartouche_for(p: Province, over: Control) -> void:
 		dist_l.add_theme_font_size_override("font_size", 11)
 		_cartouche_vbox.add_child(dist_l)
 
-	# Force a layout pass before we read the cartouche's own size so
-	# we can position it precisely above the tile.
+	# Force a layout pass so `_cartouche.size` is current; the caller
+	# then positions it (over a node or at the mouse).
 	_cartouche.visible = true
 	_cartouche.reset_size()
-	call_deferred("_position_cartouche_over", over)
-
-
-func _position_cartouche_over(over: Control) -> void:
-	if _cartouche == null or over == null or not is_instance_valid(over):
-		return
-	if _cartouche_target != over:
-		return   # hover moved to another tile already
-	var tile_rect: Rect2 = over.get_global_rect()
-	var card_size: Vector2 = _cartouche.size
-	var viewport_rect: Rect2 = get_viewport_rect()
-	var x: float = tile_rect.position.x + tile_rect.size.x * 0.5 - card_size.x * 0.5
-	var y: float = tile_rect.position.y - card_size.y - 8.0
-	# If the card would clip off the top of the screen, drop it below
-	# the tile instead.
-	if y < viewport_rect.position.y + 8.0:
-		y = tile_rect.position.y + tile_rect.size.y + 8.0
-	# Keep inside viewport horizontally.
-	x = clampf(
-		x,
-		viewport_rect.position.x + 6.0,
-		viewport_rect.position.x + viewport_rect.size.x - card_size.x - 6.0,
-	)
-	_cartouche.position = Vector2(x, y)
 
 
 func _hide_cartouche_if(over: Control) -> void:
