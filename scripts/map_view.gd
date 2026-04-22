@@ -94,6 +94,13 @@ var _detail_vbox: VBoxContainer
 var _legend: HBoxContainer
 var _selected_province_id: String = ""
 
+## A single floating PanelContainer that follows the cursor to show a
+## small "cartouche" of info about the hovered province. Reused across
+## tiles instead of being instanced per-tile.
+var _cartouche: PanelContainer
+var _cartouche_vbox: VBoxContainer
+var _cartouche_target: Control
+
 
 func _ready() -> void:
 	anchor_right = 1.0
@@ -102,6 +109,7 @@ func _ready() -> void:
 
 	_build_dimmer()
 	_build_sheet()
+	_build_cartouche()
 	_render_canvas()
 	_render_placeholder_detail()
 	_render_legend()
@@ -366,8 +374,12 @@ func _build_tile(p: Province) -> Control:
 	owner_l.add_theme_font_size_override("font_size", 9)
 	v.add_child(owner_l)
 
-	btn.mouse_entered.connect(func() -> void: _tile_hover(btn, true))
-	btn.mouse_exited.connect(func() -> void: _tile_hover(btn, false))
+	btn.mouse_entered.connect(func() -> void:
+		_tile_hover(btn, true)
+		_show_cartouche_for(p, btn))
+	btn.mouse_exited.connect(func() -> void:
+		_tile_hover(btn, false)
+		_hide_cartouche_if(btn))
 	btn.pressed.connect(func() -> void: _on_tile_clicked(p))
 	return btn
 
@@ -644,3 +656,153 @@ func _make_divider() -> HSeparator:
 	var s: HSeparator = HSeparator.new()
 	s.add_theme_color_override("color", COLOR_PARCHMENT_EDGE)
 	return s
+
+
+# --- Cartouche ---------------------------------------------------------------
+#
+# A small floating parchment tag that hovers above the currently hovered
+# province tile. Shows three lines:
+#   1. the province name
+#   2. the crown that holds it
+#   3. its current disturbance (war / revolt / plague / famine), or a
+#      neutral phrase if nothing is troubling it
+#
+# The cartouche is built once and re-used — we just re-populate it and
+# re-position it on each hover.
+
+func _build_cartouche() -> void:
+	_cartouche = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.98, 0.94, 0.84, 0.97)
+	sb.border_color = COLOR_PARCHMENT_EDGE
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.shadow_color = Color(0, 0, 0, 0.45)
+	sb.shadow_size = 12
+	sb.shadow_offset = Vector2(0, 4)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	_cartouche.add_theme_stylebox_override("panel", sb)
+	_cartouche.mouse_filter = MOUSE_FILTER_IGNORE
+	_cartouche.visible = false
+	_cartouche.top_level = true
+	_cartouche.z_index = 10
+	add_child(_cartouche)
+
+	_cartouche_vbox = VBoxContainer.new()
+	_cartouche_vbox.add_theme_constant_override("separation", 2)
+	_cartouche_vbox.mouse_filter = MOUSE_FILTER_IGNORE
+	_cartouche.add_child(_cartouche_vbox)
+
+
+func _show_cartouche_for(p: Province, over: Control) -> void:
+	if _cartouche == null:
+		return
+	_cartouche_target = over
+	for c in _cartouche_vbox.get_children():
+		c.queue_free()
+
+	var name_l: Label = Label.new()
+	name_l.text = p.province_name
+	name_l.add_theme_color_override("font_color", COLOR_INK)
+	name_l.add_theme_font_size_override("font_size", 13)
+	_cartouche_vbox.add_child(name_l)
+
+	var owner_l: Label = Label.new()
+	owner_l.text = _cartouche_owner_line(p)
+	owner_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	owner_l.add_theme_font_size_override("font_size", 11)
+	_cartouche_vbox.add_child(owner_l)
+
+	var disturbance: String = _cartouche_disturbance_line(p)
+	if disturbance != "":
+		var dist_l: Label = Label.new()
+		dist_l.text = disturbance
+		dist_l.add_theme_color_override("font_color", COLOR_INK)
+		dist_l.add_theme_font_size_override("font_size", 11)
+		_cartouche_vbox.add_child(dist_l)
+
+	# Force a layout pass before we read the cartouche's own size so
+	# we can position it precisely above the tile.
+	_cartouche.visible = true
+	_cartouche.reset_size()
+	call_deferred("_position_cartouche_over", over)
+
+
+func _position_cartouche_over(over: Control) -> void:
+	if _cartouche == null or over == null or not is_instance_valid(over):
+		return
+	if _cartouche_target != over:
+		return   # hover moved to another tile already
+	var tile_rect: Rect2 = over.get_global_rect()
+	var card_size: Vector2 = _cartouche.size
+	var viewport_rect: Rect2 = get_viewport_rect()
+	var x: float = tile_rect.position.x + tile_rect.size.x * 0.5 - card_size.x * 0.5
+	var y: float = tile_rect.position.y - card_size.y - 8.0
+	# If the card would clip off the top of the screen, drop it below
+	# the tile instead.
+	if y < viewport_rect.position.y + 8.0:
+		y = tile_rect.position.y + tile_rect.size.y + 8.0
+	# Keep inside viewport horizontally.
+	x = clampf(
+		x,
+		viewport_rect.position.x + 6.0,
+		viewport_rect.position.x + viewport_rect.size.x - card_size.x - 6.0,
+	)
+	_cartouche.position = Vector2(x, y)
+
+
+func _hide_cartouche_if(over: Control) -> void:
+	if _cartouche == null:
+		return
+	if _cartouche_target == over:
+		_cartouche.visible = false
+		_cartouche_target = null
+
+
+func _cartouche_owner_line(p: Province) -> String:
+	if p.owning_kingdom.is_empty():
+		return "No crown. Only water."
+	var k: Kingdom = WorldData.get_kingdom(p.owning_kingdom)
+	if k == null:
+		return p.owning_kingdom
+	return "Of %s." % k.kingdom_name
+
+
+func _cartouche_disturbance_line(p: Province) -> String:
+	# Priority order: open hostilities > active disaster > prolonged revolt
+	# > current mood band (only if noteworthy) > nothing to report.
+
+	# 1. Disaster on this tile.
+	if p.has_meta("prod_modifier"):
+		var meta: Dictionary = p.get_meta("prod_modifier")
+		var cause: String = String(meta.get("cause", ""))
+		match cause:
+			"plague":     return "Fever in the streets."
+			"famine":     return "The grain did not come."
+			"earthquake": return "The ground has moved."
+
+	# 2. Kingdom is at war.
+	if not p.owning_kingdom.is_empty():
+		var at_war: Array[String] = Relations.ids_in_state(
+			p.owning_kingdom, int(Relations.RelationState.AT_WAR)
+		)
+		if not at_war.is_empty():
+			return "Under arms."
+
+	# 3. Active unrest worth naming.
+	if p.population > 0:
+		match String(p.unrest_band()):
+			"in revolt": return "In open revolt."
+			"seething":  return "Seething."
+			"restless":  return "Restless."
+
+	return ""
