@@ -252,30 +252,124 @@ func _install_archive_indicator() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE and _panel_layer.visible:
-			close_panel()
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F1:
-			# Developer shortcut: dump the loaded world to the console.
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+
+	# System-level keys always available, even while an overlay is open.
+	match event.keycode:
+		KEY_ESCAPE:
+			if _panel_layer.visible:
+				close_panel()
+				get_viewport().set_input_as_handled()
+			return
+		KEY_F1:
 			WorldData.print_debug_dump()
 			Actors.print_debug_dump()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F5:
-			# Quicksave.
+			return
+		KEY_F5:
 			SaveManager.save_to_slot()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F9:
-			# Quickload.
+			return
+		KEY_F9:
 			if SaveManager.load_from_slot():
 				close_panel()
 				_refresh_inbox_visual()
 				_refresh_time_display()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F10:
-			# Open the Archive (save slots) overlay.
+			return
+		KEY_F10:
 			_open_slots_view()
 			get_viewport().set_input_as_handled()
+			return
+
+	# Hotkeys below operate on the bare table. Swallow them while any
+	# overlay is open so in-overlay focus/typing isn't hijacked.
+	if _overlay_active or _panel_layer.visible:
+		return
+
+	# Modifier-bearing shortcuts — only the question-mark sheet needs one.
+	if event.shift_pressed and event.keycode == KEY_SLASH:
+		open_panel("Shortcuts", _hotkey_sheet_text())
+		get_viewport().set_input_as_handled()
+		return
+
+	match event.keycode:
+		KEY_SPACE:
+			_toggle_pause()
+			get_viewport().set_input_as_handled()
+		KEY_1:
+			GameClock.set_speed(GameClock.Speed.DAY)
+			get_viewport().set_input_as_handled()
+		KEY_2:
+			GameClock.set_speed(GameClock.Speed.MONTH)
+			get_viewport().set_input_as_handled()
+		KEY_I:
+			_on_inbox_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_M:
+			_on_map_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_N:
+			_on_public_news_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_L:
+			_on_ledger_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_D:
+			_on_dossiers_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_R:
+			_on_memoirs_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_C:
+			_on_compose_clicked()
+			get_viewport().set_input_as_handled()
+		KEY_B:
+			_on_codebook_clicked()
+			get_viewport().set_input_as_handled()
+
+
+# Space toggles between PAUSED and the last non-paused speed. First
+# press from a fresh game starts the day dial.
+var _last_active_speed: int = -1
+
+## Human-readable list of in-game shortcuts, shown by pressing "?".
+func _hotkey_sheet_text() -> String:
+	return (
+		"Time\n"
+		+ "  Space       — pause / resume\n"
+		+ "  1           — day by day\n"
+		+ "  2           — month by month\n"
+		+ "\n"
+		+ "Open on the table\n"
+		+ "  I           — Inbox\n"
+		+ "  R           — Memoirs (letter archive)\n"
+		+ "  N           — Public News\n"
+		+ "  M           — Map\n"
+		+ "  L           — Ledger\n"
+		+ "  D           — Dossiers\n"
+		+ "  C           — Compose a letter\n"
+		+ "  B           — Codebook\n"
+		+ "\n"
+		+ "System\n"
+		+ "  Esc         — close the top overlay\n"
+		+ "  F5 / F9     — quicksave / quickload\n"
+		+ "  F10         — archive of saved seasons\n"
+		+ "  Shift + ?   — this list\n"
+	)
+
+
+func _toggle_pause() -> void:
+	var current: int = GameClock.speed
+	if current == GameClock.Speed.PAUSED:
+		var resume_to: int = _last_active_speed
+		if resume_to <= GameClock.Speed.PAUSED:
+			resume_to = GameClock.Speed.DAY
+		GameClock.set_speed(resume_to)
+	else:
+		_last_active_speed = current
+		GameClock.set_speed(GameClock.Speed.PAUSED)
 
 
 # --- Object wiring ------------------------------------------------------------
