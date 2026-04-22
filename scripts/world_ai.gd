@@ -447,7 +447,9 @@ func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 		# Self-inflicted succession: the heir takes the throne directly,
 		# bypassing the regency/ambition lottery. Promote in place before
 		# the dispatch so the roster read in the scroll is already true.
+		var prior_role_int: int = int(heir.role)
 		heir.role = Actor.Role.RULER
+		Actors.schedule_replacement(heir.kingdom_id, prior_role_int)
 		_publish({
 			"kind":       &"assassination",
 			"kingdom_id": ruler.kingdom_id,
@@ -509,9 +511,11 @@ func _resolve_regency(k: Kingdom) -> void:
 		return   # still nobody; keep the throne empty
 
 	var prior_role: String = TraitCues.role_title(successor.role).to_lower()
+	var prior_role_int: int = int(successor.role)
 	successor.role = Actor.Role.RULER
 	k.in_regency = false
 	_regency_months.erase(k.id)
+	Actors.schedule_replacement(k.id, prior_role_int)
 	_publish({
 		"kind":       &"succession",
 		"kingdom_id": k.id,
@@ -559,9 +563,11 @@ func _handle_succession(dead_ruler: Actor) -> void:
 		return
 
 	var prior_role: String = TraitCues.role_title(successor.role).to_lower()
+	var prior_role_int: int = int(successor.role)
 	successor.role = Actor.Role.RULER
 	k.in_regency = false
 	_regency_months.erase(kid)
+	Actors.schedule_replacement(kid, prior_role_int)
 	_publish({
 		"kind":       &"succession",
 		"kingdom_id": kid,
