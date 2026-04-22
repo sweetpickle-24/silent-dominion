@@ -15,6 +15,25 @@ extends Node
 const ACTION_DATA_PATH: String = "res://data/actions.json"
 const TASK_KIND: StringName = &"action_resolution"
 
+## The five outcomes of a bribery attempt (§17.4). These are richer
+## than the generic pass/fail axis and have distinct side effects:
+## rumours, loud rejections, counter-leverage. The resolver writes
+## one of these into `extras["bribe_outcome"]` for the report builder.
+enum BribeOutcome {
+	CLEAN_SUCCESS,     # accepted, silent, delivered.
+	MESSY_SUCCESS,     # accepted, but they talked — rumour enters.
+	SILENT_FAILURE,    # refused quietly. No new noise.
+	LOUD_FAILURE,      # refused publicly; player exposure + relationship fall.
+	COUNTER_LEVERAGED, # refused AND sold the approach to a rival.
+}
+
+## Set of bribe variants (§17.2). Any action whose id is in this set
+## takes the five-outcome resolution path.
+const BRIBE_IDS: Array[StringName] = [
+	&"bribe_direct", &"bribe_retainer", &"bribe_career",
+	&"bribe_info", &"bribe_gift",
+]
+
 # action_id (StringName) -> ActionDefinition
 var definitions: Dictionary = {}
 
@@ -25,6 +44,8 @@ func _ready() -> void:
 	_rng.randomize()
 	_load_from_json(ACTION_DATA_PATH)
 	Scheduler.task_due.connect(_on_task_due)
+	Finance.retainer_turned.connect(_on_retainer_turned)
+	Finance.retainer_at_risk.connect(_on_retainer_at_risk)
 	print("[Actions] Loaded %d action definitions" % definitions.size())
 
 
@@ -309,7 +330,16 @@ func _resolve(descriptor: Dictionary) -> void:
 		var usable: int = Org.effective_skill(coord.id)
 		success_chance = clampf(success_chance + float(usable) / 400.0, 0.05, 0.97)
 
-	var success: bool = _rng.randf() < success_chance
+	# Bribery uses a 5-outcome resolution (§17.4). Compute up-front so
+	# the rest of _resolve can read `success` as the reduced pass/fail.
+	var bribe_outcome: int = -1
+	var success: bool
+	if BRIBE_IDS.has(action_id):
+		bribe_outcome = _roll_bribe_outcome(action_id, target_id, descriptor)
+		success = bribe_outcome == BribeOutcome.CLEAN_SUCCESS \
+				or bribe_outcome == BribeOutcome.MESSY_SUCCESS
+	else:
+		success = _rng.randf() < success_chance
 
 	# Apply relationship changes BEFORE the report is built so the tone
 	# of future letters can lean on the new standing if we ever want
@@ -319,6 +349,11 @@ func _resolve(descriptor: Dictionary) -> void:
 	# Side-effects that should be resolved BEFORE the report is written,
 	# so the report text can name whoever was quieted.
 	var extras: Dictionary = _apply_special_effects(def, target_id, success)
+
+	# Apply bribe-specific after-effects now that extras exists.
+	if bribe_outcome >= 0:
+		extras["bribe_outcome"] = bribe_outcome
+		_apply_bribe_effects(def, target_id, bribe_outcome, extras)
 
 	# Promotions are structural state changes to the Org, not flavour.
 	# Handle them here so the report can describe the new role.
@@ -350,6 +385,232 @@ func _resolve(descriptor: Dictionary) -> void:
 		"rel_delta":      rel_delta,
 		"routed_via":     String(coord.id) if coord != null else "",
 	})
+
+
+## Bribery outcome tree (§17.1 + §17.4). Susceptibility is type-specific:
+## direct payment rewards greed; career offers reward ambition; gift
+## rewards existing warmth; information trade fits targets with high
+## intellect and low principle. Paranoia shifts everything toward
+## LOUD_FAILURE because an offer reads as a trap.
+##
+## We also read the funded route's discretion: a rumour is much more
+## likely when the silver moved through a direct payment than when it
+## was wrapped inside a shipment of wine.
+func _roll_bribe_outcome(action_id: StringName, target_id: String, descriptor: Dictionary) -> int:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+	if a == null:
+		return BribeOutcome.SILENT_FAILURE
+
+	# Weights for each outcome. Begin from a neutral baseline and
+	# push around based on trait fit and financial discretion.
+	var w_clean: float = 35.0
+	var w_messy: float = 18.0
+	var w_silent: float = 22.0
+	var w_loud: float = 15.0
+	var w_counter: float = 10.0
+
+	# Trait affinities by offer type.
+	match action_id:
+		&"bribe_direct":
+			w_clean  += float(a.greed) * 0.6
+			w_silent += float(100 - a.greed) * 0.3
+			w_loud   += float(a.paranoia) * 0.4
+			# High loyalty: unmoved unless relationship to us is already bad.
+			if a.loyalty > 70 and a.relationship > -20:
+				w_loud  += 25.0
+				w_clean -= 25.0
+		&"bribe_retainer":
+			w_clean  += float(a.greed) * 0.5
+			w_clean  += float(max(0, 60 - a.loyalty)) * 0.3
+			w_messy  += 8.0   # ongoing arrangements leak more.
+			w_loud   += float(a.paranoia) * 0.3
+		&"bribe_career":
+			w_clean  += float(a.ambition) * 0.6
+			w_silent += float(100 - a.ambition) * 0.3
+			# Career offers to a loyal subordinate read better than
+			# direct silver — it doesn't feel like a bribe.
+			w_loud   += float(max(0, a.loyalty - 60)) * 0.25
+		&"bribe_info":
+			w_clean  += float(a.intellect) * 0.4
+			w_clean  += float(100 - a.piety) * 0.2
+			# High-principle / high-piety targets refuse the trade.
+			w_loud   += float(a.piety) * 0.3
+			w_counter += float(a.ambition) * 0.25  # they may resell.
+		&"bribe_gift":
+			w_clean  += 15.0
+			w_silent += 15.0
+			w_loud   -= 10.0
+			w_counter -= 5.0
+			# Gifts bend with relationship more than anything else.
+			w_clean += float(max(0, a.relationship)) * 0.3
+			w_loud  -= float(max(0, a.relationship)) * 0.15
+
+	# Discretion of the funded route. DIRECT leaks, embedded-trade
+	# is nearly invisible. Only applies if we actually moved silver.
+	var route_option: int = int(descriptor.get("funded_route", -1))
+	if route_option != -1:
+		match route_option:
+			Finance.RoutingOption.DIRECT:
+				w_messy   += 10.0
+				w_counter += 4.0
+			Finance.RoutingOption.SINGLE_INTERMEDIARY:
+				pass
+			Finance.RoutingOption.MULTI_HOP:
+				w_messy   -= 6.0
+				w_counter -= 3.0
+			Finance.RoutingOption.EMBEDDED_TRADE:
+				w_messy   -= 10.0
+				w_counter -= 5.0
+				w_clean   += 6.0
+
+	# Paranoia globally pushes toward LOUD_FAILURE — they smell a trap.
+	if a.paranoia >= 70:
+		w_loud  += 15.0
+		w_clean -= 10.0
+
+	# Clamp to non-negative.
+	var weights: Array[float] = [
+		maxf(1.0, w_clean),
+		maxf(1.0, w_messy),
+		maxf(1.0, w_silent),
+		maxf(1.0, w_loud),
+		maxf(1.0, w_counter),
+	]
+	return _weighted_pick(weights)
+
+
+func _weighted_pick(weights: Array[float]) -> int:
+	var total: float = 0.0
+	for w in weights:
+		total += w
+	var roll: float = _rng.randf() * total
+	var acc: float = 0.0
+	for i in range(weights.size()):
+		acc += weights[i]
+		if roll <= acc:
+			return i
+	return weights.size() - 1
+
+
+## Side-effects for each outcome of a bribe. This runs before the
+## report is written; the report text branches on `extras["bribe_outcome"]`.
+func _apply_bribe_effects(def: ActionDefinition, target_id: String, outcome: int, extras: Dictionary) -> void:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+
+	match outcome:
+		BribeOutcome.CLEAN_SUCCESS:
+			# Retainer bribes open a dependent relationship.
+			if def.id == &"bribe_retainer" and a != null:
+				var monthly: int = maxi(20, def.silver_cost / 6)
+				Finance.register_retainer(a.id, monthly)
+				extras["retainer_opened"] = true
+				extras["retainer_monthly"] = monthly
+
+		BribeOutcome.MESSY_SUCCESS:
+			# Still works, but a rumour enters the street about
+			# someone buying this figure. Whispers links the rumour
+			# to the target so intel-checkers can find the trail.
+			if a != null:
+				Whispers.register(&"bribe_trace", a.id)
+				var line: String = "was seen accepting silver from a stranger"
+				if def.id == &"bribe_career":
+					line = "has been promised a door at a better court"
+				elif def.id == &"bribe_gift":
+					line = "has received gifts their station does not easily explain"
+				EventBus.public_event.emit({
+					"sender":   "Whispers in the agora",
+					"subject":  "A matter involving %s" % a.display_name(),
+					"body":     ("It is said — with the usual unreliability — that %s %s."
+								+ " No name attaches to the other hand.") % [a.display_name(), line],
+					"kingdom":  a.kingdom_id,
+					"actor_id": String(a.id),
+				})
+
+		BribeOutcome.SILENT_FAILURE:
+			# No extra noise. Relationship softens a touch either way;
+			# handled in _apply_relationship_effects fallback.
+			pass
+
+		BribeOutcome.LOUD_FAILURE:
+			# Relationship sours; exposure takes a direct hit because
+			# the target is telling people what was offered.
+			if a != null:
+				Actors.adjust_relationship(a.id, -10)
+			Exposure.bump(4.0, "loud_bribe_refusal")
+			if a != null:
+				EventBus.public_event.emit({
+					"sender":   "Gossip at the temple steps",
+					"subject":  "A foolish offer",
+					"body":     ("%s has told the story over wine: a stranger, a purse, "
+								+ "and a request that made them laugh and then frown. "
+								+ "They do not name the stranger. They do, however, "
+								+ "name themselves — and everyone is listening.") % a.display_name(),
+					"kingdom":  a.kingdom_id,
+					"actor_id": String(a.id),
+				})
+
+		BribeOutcome.COUNTER_LEVERAGED:
+			# Worst case: target sold the approach to another interested
+			# party. Model the leak by bumping curiosity on any funded
+			# house (their records now sit in another lap) and by a
+			# bigger exposure hit than a loud failure.
+			if a != null:
+				Actors.adjust_relationship(a.id, -6)
+			Exposure.bump(6.0, "counter_leveraged_bribe")
+			if a != null:
+				# Register the leak as a whisper trail so later
+				# intel work can discover who the rival buyer was.
+				Whispers.register(&"counter_leverage", a.id)
+				EventBus.public_event.emit({
+					"sender":   "A courier you do not employ",
+					"subject":  "Your approach has been sold",
+					"body":     ("%s refused your offer and then walked it, word for word, "
+								+ "to somebody with sharper teeth. You must assume that party "
+								+ "now knows there is a hand in this city that reaches their way."
+								) % a.display_name(),
+					"kingdom":  a.kingdom_id,
+					"actor_id": String(a.id),
+				})
+
+
+## Retainer unpaid: the dependent turned. Light the table up — this
+## is one of the most dangerous things a player can have happen.
+func _on_retainer_turned(retainer: Dictionary) -> void:
+	var actor_id: String = String(retainer.get("actor_id", ""))
+	var a: Actor = Actors.get_actor(StringName(actor_id))
+	var name: String = a.display_name() if a != null else actor_id
+	if a != null:
+		Actors.adjust_relationship(a.id, -25)
+	Exposure.bump(8.0, "retainer_turned")
+
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var body: String = (
+		"%s has not been paid in three months, and they have found a louder patron. "
+		+ "They are carrying what they know of your network into a room you are not in. "
+		+ "Their memory of the arrangement is imperfect, but it is more than we want "
+		+ "any stranger to carry.\n\nWe must assume the approach was lost."
+	) % name
+	var letter: Letter = Letter.create(
+		StringName("retainer_turned_%d" % Time.get_ticks_msec()),
+		"Your paymaster",
+		date,
+		"A dependent has found another room",
+		body,
+		&"action"
+	)
+	EventBus.letter_delivered.emit(letter)
+
+
+## Retainer merely at risk — one missed month. Quiet warning, no
+## player exposure yet; the Memoirs will surface it via the monthly
+## digest rather than a dedicated letter.
+func _on_retainer_at_risk(retainer: Dictionary, _reason: StringName) -> void:
+	var actor_id: String = String(retainer.get("actor_id", ""))
+	print("[Actions] Retainer %s is one month behind; %d/%d missed." % [
+		actor_id,
+		int(retainer.get("missed_months", 0)),
+		Finance.RETAINER_MISS_LIMIT,
+	])
 
 
 ## Org-structural side effects — the promotion lines on the scroll
@@ -611,6 +872,15 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 		subject = "Watcher's report on %s" % target_name
 	elif def.id == &"bribe":
 		subject = "Paymaster's note, re: %s" % target_name
+	elif BRIBE_IDS.has(def.id):
+		var oc: int = int(extras.get("bribe_outcome", -1))
+		match oc:
+			BribeOutcome.CLEAN_SUCCESS:    subject = "It is done, re: %s" % target_name
+			BribeOutcome.MESSY_SUCCESS:    subject = "It is done — but spoken of, re: %s" % target_name
+			BribeOutcome.SILENT_FAILURE:   subject = "A polite refusal, re: %s" % target_name
+			BribeOutcome.LOUD_FAILURE:     subject = "Our offer has been talked about, re: %s" % target_name
+			BribeOutcome.COUNTER_LEVERAGED: subject = "Our approach has been sold, re: %s" % target_name
+			_:                             subject = "Paymaster's note, re: %s" % target_name
 	elif def.id == &"seed_rumour":
 		subject = "Whispers in the market, re: %s" % target_name
 	elif def.id == &"plant_idea":
@@ -688,6 +958,9 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 				return "It is done. %s accepted the silver, and the small thing you asked of them has been quietly arranged.\n\nMy account, and their receipt, are in the usual place." % target
 			return "The offer was placed with care and refused — without noise, to our good fortune. The silver is returned. %s is not to be approached this way again, at least not through this hand." % target
 
+		&"bribe_direct", &"bribe_retainer", &"bribe_career", &"bribe_info", &"bribe_gift":
+			return _bribe_body(def.id, target, extras)
+
 		&"host_sway_court":
 			if success:
 				return "It is arranged. I made your case as though it were my own, and the matter was decided as you wished it. No name of yours has been spoken — only mine, which is as it should be.\n\nI remain in service,\n%s" % target
@@ -743,6 +1016,76 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 
 		_:
 			return "%s %s" % [outcome_lines, target]
+
+
+## Per-outcome body text for the five bribe variants (§17). Each variant
+## has its own voice; each outcome its own tone. Counter-leveraged is
+## the loudest because it names that somebody else now holds leverage.
+func _bribe_body(action_id: StringName, target: String, extras: Dictionary) -> String:
+	var outcome: int = int(extras.get("bribe_outcome", BribeOutcome.SILENT_FAILURE))
+
+	match outcome:
+		BribeOutcome.CLEAN_SUCCESS:
+			if action_id == &"bribe_retainer":
+				var monthly: int = int(extras.get("retainer_monthly", 0))
+				return ("It is settled. %s has taken the first payment and will be kept on a retainer of %d silver the month. They understand what is expected; they do not expect to be asked twice.\n\nThe ledger will show the outflow under a trading name; watch it, because a retainer is a leash with two ends."
+					) % [target, monthly]
+			if action_id == &"bribe_career":
+				return ("A door has been opened. %s walks through it believing it was their own ambition that turned the key, and perhaps partly it was. They act for you now, without knowing the hand above them.\n\nNo silver has changed hands. The trail is thin."
+					) % target
+			if action_id == &"bribe_info":
+				return ("The trade is done. %s now holds a knife we handed them, and we hold one they handed us in return. Neither will be used lightly. For the present, they do as we asked — and they will keep doing so while our blades stay sheathed."
+					) % target
+			if action_id == &"bribe_gift":
+				return ("The kindness has landed where it was meant to. %s has not called it a payment; they have called it a friendship. The asked-for thing followed, as though it were their idea. There is no receipt anyone could point to."
+					) % target
+			return ("It is done. %s accepted the silver, and the small matter you asked of them has been quietly arranged.\n\nMy account and their receipt are in the usual place."
+				) % target
+
+		BribeOutcome.MESSY_SUCCESS:
+			if action_id == &"bribe_career":
+				return ("You have what you wanted — %s acted for you — but they have told the story of their new patronage to at least one person too many. It will not be long before a version of the tale reaches a rival court. The work holds. The secrecy does not."
+					) % target
+			if action_id == &"bribe_retainer":
+				return ("The arrangement is in place, but %s is already spending beyond what a clerk of their rank should spend, and others have noticed. Expect the first rumours to arrive within the season."
+					) % target
+			if action_id == &"bribe_gift":
+				return ("%s has accepted the attentions and done the thing you wanted. They also mentioned the gifts, unprompted, at the wrong table. The kindness will be inventoried by someone eventually."
+					) % target
+			return ("The matter is arranged. %s did as you asked — and then drank too much and talked. Nothing names us directly, but a shape is now in the street where there was none before."
+				) % target
+
+		BribeOutcome.SILENT_FAILURE:
+			if action_id == &"bribe_career":
+				return ("%s listened, thanked us, and then stepped away from the door we had opened. They would not say why. The silver we did not spend is intact. No story is forming."
+					) % target
+			if action_id == &"bribe_info":
+				return ("%s declined the trade. They gave no reason, asked no questions, and have not spoken of it to anyone we know of. A quiet refusal is the best kind. We must look elsewhere."
+					) % target
+			if action_id == &"bribe_gift":
+				return ("The gifts were received. The request, when it was made, was not. %s has not complained to anyone, but they have also not moved. This instrument has, at best, been blunted."
+					) % target
+			if action_id == &"bribe_retainer":
+				return ("%s turned down the retainer after the first month, quietly, and returned the coin. No noise. Try another hand for this work."
+					) % target
+			return ("The offer was placed with care and refused — without noise, to our good fortune. The silver is returned. %s is not to be approached this way again through this hand."
+				) % target
+
+		BribeOutcome.LOUD_FAILURE:
+			if action_id == &"bribe_gift":
+				return ("The gifts came back with a note. %s has read the note aloud to company we did not choose, and the city is now amusing itself at our expense. No name of yours was spoken. The shape of you, however, is a little clearer than it was yesterday."
+					) % target
+			if action_id == &"bribe_info":
+				return ("%s refused the trade and then told the temple about it. The priest, being what priests are, told the square. The city now knows that someone offered %s a secret in exchange for a favour. Us, they do not know. Yet."
+					) % target
+			return ("%s took offence. Loudly. The offer is being retold in the wine-shops with embellishment — the sum grows every telling. No thread leads directly to you, but the city now knows that someone is buying, and the watch will be looking."
+				) % target
+
+		BribeOutcome.COUNTER_LEVERAGED:
+			return ("%s did not merely refuse — they walked our offer, word for word, into a room we do not sit in. Another interested party now knows that a hand in this city reaches their way. We must assume the approach is compromised; watch for its echo."
+				) % target
+
+	return "%s — no outcome recorded." % target
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

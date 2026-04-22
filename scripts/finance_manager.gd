@@ -23,6 +23,9 @@ signal house_dissolved(house: BankingHouse, reason: StringName)
 signal iou_added(iou: Dictionary)
 signal iou_settled(iou: Dictionary)
 signal ledger_changed
+signal retainer_registered(retainer: Dictionary)
+signal retainer_at_risk(retainer: Dictionary, reason: StringName)
+signal retainer_turned(retainer: Dictionary)
 
 # --- Routing options (§16.3) -----------------------------------------
 
@@ -96,6 +99,15 @@ var houses: Dictionary = {}
 #   { id, debtor_kingdom, amount, opened_year, opened_month,
 #     due_year, due_month, status: "open"|"paid"|"defaulted" }
 var ious: Array[Dictionary] = []
+
+# Retainer dependents (§17.5). Each entry:
+#   { actor_id, monthly_cost, opened_year, opened_month,
+#     missed_months, status: "active"|"at_risk"|"turned"|"retired" }
+var retainers: Array[Dictionary] = []
+
+# How many consecutive missed monthly payments before the dependent
+# turns against us. Tuned so one bad season doesn't lose them.
+const RETAINER_MISS_LIMIT: int = 3
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _seeded: bool = false
@@ -288,6 +300,52 @@ func settle_iou(iou_id: String) -> bool:
 	return false
 
 
+# --- Public: retainer dependents (§17.5) -----------------------------
+
+## Register a new ongoing-payment dependent. Called by a successful
+## `bribe_retainer` resolution. Returns the entry for reference.
+func register_retainer(actor_id: StringName, monthly_cost: int) -> Dictionary:
+	for r in retainers:
+		if String(r.get("actor_id", "")) == String(actor_id) \
+				and String(r.get("status", "")) != "turned" \
+				and String(r.get("status", "")) != "retired":
+			# Already on our books — refresh the amount.
+			r["monthly_cost"] = monthly_cost
+			return r
+	var entry: Dictionary = {
+		"actor_id":     String(actor_id),
+		"monthly_cost": monthly_cost,
+		"opened_year":  GameClock.year,
+		"opened_month": GameClock.month,
+		"missed_months": 0,
+		"status":       "active",
+	}
+	retainers.append(entry)
+	retainer_registered.emit(entry)
+	ledger_changed.emit()
+	return entry
+
+
+func active_retainers() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for r in retainers:
+		if String(r.get("status", "active")) == "active":
+			out.append(r)
+	return out
+
+
+## Retire a dependent cleanly — they feel the work naturally ended.
+## No turn risk from this path.
+func retire_retainer(actor_id: StringName) -> bool:
+	for r in retainers:
+		if String(r.get("actor_id", "")) == String(actor_id) \
+				and String(r.get("status", "")) == "active":
+			r["status"] = "retired"
+			ledger_changed.emit()
+			return true
+	return false
+
+
 # --- Internal: seeding ----------------------------------------------
 
 func _maybe_seed() -> void:
@@ -395,7 +453,47 @@ func _on_month_passed(_y: int, _m: int) -> void:
 			h.discretion   = mini(DISCRETION_HARD_CAP, h.discretion + DISCRETION_GROWTH_PER_YEAR)
 
 		house_updated.emit(h)
+
+	_pay_retainers()
 	ledger_changed.emit()
+
+
+## Service every active retainer. Each month their fee must move —
+## via the bank network first, the purse second. Misses accumulate;
+## after RETAINER_MISS_LIMIT missed months the dependent turns, which
+## spills an intelligence leak (handled in action_runner when it
+## receives the signal).
+func _pay_retainers() -> void:
+	for r in retainers:
+		if String(r.get("status", "")) != "active":
+			continue
+		var amount: int = int(r.get("monthly_cost", 0))
+		if amount <= 0:
+			continue
+
+		var paid: bool = false
+		var actor_id: String = String(r.get("actor_id", ""))
+		var a: Actor = Actors.get_actor(StringName(actor_id))
+		var dest_kingdom: String = a.kingdom_id if a != null else ""
+
+		if dest_kingdom != "":
+			var route: Dictionary = fund(dest_kingdom, amount,
+				RoutingOption.SINGLE_INTERMEDIARY, &"retainer")
+			paid = bool(route.get("ok", false))
+		if not paid and Purse.can_afford(amount):
+			Purse.spend(amount)
+			paid = true
+
+		if paid:
+			r["missed_months"] = 0
+			continue
+
+		r["missed_months"] = int(r.get("missed_months", 0)) + 1
+		if int(r["missed_months"]) >= RETAINER_MISS_LIMIT:
+			r["status"] = "turned"
+			retainer_turned.emit(r)
+		else:
+			retainer_at_risk.emit(r, &"missed_payment")
 
 
 # --- Save / load -----------------------------------------------------
@@ -405,15 +503,17 @@ func snapshot() -> Dictionary:
 	for h in houses.values():
 		hs.append(h.to_dict())
 	return {
-		"houses": hs,
-		"ious":   ious.duplicate(true),
-		"seeded": _seeded,
+		"houses":    hs,
+		"ious":      ious.duplicate(true),
+		"retainers": retainers.duplicate(true),
+		"seeded":    _seeded,
 	}
 
 
 func restore(d: Dictionary) -> void:
 	houses.clear()
 	ious.clear()
+	retainers.clear()
 	_seeded = bool(d.get("seeded", false))
 	for hd in d.get("houses", []):
 		if not (hd is Dictionary):
@@ -423,4 +523,7 @@ func restore(d: Dictionary) -> void:
 	for iou_d in d.get("ious", []):
 		if iou_d is Dictionary:
 			ious.append(iou_d)
+	for r in d.get("retainers", []):
+		if r is Dictionary:
+			retainers.append(r)
 	ledger_changed.emit()

@@ -80,9 +80,9 @@
       "report_sender": "Your broker on the frontier"
     },
     {
-      "id": "bribe",
-      "display_name": "Bribe",
-      "blurb": "Offer silver in return for a concrete act. Outcome depends on the target's greed and loyalty.",
+      "id": "bribe_direct",
+      "display_name": "Offer silver — one-time payment",
+      "blurb": "A single, direct payment for a single, concrete act. Fast and cheap to arrange. A greedy or straitened hand takes it gladly; a proud one takes offence, loudly.",
       "tier": "ACTIVE",
       "target_kind": "ACTOR",
       "silver_cost": 120,
@@ -91,6 +91,58 @@
       "max_days_to_resolve": 14,
       "base_success_chance": 0.55,
       "report_sender": "Your paymaster"
+    },
+    {
+      "id": "bribe_retainer",
+      "display_name": "Put them on a retainer",
+      "blurb": "Pay them every month so the payments themselves become the loyalty. Once fed, they are easy to keep — and catastrophic if the meals ever stop. You take on a dependent.",
+      "tier": "ACTIVE",
+      "target_kind": "ACTOR",
+      "silver_cost": 180,
+      "exposure_cost": 8,
+      "min_days_to_resolve": 10,
+      "max_days_to_resolve": 30,
+      "base_success_chance": 0.55,
+      "report_sender": "Your paymaster"
+    },
+    {
+      "id": "bribe_career",
+      "display_name": "Offer a door, not silver",
+      "blurb": "No silver changes hands. An introduction at a better court, a patronage they could not win alone, a rival's fall arranged as though by the stars. Ambition is a hungrier buyer than greed.",
+      "tier": "ACTIVE",
+      "target_kind": "ACTOR",
+      "silver_cost": 40,
+      "exposure_cost": 6,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 90,
+      "base_success_chance": 0.5,
+      "report_sender": "Your broker at court"
+    },
+    {
+      "id": "bribe_info",
+      "display_name": "Trade intelligence",
+      "blurb": "Give them something they want — a rival's secret, an advance warning, a thread they can pull. They act for you; you and they now hold knives to each other's throats. A quiet arrangement, for the right kind of target.",
+      "tier": "ACTIVE",
+      "target_kind": "ACTOR",
+      "silver_cost": 0,
+      "exposure_cost": 5,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 45,
+      "base_success_chance": 0.5,
+      "report_sender": "Your go-between"
+    },
+    {
+      "id": "bribe_gift",
+      "display_name": "Cultivate through gift and favour",
+      "blurb": "A cask of wine at a name-day. A dowry covered through a 'distant cousin'. A business debt quietly forgiven. Nothing that could be called a bribe, if anyone asked. Slow; almost invisible.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ACTOR",
+      "silver_cost": 60,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 60,
+      "max_days_to_resolve": 150,
+      "base_success_chance": 0.55,
+      "report_sender": "Your man of affairs"
     },
     {
       "id": "host_sway_court",
