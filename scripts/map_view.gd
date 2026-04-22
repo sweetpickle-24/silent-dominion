@@ -443,6 +443,7 @@ func _render_detail(p: Province) -> void:
 		_detail_vbox.add_child(_make_line(
 			"%s — %s" % [k.kingdom_name, k.treasury_condition_name()]
 		))
+		_detail_vbox.add_child(_make_line(k.tax_level_phrase() + "."))
 
 
 func _clear_detail() -> void:

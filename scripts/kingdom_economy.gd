@@ -25,10 +25,27 @@ signal tick(snapshot: Array)
 # arbitrary units that roughly map to "silver equivalent per year"; we
 # divide by 12 to get a monthly figure, then haircut by tax efficiency
 # and a "only some of this reaches the crown" factor.
-const TAX_EFFICIENCY: float       = 0.35   # crown take of provincial output
+const TAX_EFFICIENCY: float       = 0.35   # baseline crown take (MODEST)
 const MONTHS_PER_YEAR: float      = 12.0
 const BASE_MONTHLY_COST: float    = 3.0    # court, diplomats, messengers
 const PER_PROVINCE_UPKEEP: float  = 0.6    # garrisons, tax collectors, roads
+
+# Per-level multipliers on TAX_EFFICIENCY. A ruinous year nearly doubles
+# the crown's take; an indulgent year halves it. Rulers push the dial
+# when they must, not when they wish.
+const TAX_LEVEL_MULTIPLIER: Dictionary = {
+	Kingdom.TaxLevel.INDULGENT: 0.55,
+	Kingdom.TaxLevel.MODEST:    1.00,
+	Kingdom.TaxLevel.BURDENED:  1.35,
+	Kingdom.TaxLevel.RUINOUS:   1.75,
+}
+
+# How many months a given level can persist before the ruler is
+# pressured back down. Tracked per-kingdom in _burden_streak.
+const MAX_BURDENED_MONTHS: int = 12
+const MAX_RUINOUS_MONTHS:  int = 4
+
+var _burden_streak: Dictionary = {}  # kingdom_id -> months at BURDENED+
 
 
 func _ready() -> void:
@@ -53,6 +70,7 @@ func _tick_kingdom(k: Kingdom) -> Dictionary:
 
 	k.treasury_silver += net
 	k.treasury_condition = _condition_for(k.treasury_silver, expenditure, net)
+	_adjust_tax_level(k)
 
 	return {
 		"id":          k.id,
@@ -62,6 +80,7 @@ func _tick_kingdom(k: Kingdom) -> Dictionary:
 		"net":         net,
 		"treasury":    k.treasury_silver,
 		"condition":   int(k.treasury_condition),
+		"tax_level":   int(k.tax_level),
 	}
 
 
@@ -77,11 +96,79 @@ func _monthly_income(k: Kingdom) -> float:
 		annual += p.silver_production
 		annual += p.iron_production
 		annual += p.timber_production
-	return (annual / MONTHS_PER_YEAR) * TAX_EFFICIENCY
+	var mult: float = float(TAX_LEVEL_MULTIPLIER.get(k.tax_level, 1.0))
+	return (annual / MONTHS_PER_YEAR) * TAX_EFFICIENCY * mult
 
 
 func _monthly_expenditure(k: Kingdom) -> float:
 	return BASE_MONTHLY_COST + PER_PROVINCE_UPKEEP * float(k.owned_provinces.size())
+
+
+## Rulers reach for the tax lever when they must. If the treasury is
+## strained or worse, they push the dial up; if it is flush and has
+## been for a while at a heavy level, they ease back. Streak counters
+## enforce a cap on how long a ruler can sit at painful settings before
+## political pressure forces a climbdown. Any change emits a public
+## event so the scroll and digest pick it up.
+func _adjust_tax_level(k: Kingdom) -> void:
+	var old: int = int(k.tax_level)
+	var streak: int = int(_burden_streak.get(k.id, 0))
+	var target: int = old
+
+	match k.treasury_condition:
+		Kingdom.TreasuryCondition.BROKE, Kingdom.TreasuryCondition.INDEBTED:
+			target = int(Kingdom.TaxLevel.RUINOUS)
+		Kingdom.TreasuryCondition.STRAINED:
+			target = int(Kingdom.TaxLevel.BURDENED)
+		Kingdom.TreasuryCondition.STABLE:
+			target = int(Kingdom.TaxLevel.MODEST)
+		Kingdom.TreasuryCondition.FLUSH:
+			target = int(Kingdom.TaxLevel.INDULGENT) if old == int(Kingdom.TaxLevel.MODEST) else int(Kingdom.TaxLevel.MODEST)
+
+	# Cap how long a ruler can stay at painful settings. Once the cap
+	# is hit, force a step down regardless of the treasury state.
+	if old == int(Kingdom.TaxLevel.RUINOUS):
+		streak += 1
+		if streak >= MAX_RUINOUS_MONTHS:
+			target = int(Kingdom.TaxLevel.BURDENED)
+			streak = 0
+	elif old == int(Kingdom.TaxLevel.BURDENED):
+		streak += 1
+		if streak >= MAX_BURDENED_MONTHS:
+			target = int(Kingdom.TaxLevel.MODEST)
+			streak = 0
+	else:
+		streak = 0
+
+	_burden_streak[k.id] = streak
+
+	if target == old:
+		return
+
+	k.tax_level = target
+	_emit_tax_change(k, old, target)
+
+
+func _emit_tax_change(k: Kingdom, from_level: int, to_level: int) -> void:
+	var going_up: bool = to_level > from_level
+	var headline: String
+	var body: String
+	if going_up:
+		headline = "Heavier taxes in %s" % k.kingdom_name
+		body = "The crown of %s has raised its rates. The new setting is %s. Markets are already quieter than yesterday." % [
+			k.kingdom_name, k.tax_level_phrase(),
+		]
+	else:
+		headline = "%s eases the tax bench" % k.kingdom_name
+		body = "Word from %s: the levies are loosened. The crown calls it relief; lenders call it something else. The new setting is %s." % [
+			k.kingdom_name, k.tax_level_phrase(),
+		]
+	EventBus.public_event.emit({
+		"kind":       &"tax_change",
+		"kingdom_id": k.id,
+		"headline":   headline,
+		"body":       body,
+	})
 
 
 ## Re-grade the treasury based on runway (months of cover) and whether
@@ -125,11 +212,14 @@ func snapshot() -> Array:
 			"treasury_silver":    k.treasury_silver,
 			"treasury_gold":      k.treasury_gold,
 			"treasury_condition": int(k.treasury_condition),
+			"tax_level":          int(k.tax_level),
+			"burden_streak":      int(_burden_streak.get(k.id, 0)),
 		})
 	return out
 
 
 func restore(arr: Array) -> void:
+	_burden_streak.clear()
 	for d in arr:
 		if typeof(d) != TYPE_DICTIONARY:
 			continue
@@ -140,3 +230,5 @@ func restore(arr: Array) -> void:
 		k.treasury_silver    = float(d.get("treasury_silver", k.treasury_silver))
 		k.treasury_gold      = float(d.get("treasury_gold", k.treasury_gold))
 		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition)))
+		k.tax_level          = int(d.get("tax_level", int(k.tax_level)))
+		_burden_streak[id]   = int(d.get("burden_streak", 0))
