@@ -26,6 +26,18 @@ enum RelationState {
 # keys are treated as NEUTRAL.
 var _edges: Dictionary = {}
 
+# Months the pair has spent at AT_WAR since the most recent declaration.
+# Reset on set_at_war; cleared on set_peace or any transition out of war.
+# Drives both the rising peace chance and the one-shot weariness dispatch.
+var _war_months: Dictionary = {}     # key "a|b" -> int
+var _war_weariness_emitted: Dictionary = {}   # key "a|b" -> bool
+
+# --- War lifecycle tuning ----------------------------------------------------
+const WAR_PEACE_BASE:          float = 0.02
+const WAR_PEACE_PER_MONTH:     float = 0.004
+const WAR_PEACE_CAP:           float = 0.15
+const WAR_WEARINESS_THRESHOLD: int   = 18
+
 
 func _ready() -> void:
 	GameClock.month_passed.connect(_on_month_passed)
@@ -61,12 +73,18 @@ func set_state(a_id: String, b_id: String, state: int) -> void:
 
 
 func set_at_war(a_id: String, b_id: String) -> void:
+	var key: String = _key(a_id, b_id)
+	_war_months[key] = 0
+	_war_weariness_emitted.erase(key)
 	set_state(a_id, b_id, int(RelationState.AT_WAR))
 	_cascade_coalition(a_id, b_id)
 
 
 func set_peace(a_id: String, b_id: String) -> void:
 	# Peace lands at HOSTILE, not NEUTRAL: the scars take time.
+	var key: String = _key(a_id, b_id)
+	_war_months.erase(key)
+	_war_weariness_emitted.erase(key)
 	set_state(a_id, b_id, int(RelationState.HOSTILE))
 
 
@@ -150,13 +168,31 @@ func _on_month_passed(_y: int, _m: int) -> void:
 
 
 func _tick_war(key: String) -> void:
-	# ~4% per month → war usually lasts roughly two to three years.
-	if randf() < 0.045:
+	# War length drives a rising peace chance: short wars end rarely,
+	# long wars grind toward a settlement. Weariness is published once
+	# per pair when the ramp first crosses WAR_WEARINESS_THRESHOLD.
+	var months: int = int(_war_months.get(key, 0)) + 1
+	_war_months[key] = months
+
+	var pair: PackedStringArray = key.split("|")
+	if pair.size() != 2:
+		return
+
+	if months == WAR_WEARINESS_THRESHOLD and not bool(_war_weariness_emitted.get(key, false)):
+		_war_weariness_emitted[key] = true
+		_emit_war_weariness(pair[0], pair[1])
+
+	var chance: float = clampf(
+		WAR_PEACE_BASE + WAR_PEACE_PER_MONTH * float(months - 1),
+		WAR_PEACE_BASE,
+		WAR_PEACE_CAP,
+	)
+	if randf() < chance:
 		_edges[key] = int(RelationState.HOSTILE)
-		var pair: PackedStringArray = key.split("|")
-		if pair.size() == 2:
-			_emit_peace(pair[0], pair[1])
-			_emit_changed(key, int(RelationState.HOSTILE))
+		_war_months.erase(key)
+		_war_weariness_emitted.erase(key)
+		_emit_peace(pair[0], pair[1])
+		_emit_changed(key, int(RelationState.HOSTILE))
 
 
 # --- Internal ----------------------------------------------------------------
@@ -175,6 +211,21 @@ func _cascade_coalition(a_id: String, b_id: String) -> void:
 			if state_between(ally_id, other) == int(RelationState.AT_WAR):
 				continue
 			set_state(ally_id, other, int(RelationState.AT_WAR))
+
+
+func _emit_war_weariness(a_id: String, b_id: String) -> void:
+	var a: Kingdom = WorldData.get_kingdom(a_id)
+	var b: Kingdom = WorldData.get_kingdom(b_id)
+	if a == null or b == null:
+		return
+	EventBus.public_event.emit({
+		"kind":       &"war_weariness",
+		"kingdom_id": a.id,
+		"headline":   "The war between %s and %s drags" % [a.kingdom_name, b.kingdom_name],
+		"body":       "Neither %s nor %s is losing; neither is winning. Soldiers have been under arms past their pay; farmers are saying out loud what they whispered a year ago. The envoys have not yet been called, but in private rooms on both sides the word 'terms' has started to be said without flinching." % [
+			a.kingdom_name, b.kingdom_name,
+		],
+	})
 
 
 func _emit_peace(a_id: String, b_id: String) -> void:
@@ -207,11 +258,23 @@ func _key(a_id: String, b_id: String) -> String:
 # --- Save/load hooks ---------------------------------------------------------
 
 func snapshot() -> Dictionary:
-	return { "edges": _edges.duplicate() }
+	return {
+		"edges":             _edges.duplicate(),
+		"war_months":        _war_months.duplicate(),
+		"war_weariness":     _war_weariness_emitted.duplicate(),
+	}
 
 
 func restore(d: Dictionary) -> void:
 	_edges.clear()
+	_war_months.clear()
+	_war_weariness_emitted.clear()
 	var edges: Dictionary = d.get("edges", {})
 	for k in edges.keys():
 		_edges[String(k)] = int(edges[k])
+	var months: Dictionary = d.get("war_months", {})
+	for k in months.keys():
+		_war_months[String(k)] = int(months[k])
+	var weary: Dictionary = d.get("war_weariness", {})
+	for k in weary.keys():
+		_war_weariness_emitted[String(k)] = bool(weary[k])
