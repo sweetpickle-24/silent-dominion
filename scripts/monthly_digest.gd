@@ -18,6 +18,8 @@ extends Node
 # Counters that accumulate over the month.
 var _deaths: int        = 0
 var _assassinations: int = 0
+var _plot_warnings: int  = 0
+var _foiled_attempts: int = 0
 var _successions: int   = 0
 var _decrees: int       = 0
 var _treasury_crises: int = 0
@@ -56,6 +58,8 @@ func _on_public_event(event: Dictionary) -> void:
 	match event.get("kind", &"misc"):
 		&"death":                 _deaths += 1
 		&"assassination":         _assassinations += 1; _deaths += 1
+		&"assassination_attempt": _foiled_attempts += 1
+		&"plot_brewing":          _plot_warnings += 1
 		&"succession":            _successions += 1
 		&"ruler_decree":          _decrees += 1
 		&"treasury_crisis":       _treasury_crises += 1
@@ -129,6 +133,19 @@ func _compose_body() -> String:
 			lines.append("— %d death%s in places of consequence, all of them unremarkable." % [
 				_deaths, _plural(_deaths),
 			])
+
+	if _plot_warnings > 0 or _foiled_attempts > 0:
+		anything = true
+		var plot_parts: Array[String] = []
+		if _plot_warnings > 0:
+			plot_parts.append("%d court%s has grown tense enough to be noticed" % [
+				_plot_warnings, "" if _plot_warnings == 1 else "s",
+			])
+		if _foiled_attempts > 0:
+			plot_parts.append("%d blade%s drew for a throne and did not land" % [
+				_foiled_attempts, "" if _foiled_attempts == 1 else "s",
+			])
+		lines.append("— " + _join_clauses(plot_parts) + ".")
 
 	if _successions > 0:
 		anything = true
@@ -229,6 +246,8 @@ func _join_clauses(parts: Array[String]) -> String:
 func _reset_buffers() -> void:
 	_deaths = 0
 	_assassinations = 0
+	_plot_warnings = 0
+	_foiled_attempts = 0
 	_successions = 0
 	_decrees = 0
 	_treasury_crises = 0

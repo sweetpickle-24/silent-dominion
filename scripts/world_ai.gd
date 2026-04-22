@@ -18,13 +18,36 @@ extends Node
 
 const BASE_DECREE_CHANCE:        float = 0.03   # per ruler per month
 const WAR_DECLARATION_CHANCE:    float = 0.005  # per month (world-wide)
-const ASSASSINATION_CHANCE:      float = 0.004  # per ambitious heir per month
 const TREASURY_CRISIS_CHANCE_BASE: float = 0.20  # scaled up by condition
+
+# --- Coup rolls (§24.3 plot engine) ------------------------------------------
+#
+# A plotter is a living non-ruler whose role is close enough to the seat
+# to take it, whose ambition has climbed past COUP_AMBITION_FLOOR, and
+# whose loyalty has slipped below COUP_LOYALTY_CEILING. Drift (M31) can
+# push a once-loyal general or advisor into that bracket over time.
+# Per-month attempt chance scales with (ambition - loyalty) and, more
+# surprisingly, the ruler's paranoia — a paranoid court is a tense
+# court, and tense courts produce attempts. Success is a separate roll
+# that runs when the attempt fires.
+const COUP_AMBITION_FLOOR:  int   = 70
+const COUP_LOYALTY_CEILING: int   = 50
+const COUP_ROLES: Array[int]      = [
+	Actor.Role.HEIR, Actor.Role.ADVISOR, Actor.Role.GENERAL,
+]
+const COUP_BASE_CHANCE:         float = 0.0025     # per qualified plotter / month
+const COUP_WARN_CHANCE:         float = 0.12       # per qualified plotter / month
+const COUP_WARN_COOLDOWN_MONTHS: int  = 4          # don't repeat a warning
 
 const DEATH_BASE_AGE: int = 60                  # before this, no natural death roll
 const DEATH_CURVE: float  = 0.0018              # (age - 60) * curve = monthly death chance
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+# plotter_id -> GameClock.absolute_day when last warned. Prevents the
+# scroll from re-announcing the same conspiracy every month for as long
+# as the traits stay high.
+var _plot_warning_last_day: Dictionary = {}
 
 
 func _ready() -> void:
@@ -94,14 +117,64 @@ func _roll_assassination_attempts() -> void:
 	for a in Actors.all_actors():
 		if not a.is_alive():
 			continue
-		if a.role != Actor.Role.HEIR:
+		if not (a.role in COUP_ROLES):
 			continue
-		if a.ambition < 75 or a.loyalty > 45:
+		if a.ambition < COUP_AMBITION_FLOOR or a.loyalty > COUP_LOYALTY_CEILING:
 			continue
-		if _rng.randf() < ASSASSINATION_CHANCE:
-			var ruler: Actor = Actors.ruler_of(a.kingdom_id)
-			if ruler != null and ruler.is_alive():
-				_emit_assassination_attempt(a, ruler)
+		var ruler: Actor = Actors.ruler_of(a.kingdom_id)
+		if ruler == null or not ruler.is_alive():
+			continue
+
+		# Tension scales with both plotter motivation and ruler paranoia.
+		# An ambition-60/loyalty-30 general under a paranoid ruler plots
+		# far more often than the same general under a stable one.
+		var motive: float    = float(a.ambition - a.loyalty) / 100.0   # 0.2..2.0 range
+		var pressure: float  = 1.0 + (float(ruler.paranoia) - 50.0) / 100.0
+		pressure             = clampf(pressure, 0.6, 1.8)
+		var chance: float    = COUP_BASE_CHANCE * motive * pressure
+
+		# First: possible forewarning. The court's whispers reach the
+		# player via the scroll before blood is drawn.
+		_maybe_emit_plot_warning(a, ruler)
+
+		# Then: the attempt roll itself.
+		if _rng.randf() < chance:
+			_emit_assassination_attempt(a, ruler)
+
+
+## Occasionally emit a qualitative public dispatch indicating that a
+## plot is being discussed in the background. This is pure flavor
+## signaling: it does not advance or delay the attempt roll itself.
+## A plotter is warned about once per COUP_WARN_COOLDOWN_MONTHS so the
+## Public News scroll isn't flooded.
+func _maybe_emit_plot_warning(plotter: Actor, ruler: Actor) -> void:
+	var today: int = GameClock.absolute_day()
+	var last: int  = int(_plot_warning_last_day.get(plotter.id, -99999))
+	if today - last < COUP_WARN_COOLDOWN_MONTHS * 30:
+		return
+	if _rng.randf() >= COUP_WARN_CHANCE:
+		return
+	_plot_warning_last_day[plotter.id] = today
+	var k: Kingdom = WorldData.get_kingdom(plotter.kingdom_id)
+	var kname: String = k.kingdom_name if k != null else plotter.kingdom_id
+	var line: String
+	if plotter.role == Actor.Role.GENERAL:
+		line = "The garrison around %s keeps their own counsel. Orders that were once read out in the square are now delivered behind closed doors." % kname
+	elif plotter.role == Actor.Role.ADVISOR:
+		line = "The council of %s no longer laughs at the same jokes. %s and %s are no longer seen in the same rooms." % [
+			kname, _actor_link(ruler), _actor_link(plotter),
+		]
+	else:
+		line = "In the court of %s, attendants are noticing whom %s walks with — and whom they do not." % [
+			kname, _actor_link(plotter),
+		]
+	_publish({
+		"kind":       &"plot_brewing",
+		"kingdom_id": plotter.kingdom_id,
+		"actors":     [String(plotter.id), String(ruler.id)],
+		"headline":   "A quiet thickens in the court of %s" % kname,
+		"body":       line,
+	})
 
 
 func _roll_war_declaration() -> void:
@@ -212,7 +285,13 @@ func _kill_actor(a: Actor) -> void:
 
 
 func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
-	var success: bool = _rng.randf() < 0.35
+	# Base 35% tilts with the plotter's intellect (planning) and the
+	# ruler's paranoia (vigilance). An intellect-80 general against a
+	# paranoia-30 ruler lands clean far more often than the reverse.
+	var intellect_bias: float = (float(heir.intellect) - 50.0) / 200.0   # ±0.25
+	var paranoia_bias:  float = (float(ruler.paranoia) - 50.0) / 200.0   # ±0.25
+	var chance: float = clampf(0.35 + intellect_bias - paranoia_bias, 0.10, 0.75)
+	var success: bool = _rng.randf() < chance
 	if success:
 		var ruler_was_host: bool = ruler.is_host()
 		ruler.death_year = GameClock.year
