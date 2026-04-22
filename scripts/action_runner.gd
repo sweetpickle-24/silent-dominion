@@ -77,15 +77,34 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 			[action_id, Exposure.level_name()])
 		return Scheduler.INVALID_HANDLE
 
-	if def.silver_cost > 0 and not Purse.can_afford(def.silver_cost):
-		push_warning("[Actions] Action '%s' refused: purse cannot cover %d silver" %
-			[action_id, def.silver_cost])
-		return Scheduler.INVALID_HANDLE
-
-	# Deduct now — spending the coin is part of issuing the action, not
-	# of resolving it. If the letter fails, the silver stays spent.
+	# Funding (§16). Costly actions prefer the banking network —
+	# one of the player's houses carries the bill. If no route covers
+	# the spend, fall back to the physical purse (emergency coin).
+	# Promotions, being conversations not payments, always come from
+	# the purse: you do not route a promotion through a merchant.
+	var funding: Dictionary = {}
+	var used_purse: bool = false
 	if def.silver_cost > 0:
-		Purse.spend(def.silver_cost)
+		var dest_kingdom: String = _kingdom_of_target(def, target_id)
+		var prefer_network: bool = dest_kingdom != "" \
+				and action_id != &"promote_coordinator" \
+				and action_id != &"promote_lieutenant"
+		if prefer_network:
+			funding = Finance.fund(
+				dest_kingdom,
+				def.silver_cost,
+				_default_route_for(def),
+				action_id
+			)
+		if funding.is_empty() or not bool(funding.get("ok", false)):
+			if not Purse.can_afford(def.silver_cost):
+				push_warning(("[Actions] Action '%s' refused: no bank route for %d "
+					+ "silver and purse cannot cover the shortfall.") %
+					[action_id, def.silver_cost])
+				return Scheduler.INVALID_HANDLE
+			Purse.spend(def.silver_cost)
+			used_purse = true
+			funding = {}
 
 	# Routing (§14.2). If the player has a coordinator in the target's
 	# kingdom, the dispatch goes through them: a modest delay is added,
@@ -96,7 +115,11 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 	if coord != null:
 		dispatch_delay = _rng.randi_range(5, 12)
 
-	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve) + dispatch_delay
+	# Funded routes add their own latency on top of dispatch delay.
+	var funding_delay: int = int(funding.get("delay_days", 0))
+
+	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve) \
+			+ dispatch_delay + funding_delay
 	var fire_day: int = GameClock.absolute_day() + delay
 
 	var descriptor: Dictionary = {
@@ -108,6 +131,9 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		"silver_cost":   def.silver_cost,
 		"exposure_cost": def.exposure_cost,
 		"coordinator_id": String(coord.id) if coord != null else "",
+		"funded_via":    String(funding.get("house_id", "")),
+		"funded_route":  int(funding.get("_route_option", _default_route_for(def))),
+		"used_purse":    used_purse,
 	}
 
 	var handle: int = Scheduler.schedule_task_on_day(fire_day, descriptor)
@@ -116,6 +142,22 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		[action_id, target_id, delay, fire_day,
 		"" if coord == null else " via %s" % coord.display_name])
 	return handle
+
+
+## Pick a default funding route for an action. The player will be
+## able to override this through a future compose-view toggle; for
+## now the heuristic is "match discretion to exposure tier". Loud
+## actions go through heavy laundering; quiet ones route directly
+## so we don't waste capacity.
+func _default_route_for(def: ActionDefinition) -> int:
+	match def.tier:
+		ActionDefinition.Tier.DEEP_SHADOW:
+			return Finance.RoutingOption.DIRECT
+		ActionDefinition.Tier.ACTIVE:
+			return Finance.RoutingOption.SINGLE_INTERMEDIARY
+		ActionDefinition.Tier.HIGH:
+			return Finance.RoutingOption.MULTI_HOP
+	return Finance.RoutingOption.DIRECT
 
 
 ## Coordinator routing only applies to actions that have a concrete

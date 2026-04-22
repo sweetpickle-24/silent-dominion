@@ -325,6 +325,60 @@ border_color = Color(0.64, 0.46, 0.2, 0.8)
 [sub_resource type="StyleBoxFlat" id="StyleBox_dossier_line"]
 bg_color = Color(0.42, 0.3, 0.14, 0.6)
 
+; --- Vault (leather coin pouch, drawstring, a couple of stacked coins) ------
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_vault_pouch"]
+bg_color = Color(0.22, 0.13, 0.08, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.52, 0.36, 0.18, 0.85)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 36
+corner_radius_bottom_left = 36
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 12
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_vault_drawstring"]
+bg_color = Color(0.42, 0.28, 0.14, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_vault_coin_gold"]
+bg_color = Color(0.82, 0.66, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.58, 0.42, 0.12, 0.9)
+corner_radius_top_left = 9999
+corner_radius_top_right = 9999
+corner_radius_bottom_right = 9999
+corner_radius_bottom_left = 9999
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 4
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_vault_coin_silver"]
+bg_color = Color(0.82, 0.82, 0.86, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.5, 0.55, 0.9)
+corner_radius_top_left = 9999
+corner_radius_top_right = 9999
+corner_radius_bottom_right = 9999
+corner_radius_bottom_left = 9999
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 3
+shadow_offset = Vector2(0, 2)
+
 ; --- Compose kit (parchment + quill + inkwell + wax stick) --------------------
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_compose_parchment"]
@@ -1147,6 +1201,115 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.3, 0.2, 0.1, 0.85)
 theme_override_font_sizes/font_size = 16
 text = "Roster"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+; ---- Vault (right edge, leather coin pouch tied shut, stacked coins) -------
+
+[node name="Vault" type="Control" parent="Objects"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -170.0
+offset_top = 500.0
+offset_right = -48.0
+offset_bottom = 650.0
+grow_horizontal = 0
+mouse_filter = 0
+
+[node name="Pouch" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 18.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_pouch")
+
+[node name="DrawstringL" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 0.0
+offset_right = 18.0
+offset_bottom = 32.0
+rotation = -0.3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_drawstring")
+
+[node name="DrawstringR" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 100.0
+offset_top = 0.0
+offset_right = 102.0
+offset_bottom = 32.0
+rotation = 0.3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_drawstring")
+
+[node name="Knot" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.0
+anchor_right = 0.5
+anchor_bottom = 0.0
+offset_left = -8.0
+offset_top = 18.0
+offset_right = 8.0
+offset_bottom = 34.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_drawstring")
+
+[node name="CoinGold" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = -10.0
+offset_top = 80.0
+offset_right = 16.0
+offset_bottom = 106.0
+rotation = -0.12
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_coin_gold")
+
+[node name="CoinSilverA" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 108.0
+offset_top = 86.0
+offset_right = 132.0
+offset_bottom = 110.0
+rotation = 0.18
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_coin_silver")
+
+[node name="CoinSilverB" type="Panel" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 116.0
+offset_top = 100.0
+offset_right = 140.0
+offset_bottom = 124.0
+rotation = -0.05
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_vault_coin_silver")
+
+[node name="Label" type="Label" parent="Objects/Vault"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -22.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.92, 0.86, 0.72, 0.9)
+theme_override_font_sizes/font_size = 15
+text = "Vault"
 horizontal_alignment = 1
 vertical_alignment = 1
 
