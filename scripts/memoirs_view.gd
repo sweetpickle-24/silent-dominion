@@ -12,6 +12,7 @@ extends Control
 
 signal closed
 signal actor_link_clicked(actor_id: StringName)
+signal codebook_link_clicked(anchor: StringName)
 
 const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
 
@@ -321,6 +322,7 @@ func _open_letter(letter: Letter) -> void:
 	add_child(view)
 	view.closed.connect(_on_child_letter_closed)
 	view.actor_link_clicked.connect(_on_child_actor_link)
+	view.codebook_link_clicked.connect(_on_child_codebook_link)
 	view.call("display", letter)
 	_child_letter_view = view
 
@@ -334,5 +336,13 @@ func _on_child_actor_link(actor_id: StringName) -> void:
 	# Bubble up so the table scene can open the dossier, then close memoirs
 	# so the dossier is not stacked underneath a dimmed sheet.
 	actor_link_clicked.emit(actor_id)
+	_child_letter_view = null
+	close()
+
+
+func _on_child_codebook_link(anchor: StringName) -> void:
+	# Same pattern as actor links — bubble up, close memoirs so the
+	# codebook opens clean.
+	codebook_link_clicked.emit(anchor)
 	_child_letter_view = null
 	close()

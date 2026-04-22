@@ -12,6 +12,7 @@ extends Control
 
 signal closed
 signal actor_link_clicked(actor_id: StringName)
+signal codebook_link_clicked(anchor: StringName)
 
 # --- Visual tokens -----------------------------------------------------------
 
@@ -246,6 +247,10 @@ func _on_meta_clicked(meta: Variant) -> void:
 	if s.begins_with("actor:"):
 		var id: StringName = StringName(s.substr(len("actor:")))
 		actor_link_clicked.emit(id)
+		close()
+	elif s.begins_with("codebook:"):
+		var anchor: StringName = StringName(s.substr(len("codebook:")))
+		codebook_link_clicked.emit(anchor)
 		close()
 
 

@@ -149,7 +149,7 @@ func _compose_body() -> String:
 
 	if _tax_shifts > 0:
 		anything = true
-		lines.append("— %d crown%s moved the tax dial this month." % [
+		lines.append("— %d crown%s moved the [url=codebook:tax][i]tax dial[/i][/url] this month." % [
 			_tax_shifts, _plural(_tax_shifts),
 		])
 
@@ -170,11 +170,11 @@ func _compose_body() -> String:
 
 	if _purse_band_to != &"":
 		anything = true
-		lines.append("— The purse now sits at \"%s\"." % Purse.band_name())
+		lines.append("— The [url=codebook:purse][i]purse[/i][/url] now sits at \"%s\"." % Purse.band_name())
 
 	if _exposure_level_to >= 0:
 		anything = true
-		lines.append("— The world's appetite for our name is now at \"%s\"." % Exposure.level_name())
+		lines.append("— The world's appetite for our name is now at \"%s\" ([url=codebook:exposure]exposure[/url])." % Exposure.level_name())
 
 	if not anything:
 		lines.append("— Nothing of weight. Grain at market, priests at altar, soldiers on walls. The world is where you left it.")

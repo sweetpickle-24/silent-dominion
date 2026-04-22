@@ -111,11 +111,11 @@ func _opening_line(host: Actor) -> String:
 func _tax_line(k: Kingdom) -> String:
 	match k.tax_level:
 		Kingdom.TaxLevel.INDULGENT:
-			return "The crown has eased the tax bench. Bakers sing about it; lenders do not."
+			return "The crown has eased the [url=codebook:tax]tax bench[/url]. Bakers sing about it; lenders do not."
 		Kingdom.TaxLevel.BURDENED:
-			return "Taxes bite harder this season. The market is quieter than it was, and more watchful."
+			return "[url=codebook:tax]Taxes[/url] bite harder this season. The market is quieter than it was, and more watchful."
 		Kingdom.TaxLevel.RUINOUS:
-			return "The levies have become openly resented. Every third conversation becomes a complaint about them. Every fourth becomes something more serious."
+			return "The [url=codebook:tax]levies[/url] have become openly resented. Every third conversation becomes a complaint about them. Every fourth becomes something more serious."
 		_:
 			return ""
 

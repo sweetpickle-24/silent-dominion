@@ -12,6 +12,16 @@ extends Control
 
 signal closed
 
+## Optional anchor to scroll the glossary to on open. Set via
+## `set_anchor()` before the view is parented.
+var _pending_anchor: StringName = &""
+var _section_headers: Dictionary = {}   # StringName -> Control
+
+## Set before adding this view to the tree. Scrolls the glossary to
+## the section with the given id after the first frame.
+func set_anchor(a: StringName) -> void:
+	_pending_anchor = a
+
 # --- Visual tokens -----------------------------------------------------------
 
 const COLOR_DIMMER: Color         = Color(0, 0, 0, 0.62)
@@ -28,6 +38,7 @@ const COLOR_GREEN: Color          = Color(0.18, 0.34, 0.22, 1.0)
 var _dimmer: ColorRect
 var _sheet: PanelContainer
 var _content: VBoxContainer
+var _scroll: ScrollContainer
 
 
 # --- Lifecycle ---------------------------------------------------------------
@@ -43,6 +54,27 @@ func _ready() -> void:
 
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+
+	if _pending_anchor != &"":
+		# Defer: the ScrollContainer needs its child sizes to settle
+		# before we can ask for a header's position in it.
+		call_deferred("_scroll_to_anchor", _pending_anchor)
+
+
+func _scroll_to_anchor(anchor: StringName) -> void:
+	var header: Control = _section_headers.get(anchor, null)
+	if header == null or _scroll == null:
+		return
+	# Pass the header's y in content space as the scroll offset.
+	var y: float = header.position.y
+	_scroll.scroll_vertical = int(max(0.0, y - 4.0))
+	# A brief highlight so the eye catches it.
+	var original: Color = header.get_theme_color("font_color")
+	header.add_theme_color_override("font_color", COLOR_WAX)
+	var tw: Tween = create_tween()
+	tw.tween_interval(0.6)
+	tw.tween_callback(func() -> void:
+		header.add_theme_color_override("font_color", original))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -130,15 +162,15 @@ func _build_sheet() -> void:
 	sep.add_theme_color_override("color", COLOR_PARCHMENT_EDGE)
 	root.add_child(sep)
 
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	root.add_child(scroll)
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(_scroll)
 
 	_content = VBoxContainer.new()
 	_content.add_theme_constant_override("separation", 8)
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_content)
+	_scroll.add_child(_content)
 
 	var close_btn: Button = Button.new()
 	close_btn.text = "Set aside"
@@ -153,7 +185,7 @@ func _build_sheet() -> void:
 # --- Render ------------------------------------------------------------------
 
 func _render() -> void:
-	_section("THE PURSE", "How much silver you have on hand. Shown as a band, never a number.")
+	_section("THE PURSE", "How much silver you have on hand. Shown as a band, never a number.", &"purse")
 	_entry("Bone dry", "The purse is empty. Nothing leaves it until something enters it.", COLOR_WAX)
 	_entry("Thin", "Silver present, but not much. One expensive move strips the bottom.", COLOR_WAX)
 	_entry("Lean", "Enough for careful work. Not enough for noise.", COLOR_ACCENT)
@@ -164,7 +196,8 @@ func _render() -> void:
 	_divider()
 
 	_section("EXPOSURE",
-		"How visible your hand has become. High exposure bars louder instruments; quiet ones remain available longer.")
+		"How visible your hand has become. High exposure bars louder instruments; quiet ones remain available longer.",
+		&"exposure")
 	_entry("Unknown", "No one is looking for you. All instruments are on the table.", COLOR_GREEN)
 	_entry("Suspected", "Someone, somewhere, is asking the wrong questions. Loud work becomes risky.", COLOR_ACCENT)
 	_entry("Watched", "A specific court is paying attention. Most aggressive moves are barred.", COLOR_ACCENT)
@@ -174,7 +207,8 @@ func _render() -> void:
 	_divider()
 
 	_section("TREASURIES OF CROWNS",
-		"The fiscal state of each kingdom. Rulers adjust the tax dial in response.")
+		"The fiscal state of each kingdom. Rulers adjust the tax dial in response.",
+		&"treasury")
 	_entry("Flush", "Rich. Likely planning something costly next.", COLOR_GREEN)
 	_entry("Stable", "Neither rich nor struggling. The default state.", COLOR_INK)
 	_entry("Strained", "Months of runway are thin. Rulers begin to squeeze.", COLOR_ACCENT)
@@ -184,7 +218,8 @@ func _render() -> void:
 	_divider()
 
 	_section("TAX BENCHES",
-		"How hard the crown squeezes its provinces. Shifts with treasury state. Ruinous and burdened settings cannot last forever.")
+		"How hard the crown squeezes its provinces. Shifts with treasury state. Ruinous and burdened settings cannot last forever.",
+		&"tax")
 	_entry("Indulgent", "Barely collected. Popular; hollow treasury.", COLOR_GREEN)
 	_entry("Modest", "The traditional tithe. The default.", COLOR_INK)
 	_entry("Burdened", "Noticeably heavy. Revenue up, patience down.", COLOR_ACCENT)
@@ -193,7 +228,8 @@ func _render() -> void:
 	_divider()
 
 	_section("RELATIONSHIP WITH A NAME",
-		"Where a specific person stands with you. Changes through cultivation, bribery, rumor, and time.")
+		"Where a specific person stands with you. Changes through cultivation, bribery, rumor, and time.",
+		&"relationship")
 	_entry("Hostile", "They would harm you if they could. Any approach is costly.", COLOR_WAX)
 	_entry("Cold", "They will not act for you and will forget nothing.", COLOR_ACCENT)
 	_entry("Neutral", "No particular feeling. Most names begin here.", COLOR_INK_MUTED)
@@ -204,7 +240,8 @@ func _render() -> void:
 	_divider()
 
 	_section("HOSTS (§5)",
-		"Named figures loyal enough to act for you. Only non-rulers can become hosts; rulers are influenced, not owned.")
+		"Named figures loyal enough to act for you. Only non-rulers can become hosts; rulers are influenced, not owned.",
+		&"hosts")
 	_entry("Host threshold",
 		"A relationship crosses into host territory at about 'loyal'. Below that, even the friendliest name will not risk their neck for yours.",
 		COLOR_GREEN)
@@ -215,7 +252,8 @@ func _render() -> void:
 	_divider()
 
 	_section("KINGDOMS, TO EACH OTHER",
-		"The map detail panel describes how a crown stands with its neighbors in these terms.")
+		"The map detail panel describes how a crown stands with its neighbors in these terms.",
+		&"relations")
 	_entry("At war", "Active conflict. Peace treaties are months away at best.", COLOR_WAX)
 	_entry("Cold", "Recent scars, or old grudges. Alliances are impossible; war is possible.", COLOR_ACCENT)
 	_entry("Neutral", "No particular feeling. The default edge.", COLOR_INK_MUTED)
@@ -225,7 +263,8 @@ func _render() -> void:
 	_divider()
 
 	_section("PROVINCE MOOD",
-		"Every populated province carries a mood that shifts with taxes, war, and your own rumor-work. Shown only on the Map.")
+		"Every populated province carries a mood that shifts with taxes, war, and your own rumor-work. Shown only on the Map.",
+		&"unrest")
 	_entry("Quiet", "Nothing is stirring. Children at the fountain, elders at the gate.", COLOR_GREEN)
 	_entry("Uneasy", "A watchfulness in the markets. Nothing named, yet.", COLOR_ACCENT)
 	_entry("Restless", "Knots of men arguing. The guard looks tired on purpose.", COLOR_ACCENT)
@@ -235,7 +274,8 @@ func _render() -> void:
 	_divider()
 
 	_section("THE TIME DIAL",
-		"Clock speeds, top-right. Pause, day, and month. No faster setting exists yet.")
+		"Clock speeds, top-right. Pause, day, and month. No faster setting exists yet.",
+		&"time")
 	_entry("Pause", "Time freezes. Useful for reading or composing without pressure.", COLOR_INK_MUTED)
 	_entry("Day (I)",  "One day per real second.", COLOR_INK)
 	_entry("Month (II)", "One month per real second. Most of your life passes here.", COLOR_INK)
@@ -243,7 +283,8 @@ func _render() -> void:
 	_divider()
 
 	_section("WHAT LANDS IN THE INBOX",
-		"Every letter the player receives is one of a few kinds.")
+		"Every letter the player receives is one of a few kinds.",
+		&"inbox")
 	_entry("Report", "Your own instrument has resolved — success or failure.", COLOR_INK)
 	_entry("From a host", "A loyal actor writes to you unprompted, about their city.", COLOR_GREEN)
 	_entry("A name falls / won", "A host crosses the threshold, into or out of your stable.", COLOR_ACCENT)
@@ -252,12 +293,15 @@ func _render() -> void:
 
 # --- Helpers -----------------------------------------------------------------
 
-func _section(title: String, blurb: String) -> void:
+func _section(title: String, blurb: String, anchor_id: StringName = &"") -> void:
 	var h: Label = Label.new()
 	h.text = title
 	h.add_theme_color_override("font_color", COLOR_ACCENT)
 	h.add_theme_font_size_override("font_size", 11)
 	_content.add_child(h)
+
+	if anchor_id != &"":
+		_section_headers[anchor_id] = h
 
 	var b: Label = Label.new()
 	b.text = blurb

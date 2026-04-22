@@ -372,7 +372,7 @@ func _on_codebook_clicked() -> void:
 	_open_codebook_view()
 
 
-func _open_codebook_view() -> void:
+func _open_codebook_view(anchor: StringName = &"") -> void:
 	if _overlay_active:
 		return
 	_overlay_active = true
@@ -381,8 +381,14 @@ func _open_codebook_view() -> void:
 	view.name = "CodebookView"
 	view.anchor_right = 1.0
 	view.anchor_bottom = 1.0
+	if anchor != &"":
+		view.call("set_anchor", anchor)
 	add_child(view)
 	view.closed.connect(_on_codebook_view_closed)
+
+
+func _on_letter_codebook_link_clicked(anchor: StringName) -> void:
+	_open_codebook_view(anchor)
 
 
 func _on_codebook_view_closed() -> void:
@@ -405,6 +411,7 @@ func _open_memoirs_view() -> void:
 	add_child(view)
 	view.closed.connect(_on_memoirs_view_closed)
 	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
 
 
 func _on_memoirs_view_closed() -> void:
@@ -427,6 +434,7 @@ func _open_public_news_view() -> void:
 	add_child(view)
 	view.closed.connect(_on_public_news_view_closed)
 	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
 
 
 func _on_public_news_view_closed() -> void:
@@ -513,6 +521,7 @@ func _open_letter_view(letter: Letter) -> void:
 	add_child(view)
 	view.closed.connect(_on_letter_view_closed)
 	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
 	view.display(letter)
 
 
