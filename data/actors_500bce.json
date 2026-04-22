@@ -1,0 +1,350 @@
+{
+  "_comment": "Starting roster of notable figures alive circa 1 January 500 BCE. Birth/death years are negative for BCE. Traits are rough historically-grounded placeholders on a 0-100 scale per docs/24.",
+  "actors": [
+    {
+      "id": "darius_i",
+      "given_name": "Darius",
+      "epithet": "the Great, King of Kings",
+      "birth_year": -550,
+      "death_year": -486,
+      "role": "RULER",
+      "kingdom_id": "persia",
+      "province_id": "persis",
+      "traits": {
+        "ambition": 88, "paranoia": 65, "loyalty": 55, "piety": 70,
+        "intellect": 82, "greed": 50, "ruthlessness": 78,
+        "curiosity": 60, "resilience": 80, "charisma": 72
+      }
+    },
+    {
+      "id": "xerxes_i",
+      "given_name": "Xerxes",
+      "epithet": "son of Darius",
+      "birth_year": -519,
+      "death_year": -465,
+      "role": "HEIR",
+      "kingdom_id": "persia",
+      "province_id": "persis",
+      "traits": {
+        "ambition": 75, "paranoia": 72, "loyalty": 60, "piety": 65,
+        "intellect": 55, "greed": 55, "ruthlessness": 70,
+        "curiosity": 40, "resilience": 55, "charisma": 68
+      }
+    },
+    {
+      "id": "mardonius",
+      "given_name": "Mardonius",
+      "epithet": "son-in-law of Darius",
+      "birth_year": -530,
+      "death_year": -479,
+      "role": "GENERAL",
+      "kingdom_id": "persia",
+      "province_id": "persis",
+      "traits": {
+        "ambition": 80, "paranoia": 45, "loyalty": 70, "piety": 60,
+        "intellect": 68, "greed": 45, "ruthlessness": 72,
+        "curiosity": 55, "resilience": 72, "charisma": 65
+      }
+    },
+    {
+      "id": "artaphernes",
+      "given_name": "Artaphernes",
+      "epithet": "Satrap of Sardis",
+      "birth_year": -545,
+      "death_year": -492,
+      "role": "GENERAL",
+      "kingdom_id": "persia",
+      "province_id": "lydia",
+      "traits": {
+        "ambition": 60, "paranoia": 68, "loyalty": 82, "piety": 55,
+        "intellect": 70, "greed": 50, "ruthlessness": 62,
+        "curiosity": 50, "resilience": 65, "charisma": 55
+      }
+    },
+    {
+      "id": "histiaeus",
+      "given_name": "Histiaeus",
+      "epithet": "tyrant of Miletus",
+      "birth_year": -550,
+      "death_year": -493,
+      "role": "RULER",
+      "kingdom_id": "persia",
+      "province_id": "ionia",
+      "traits": {
+        "ambition": 85, "paranoia": 72, "loyalty": 30, "piety": 40,
+        "intellect": 80, "greed": 68, "ruthlessness": 65,
+        "curiosity": 70, "resilience": 70, "charisma": 72
+      }
+    },
+    {
+      "id": "aristagoras",
+      "given_name": "Aristagoras",
+      "epithet": "of Miletus",
+      "birth_year": -555,
+      "death_year": -497,
+      "role": "ADVISOR",
+      "kingdom_id": "persia",
+      "province_id": "ionia",
+      "traits": {
+        "ambition": 82, "paranoia": 68, "loyalty": 35, "piety": 40,
+        "intellect": 72, "greed": 55, "ruthlessness": 60,
+        "curiosity": 62, "resilience": 50, "charisma": 70
+      }
+    },
+    {
+      "id": "cleisthenes",
+      "given_name": "Cleisthenes",
+      "epithet": "the Reformer",
+      "birth_year": -570,
+      "death_year": -507,
+      "role": "ADVISOR",
+      "kingdom_id": "athens",
+      "province_id": "attica",
+      "traits": {
+        "ambition": 70, "paranoia": 40, "loyalty": 75, "piety": 55,
+        "intellect": 88, "greed": 30, "ruthlessness": 45,
+        "curiosity": 75, "resilience": 70, "charisma": 78
+      }
+    },
+    {
+      "id": "themistocles",
+      "given_name": "Themistocles",
+      "epithet": "son of Neocles",
+      "birth_year": -524,
+      "death_year": -459,
+      "role": "ADVISOR",
+      "kingdom_id": "athens",
+      "province_id": "attica",
+      "traits": {
+        "ambition": 92, "paranoia": 60, "loyalty": 55, "piety": 40,
+        "intellect": 90, "greed": 55, "ruthlessness": 70,
+        "curiosity": 75, "resilience": 82, "charisma": 80
+      }
+    },
+    {
+      "id": "miltiades",
+      "given_name": "Miltiades",
+      "epithet": "the Younger",
+      "birth_year": -550,
+      "death_year": -489,
+      "role": "GENERAL",
+      "kingdom_id": "athens",
+      "province_id": "attica",
+      "traits": {
+        "ambition": 78, "paranoia": 55, "loyalty": 60, "piety": 55,
+        "intellect": 78, "greed": 50, "ruthlessness": 70,
+        "curiosity": 55, "resilience": 72, "charisma": 70
+      }
+    },
+    {
+      "id": "cleomenes_i",
+      "given_name": "Cleomenes",
+      "epithet": "King of Sparta",
+      "birth_year": -540,
+      "death_year": -490,
+      "role": "RULER",
+      "kingdom_id": "sparta",
+      "province_id": "laconia",
+      "traits": {
+        "ambition": 75, "paranoia": 68, "loyalty": 55, "piety": 55,
+        "intellect": 62, "greed": 40, "ruthlessness": 80,
+        "curiosity": 35, "resilience": 55, "charisma": 60
+      }
+    },
+    {
+      "id": "demaratus",
+      "given_name": "Demaratus",
+      "epithet": "co-king of Sparta",
+      "birth_year": -540,
+      "death_year": -480,
+      "role": "RULER",
+      "kingdom_id": "sparta",
+      "province_id": "laconia",
+      "traits": {
+        "ambition": 65, "paranoia": 55, "loyalty": 60, "piety": 65,
+        "intellect": 72, "greed": 35, "ruthlessness": 55,
+        "curiosity": 55, "resilience": 75, "charisma": 62
+      }
+    },
+    {
+      "id": "leonidas_i",
+      "given_name": "Leonidas",
+      "epithet": "son of Anaxandridas",
+      "birth_year": -540,
+      "death_year": -480,
+      "role": "HEIR",
+      "kingdom_id": "sparta",
+      "province_id": "laconia",
+      "traits": {
+        "ambition": 55, "paranoia": 40, "loyalty": 85, "piety": 60,
+        "intellect": 60, "greed": 25, "ruthlessness": 65,
+        "curiosity": 40, "resilience": 92, "charisma": 72
+      }
+    },
+    {
+      "id": "periander_ii",
+      "given_name": "Periander",
+      "epithet": "archon of Corinth",
+      "birth_year": -545,
+      "death_year": -485,
+      "role": "RULER",
+      "kingdom_id": "corinth",
+      "province_id": "corinthia",
+      "traits": {
+        "ambition": 55, "paranoia": 50, "loyalty": 55, "piety": 50,
+        "intellect": 65, "greed": 60, "ruthlessness": 50,
+        "curiosity": 50, "resilience": 58, "charisma": 58
+      }
+    },
+    {
+      "id": "amyntas_i",
+      "given_name": "Amyntas",
+      "epithet": "King of Macedon",
+      "birth_year": -540,
+      "death_year": -498,
+      "role": "RULER",
+      "kingdom_id": "macedon",
+      "province_id": "macedonia",
+      "traits": {
+        "ambition": 55, "paranoia": 60, "loyalty": 50, "piety": 55,
+        "intellect": 60, "greed": 50, "ruthlessness": 55,
+        "curiosity": 45, "resilience": 65, "charisma": 55
+      }
+    },
+    {
+      "id": "alexander_i_macedon",
+      "given_name": "Alexander",
+      "epithet": "the Philhellene",
+      "birth_year": -520,
+      "death_year": -454,
+      "role": "HEIR",
+      "kingdom_id": "macedon",
+      "province_id": "macedonia",
+      "traits": {
+        "ambition": 70, "paranoia": 55, "loyalty": 50, "piety": 55,
+        "intellect": 72, "greed": 55, "ruthlessness": 60,
+        "curiosity": 68, "resilience": 70, "charisma": 70
+      }
+    },
+    {
+      "id": "psammetichus_iii",
+      "given_name": "Psammetichus",
+      "epithet": "remnant of the 26th Dynasty",
+      "birth_year": -540,
+      "death_year": -480,
+      "role": "ADVISOR",
+      "kingdom_id": "egypt",
+      "province_id": "lower_egypt",
+      "traits": {
+        "ambition": 65, "paranoia": 75, "loyalty": 40, "piety": 78,
+        "intellect": 60, "greed": 45, "ruthlessness": 50,
+        "curiosity": 50, "resilience": 55, "charisma": 55
+      }
+    },
+    {
+      "id": "hamilcar_i_carthage",
+      "given_name": "Hamilcar",
+      "epithet": "the Magonid",
+      "birth_year": -540,
+      "death_year": -480,
+      "role": "RULER",
+      "kingdom_id": "carthage",
+      "province_id": "carthage",
+      "traits": {
+        "ambition": 80, "paranoia": 55, "loyalty": 65, "piety": 60,
+        "intellect": 72, "greed": 65, "ruthlessness": 72,
+        "curiosity": 50, "resilience": 75, "charisma": 70
+      }
+    },
+    {
+      "id": "gelo_of_gela",
+      "given_name": "Gelo",
+      "epithet": "of Gela",
+      "birth_year": -540,
+      "death_year": -478,
+      "role": "GENERAL",
+      "kingdom_id": "carthage",
+      "province_id": "sicily",
+      "traits": {
+        "ambition": 88, "paranoia": 58, "loyalty": 50, "piety": 55,
+        "intellect": 72, "greed": 55, "ruthlessness": 78,
+        "curiosity": 45, "resilience": 78, "charisma": 75
+      }
+    },
+    {
+      "id": "tarquinius_superbus",
+      "given_name": "Lucius Tarquinius",
+      "epithet": "Superbus, exiled king",
+      "birth_year": -570,
+      "death_year": -495,
+      "role": "ADVISOR",
+      "kingdom_id": "etruscan_league",
+      "province_id": "etruria",
+      "traits": {
+        "ambition": 82, "paranoia": 80, "loyalty": 35, "piety": 45,
+        "intellect": 60, "greed": 70, "ruthlessness": 82,
+        "curiosity": 35, "resilience": 60, "charisma": 55
+      }
+    },
+    {
+      "id": "lars_porsena",
+      "given_name": "Lars Porsena",
+      "epithet": "King of Clusium",
+      "birth_year": -550,
+      "death_year": -490,
+      "role": "RULER",
+      "kingdom_id": "etruscan_league",
+      "province_id": "etruria",
+      "traits": {
+        "ambition": 72, "paranoia": 55, "loyalty": 60, "piety": 60,
+        "intellect": 65, "greed": 55, "ruthlessness": 68,
+        "curiosity": 50, "resilience": 70, "charisma": 68
+      }
+    },
+    {
+      "id": "publius_valerius",
+      "given_name": "Publius Valerius",
+      "epithet": "Publicola, consul",
+      "birth_year": -560,
+      "death_year": -503,
+      "role": "RULER",
+      "kingdom_id": "rome",
+      "province_id": "rome",
+      "traits": {
+        "ambition": 58, "paranoia": 45, "loyalty": 80, "piety": 65,
+        "intellect": 70, "greed": 25, "ruthlessness": 55,
+        "curiosity": 50, "resilience": 72, "charisma": 72
+      }
+    },
+    {
+      "id": "pythagoras",
+      "given_name": "Pythagoras",
+      "epithet": "of Samos",
+      "birth_year": -570,
+      "death_year": -495,
+      "role": "PHILOSOPHER",
+      "kingdom_id": "carthage",
+      "province_id": "sicily",
+      "traits": {
+        "ambition": 45, "paranoia": 55, "loyalty": 65, "piety": 88,
+        "intellect": 94, "greed": 20, "ruthlessness": 25,
+        "curiosity": 92, "resilience": 68, "charisma": 80
+      }
+    },
+    {
+      "id": "heraclitus",
+      "given_name": "Heraclitus",
+      "epithet": "of Ephesus",
+      "birth_year": -535,
+      "death_year": -475,
+      "role": "PHILOSOPHER",
+      "kingdom_id": "persia",
+      "province_id": "ionia",
+      "traits": {
+        "ambition": 30, "paranoia": 50, "loyalty": 40, "piety": 55,
+        "intellect": 95, "greed": 15, "ruthlessness": 30,
+        "curiosity": 95, "resilience": 65, "charisma": 40
+      }
+    }
+  ]
+}

@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 EventBus="*res://scripts/event_bus.gd"
 WorldData="*res://scripts/world_data.gd"
+Actors="*res://scripts/actor_registry.gd"
 Inbox="*res://scripts/inbox_manager.gd"
 GameClock="*res://scripts/game_clock.gd"
 

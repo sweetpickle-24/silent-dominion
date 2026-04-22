@@ -85,6 +85,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_F1:
 			# Developer shortcut: dump the loaded world to the console.
 			WorldData.print_debug_dump()
+			Actors.print_debug_dump()
 			get_viewport().set_input_as_handled()
 
 
