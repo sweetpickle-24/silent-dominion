@@ -60,6 +60,29 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 func _ready() -> void:
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
+	EventBus.actor_died.connect(_on_actor_died)
+
+
+## When an actor the player had whispers attached to dies, every line
+## tied to their name goes quiet immediately — the market's memory of
+## them will wander off to fresher scandals.
+func _on_actor_died(actor_id: StringName, _was_host: bool, cause: StringName) -> void:
+	var dropped: Array[String] = []
+	for key in _active.keys():
+		var w: Dictionary = _active[key]
+		if StringName(w.get("actor_id", &"")) == actor_id:
+			dropped.append(key)
+	for key in dropped:
+		var w: Dictionary = _active[key]
+		whisper_faded.emit(
+			StringName(w.get("target_id", &"")),
+			StringName(w.get("kind", &"")),
+		)
+		_active.erase(key)
+	# An assassinated host leaves a louder wake than an age-death;
+	# investigators pick up threads while the trail is fresh.
+	if cause == &"assassination" and not dropped.is_empty():
+		Exposure.bump(3.0, "host_killed")
 
 
 # --- Public API --------------------------------------------------------------

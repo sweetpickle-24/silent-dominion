@@ -192,6 +192,9 @@ func _emit_treasury_crisis(k: Kingdom) -> void:
 func _kill_actor(a: Actor) -> void:
 	# GameClock.year is already negative for BCE; Actor.death_year uses
 	# the same convention (matches birth_year).
+	# Capture host status BEFORE setting death_year, since is_host()
+	# short-circuits on is_alive().
+	var was_host: bool = a.is_host()
 	a.death_year = GameClock.year
 	var title: String = TraitCues.role_title(a.role).to_lower()
 	_publish({
@@ -203,6 +206,7 @@ func _kill_actor(a: Actor) -> void:
 			_kingdom_name(a.kingdom_id), _actor_link(a), title,
 		],
 	})
+	EventBus.actor_died.emit(a.id, was_host, &"age")
 	if a.role == Actor.Role.RULER:
 		_handle_succession(a)
 
@@ -210,6 +214,7 @@ func _kill_actor(a: Actor) -> void:
 func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 	var success: bool = _rng.randf() < 0.35
 	if success:
+		var ruler_was_host: bool = ruler.is_host()
 		ruler.death_year = GameClock.year
 		# Self-inflicted succession: the heir takes the throne directly,
 		# bypassing the regency/ambition lottery. Promote in place before
@@ -224,6 +229,7 @@ func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 				_kingdom_name(ruler.kingdom_id), _actor_link(ruler), _actor_link(heir),
 			],
 		})
+		EventBus.actor_died.emit(ruler.id, ruler_was_host, &"assassination")
 	else:
 		_publish({
 			"kind":       &"assassination_attempt",

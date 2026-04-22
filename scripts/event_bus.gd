@@ -38,6 +38,14 @@ signal letter_delivered(letter: Letter)
 # them into letters from operatives.
 signal public_event(event: Dictionary)
 
+# Fired by WorldAI whenever an actor's death is registered — natural or
+# otherwise. Other systems (Whispers, Actors registry, Notifications)
+# listen to tidy up state that referenced the dead actor.
+#   actor_id:    StringName — the deceased
+#   was_host:    bool        — whether they were above the host threshold
+#   cause:       StringName — &"age", &"assassination", etc.
+signal actor_died(actor_id: StringName, was_host: bool, cause: StringName)
+
 # --- Save / load --------------------------------------------------------------
 
 signal save_requested(path: String)

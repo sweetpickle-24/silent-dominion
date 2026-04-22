@@ -31,6 +31,20 @@ func _ready() -> void:
 	print("[Actors] Loaded %d actors from %s" % [actors.size(), ACTOR_DATA_PATH])
 
 	GameClock.month_passed.connect(_on_month_passed)
+	EventBus.actor_died.connect(_on_actor_died)
+
+
+## Emitted elsewhere (WorldAI). If the deceased was above the host
+## threshold we owe the player a letter explaining that the network
+## has lost a hand, because `_announce_host_lost` is otherwise only
+## triggered by relationship drift.
+func _on_actor_died(actor_id: StringName, was_host: bool, _cause: StringName) -> void:
+	if not was_host:
+		return
+	var a: Actor = get_actor(actor_id)
+	if a == null:
+		return
+	_announce_host_lost_by_death(a)
 
 
 func _on_month_passed(_y: int, _m: int) -> void:
@@ -135,6 +149,23 @@ func _announce_host_won(a: Actor) -> void:
 		"headline":   "A friend won in %s" % _kingdom_name_for(a.kingdom_id),
 		"body":       "Not a matter for the markets. Noted here only so you do not forget the season in which [url=actor:%s][b]%s[/b][/url] first said yes." % [String(a.id), a.display_name()],
 	})
+
+
+func _announce_host_lost_by_death(a: Actor) -> void:
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter_id: StringName = StringName("host_dead_%s_%d" % [String(a.id), Time.get_ticks_msec()])
+	var body: String = (
+		"%s is gone. Whatever %s was arranging for you goes with them. I have quietly taken the ledger page on that name out of our working papers. The arrangement is at its end; not by a falling out, but by a falling. Treat it as such." 
+	) % [a.display_name(), "they"]
+	var letter: Letter = Letter.create(
+		letter_id,
+		"Your go-between",
+		date,
+		"A name falls from the list",
+		body,
+		&"host"
+	)
+	EventBus.letter_delivered.emit(letter)
 
 
 func _announce_host_lost(a: Actor) -> void:
