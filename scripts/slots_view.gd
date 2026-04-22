@@ -144,6 +144,24 @@ func _render() -> void:
 	for slot in SLOT_IDS:
 		_body_vbox.add_child(_build_slot_row(slot))
 
+	var footer: HBoxContainer = HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 12)
+	_body_vbox.add_child(footer)
+
+	var title_btn: Button = Button.new()
+	title_btn.text = "Leave this table — back to the title"
+	title_btn.flat = true
+	title_btn.custom_minimum_size.y = 30.0
+	title_btn.focus_mode = Control.FOCUS_NONE
+	title_btn.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	title_btn.add_theme_font_size_override("font_size", 12)
+	title_btn.pressed.connect(_on_return_to_title)
+	footer.add_child(title_btn)
+
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(spacer)
+
 	var close_btn: Button = Button.new()
 	close_btn.text = "Set aside"
 	close_btn.custom_minimum_size.y = 30.0
@@ -151,7 +169,7 @@ func _render() -> void:
 	close_btn.add_theme_color_override("font_color", COLOR_INK)
 	close_btn.add_theme_font_size_override("font_size", 13)
 	close_btn.pressed.connect(func() -> void: close())
-	_body_vbox.add_child(close_btn)
+	footer.add_child(close_btn)
 
 
 func _build_slot_row(slot: String) -> Control:
@@ -250,6 +268,14 @@ func _on_load_pressed(slot: String) -> void:
 func _on_delete_pressed(slot: String) -> void:
 	SaveManager.delete_slot(slot)
 	_render()
+
+
+func _on_return_to_title() -> void:
+	Session.pending_load_slot = ""
+	var tw: Tween = create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.18)
+	tw.tween_callback(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/title/title.tscn"))
 
 
 # --- Formatting --------------------------------------------------------------

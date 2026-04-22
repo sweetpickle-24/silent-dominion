@@ -91,6 +91,21 @@ func _ready() -> void:
 	_install_archive_indicator()
 	_install_public_news_badge()
 
+	# If the player arrived here via 'Return to X' on the title screen,
+	# Session carries the slot to load. Apply it after the scene is
+	# fully wired so signal handlers (inbox badge, time dial) are
+	# already listening.
+	_apply_pending_load()
+
+
+func _apply_pending_load() -> void:
+	var slot: String = Session.consume_pending_load()
+	if slot == "":
+		return
+	if SaveManager.load_from_slot(slot):
+		_refresh_inbox_visual()
+		_refresh_time_display()
+
 
 # --- Pending actions tray ----------------------------------------------------
 #

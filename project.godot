@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="SilentDominion"
-run/main_scene="res://scenes/table/table.tscn"
+run/main_scene="res://scenes/title/title.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -30,6 +30,7 @@ Relations="*res://scripts/kingdom_relations.gd"
 Purse="*res://scripts/player_purse.gd"
 PublicNews="*res://scripts/public_news.gd"
 Digest="*res://scripts/monthly_digest.gd"
+Session="*res://scripts/session.gd"
 WorldAI="*res://scripts/world_ai.gd"
 SaveManager="*res://scripts/save_manager.gd"
 
