@@ -153,6 +153,13 @@ func _render() -> void:
 	_body_vbox.add_child(_make_title("Roster"))
 	_body_vbox.add_child(_make_subtitle(_subtitle_text()))
 
+	# Two-reality coverage band (§7.6 / §15.4). Lists known kingdoms
+	# with their current fog state — gives the player one scannable
+	# place to notice a region going cold. Hidden until we actually
+	# have visibility data (first operative dropped their letter).
+	if Picture.visibility.size() > 0:
+		_render_coverage_band(_body_vbox)
+
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -193,6 +200,76 @@ func _subtitle_text() -> String:
 		coords, ("" if coords == 1 else "s"),
 		ops,    ("" if ops == 1 else "s"),
 	]
+
+
+func _render_coverage_band(parent: VBoxContainer) -> void:
+	var heading: Label = Label.new()
+	heading.text = "COVERAGE"
+	heading.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	heading.add_theme_font_size_override("font_size", 11)
+	parent.add_child(heading)
+
+	var blurb: Label = Label.new()
+	blurb.text = "What our network reports, and how old it is. Ground truth may differ."
+	blurb.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	blurb.add_theme_font_size_override("font_size", 11)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	parent.add_child(blurb)
+
+	var list: VBoxContainer = VBoxContainer.new()
+	list.add_theme_constant_override("separation", 2)
+	parent.add_child(list)
+
+	# Sort by visibility desc so hottest coverage sits at the top.
+	var kids: Array = []
+	for kid in Picture.visibility.keys():
+		kids.append(String(kid))
+	kids.sort_custom(func(a, b):
+		return Picture.score_for(a) > Picture.score_for(b))
+
+	var shown: int = 0
+	for kid in kids:
+		if shown >= 8:
+			break
+		var score: int = Picture.score_for(kid)
+		if score <= 0:
+			continue
+		shown += 1
+		list.add_child(_build_coverage_row(kid, score))
+
+
+func _build_coverage_row(kingdom_id: String, score: int) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+
+	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
+	var name: Label = Label.new()
+	name.text = k.kingdom_name if k != null else kingdom_id
+	name.add_theme_color_override("font_color", COLOR_INK)
+	name.add_theme_font_size_override("font_size", 12)
+	name.custom_minimum_size.x = 200.0
+	row.add_child(name)
+
+	var state: StringName = Picture.state_for(kingdom_id)
+	var phrase: String = Picture.freshness_phrase(kingdom_id)
+	var state_color: Color
+	match state:
+		&"current": state_color = Color(0.24, 0.42, 0.22, 1.0)
+		&"aging":   state_color = Color(0.52, 0.40, 0.18, 1.0)
+		&"stale":   state_color = Color(0.62, 0.42, 0.14, 1.0)
+		_:          state_color = Color(0.62, 0.18, 0.12, 1.0)
+
+	var bar: Control = _build_bar("Fog", score, state_color)
+	bar.custom_minimum_size.x = 140.0
+	row.add_child(bar)
+
+	var phrase_label: Label = Label.new()
+	phrase_label.text = phrase
+	phrase_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	phrase_label.add_theme_font_size_override("font_size", 11)
+	row.add_child(phrase_label)
+
+	return row
 
 
 func _render_layer(parent: VBoxContainer, title: String,

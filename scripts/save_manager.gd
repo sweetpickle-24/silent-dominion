@@ -164,6 +164,7 @@ func _collect_state() -> Dictionary:
 		"whispers":  Whispers.snapshot(),
 		"org":       Org.snapshot(),
 		"finance":   Finance.snapshot(),
+		"picture":   Picture.snapshot(),
 	}
 
 
@@ -196,6 +197,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Org.restore(blob["org"])
 	if blob.has("finance"):
 		Finance.restore(blob["finance"])
+	if blob.has("picture"):
+		Picture.restore(blob["picture"])
 
 
 # --- Clock -------------------------------------------------------------------

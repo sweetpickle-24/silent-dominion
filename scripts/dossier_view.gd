@@ -469,6 +469,30 @@ func _show_detail(actor: Actor) -> void:
 	)
 	_body_vbox.add_child(age_line)
 
+	# Confidence / freshness band (§7.6 two-reality). The dossier is
+	# the clearest moment to remind the player they are reading a
+	# picture, not the world. Only surfaced when it actually matters —
+	# current, well-covered regions stay quiet.
+	if actor.kingdom_id != "":
+		var state: StringName = Picture.state_for(actor.kingdom_id)
+		if state != &"current":
+			var phrase: String = Picture.freshness_phrase(actor.kingdom_id)
+			var color: Color = COLOR_INK_MUTED
+			var prefix: String = "Our picture of this name is "
+			match state:
+				&"aging":
+					color = Color(0.52, 0.40, 0.18, 1.0)
+					prefix = "Our picture of this name is aging — "
+				&"stale":
+					color = Color(0.62, 0.42, 0.14, 1.0)
+					prefix = "This picture is stale — "
+				&"cold":
+					color = Color(0.62, 0.18, 0.12, 1.0)
+					prefix = "No current intelligence here — "
+			var freshness_line: Label = _make_body_line(prefix + phrase + ".")
+			freshness_line.add_theme_color_override("font_color", color)
+			_body_vbox.add_child(freshness_line)
+
 	_body_vbox.add_child(_make_divider())
 
 	_body_vbox.add_child(_make_section_heading("WHAT IS SAID OF THEM"))
