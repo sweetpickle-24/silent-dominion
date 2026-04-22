@@ -17,6 +17,8 @@ const LedgerViewScript: Script          = preload("res://scripts/ledger_view.gd"
 const PublicNewsViewScript: Script      = preload("res://scripts/public_news_view.gd")
 const MapViewScript: Script             = preload("res://scripts/map_view.gd")
 const PurseIndicatorScript: Script      = preload("res://scripts/purse_indicator.gd")
+const SlotsViewScript: Script           = preload("res://scripts/slots_view.gd")
+const ArchiveIndicatorScript: Script    = preload("res://scripts/archive_indicator.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -86,6 +88,7 @@ func _ready() -> void:
 	_install_pending_tray()
 	_install_exposure_indicator()
 	_install_purse_indicator()
+	_install_archive_indicator()
 	_install_public_news_badge()
 
 
@@ -211,6 +214,23 @@ func _install_purse_indicator() -> void:
 	add_child(ind)
 
 
+func _install_archive_indicator() -> void:
+	var ind: Control = Control.new()
+	ind.set_script(ArchiveIndicatorScript)
+	ind.name = "ArchiveIndicator"
+	ind.anchor_left = 0.0
+	ind.anchor_right = 0.0
+	ind.anchor_top = 0.0
+	ind.anchor_bottom = 0.0
+	ind.offset_left = 20.0
+	ind.offset_top = 100.0
+	ind.offset_right = 260.0
+	ind.offset_bottom = 134.0
+	ind.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(ind)
+	ind.pressed.connect(_open_slots_view)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE and _panel_layer.visible:
@@ -231,6 +251,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				close_panel()
 				_refresh_inbox_visual()
 				_refresh_time_display()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F10:
+			# Open the Archive (save slots) overlay.
+			_open_slots_view()
 			get_viewport().set_input_as_handled()
 
 
@@ -300,6 +324,29 @@ func _open_map_view() -> void:
 
 func _on_map_view_closed() -> void:
 	_overlay_active = false
+
+
+# --- Archive (save slots) overlay --------------------------------------------
+
+func _open_slots_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(SlotsViewScript)
+	view.name = "SlotsView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_slots_view_closed)
+
+
+func _on_slots_view_closed() -> void:
+	_overlay_active = false
+	# A load may have changed the world under us; re-seat the table UI.
+	close_panel()
+	_refresh_inbox_visual()
+	_refresh_time_display()
 
 
 func _on_codebook_clicked() -> void:

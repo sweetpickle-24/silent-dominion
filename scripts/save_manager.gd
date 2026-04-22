@@ -76,6 +76,44 @@ func slot_exists(slot: String = DEFAULT_SLOT) -> bool:
 	return FileAccess.file_exists(_path_for(slot))
 
 
+## Read the header (saved_at, in-game date) of an existing slot without
+## applying it. Returns an empty Dictionary if the file is missing or
+## malformed. Used by the Archive UI to render slot rows.
+func slot_info(slot: String) -> Dictionary:
+	var path: String = _path_for(slot)
+	if not FileAccess.file_exists(path):
+		return {}
+	var f: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var text: String = f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	var clock: Dictionary = parsed.get("clock", {})
+	return {
+		"slot":      slot,
+		"path":      path,
+		"saved_at":  String(parsed.get("saved_at", "")),
+		"year":      int(clock.get("year",  0)),
+		"month":     int(clock.get("month", 1)),
+		"day":       int(clock.get("day",   1)),
+	}
+
+
+## Delete a slot file. Returns true if the slot existed and was removed.
+func delete_slot(slot: String) -> bool:
+	var path: String = _path_for(slot)
+	if not FileAccess.file_exists(path):
+		return false
+	var d: DirAccess = DirAccess.open(SAVE_DIR)
+	if d == null:
+		return false
+	var err: int = d.remove(path.get_file())
+	return err == OK
+
+
 # --- State assembly ----------------------------------------------------------
 
 func _collect_state() -> Dictionary:
