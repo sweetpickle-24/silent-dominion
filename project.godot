@@ -18,10 +18,11 @@ config/icon="res://icon.svg"
 [autoload]
 
 EventBus="*res://scripts/event_bus.gd"
+GameClock="*res://scripts/game_clock.gd"
+Scheduler="*res://scripts/scheduler.gd"
 WorldData="*res://scripts/world_data.gd"
 Actors="*res://scripts/actor_registry.gd"
 Inbox="*res://scripts/inbox_manager.gd"
-GameClock="*res://scripts/game_clock.gd"
 
 [display]
 

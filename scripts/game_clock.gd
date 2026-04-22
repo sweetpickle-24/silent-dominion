@@ -75,6 +75,36 @@ func format_date() -> String:
 	return "%d %s %d BCE" % [day, MONTH_NAMES[idx], bce_year]
 
 
+## Absolute day index since 1 January of year 0. Used by the Scheduler to
+## compare "fire this task at day X" against the current day without
+## caring about month/year rollover. Monotonically increasing.
+func absolute_day() -> int:
+	return absolute_day_of(year, month, day)
+
+
+static func absolute_day_of(p_year: int, p_month: int, p_day: int) -> int:
+	var m: int = clampi(p_month, 1, MONTHS_PER_YEAR)
+	var d: int = clampi(p_day, 1, DAYS_PER_MONTH)
+	return p_year * DAYS_PER_YEAR + (m - 1) * DAYS_PER_MONTH + (d - 1)
+
+
+## Convert an absolute-day index back into (year, month, day). Returns a
+## Dictionary { "year", "month", "day" }.
+static func date_from_absolute(abs_day: int) -> Dictionary:
+	var y: int = int(floor(float(abs_day) / float(DAYS_PER_YEAR)))
+	var remainder: int = abs_day - y * DAYS_PER_YEAR
+	var m: int = int(floor(float(remainder) / float(DAYS_PER_MONTH))) + 1
+	var d: int = remainder - (m - 1) * DAYS_PER_MONTH + 1
+	return { "year": y, "month": m, "day": d }
+
+
+static func format_absolute(abs_day: int) -> String:
+	var dt: Dictionary = date_from_absolute(abs_day)
+	var bce_year: int = -int(dt["year"])
+	var idx: int = clampi(int(dt["month"]), 1, MONTHS_PER_YEAR) - 1
+	return "%d %s %d BCE" % [int(dt["day"]), MONTH_NAMES[idx], bce_year]
+
+
 # --- Internal -----------------------------------------------------------------
 
 func _advance_one_day() -> void:
