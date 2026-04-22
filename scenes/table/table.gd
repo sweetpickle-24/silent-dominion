@@ -107,6 +107,10 @@ func _ready() -> void:
 	# already listening.
 	_apply_pending_load()
 	Session.in_game = true
+	# Kick the scripted-beat checker now that we are in-game. On a fresh
+	# campaign this fires the opening letter; on a reload it's a no-op
+	# because the fired-set has been restored.
+	Beats.check_now()
 
 
 func _apply_pending_load() -> void:

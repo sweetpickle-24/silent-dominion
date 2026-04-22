@@ -41,6 +41,7 @@ Whispers="*res://scripts/whispers.gd"
 Notifications="*res://scripts/notifications.gd"
 Session="*res://scripts/session.gd"
 WorldAI="*res://scripts/world_ai.gd"
+Beats="*res://scripts/first_session_beats.gd"
 SaveManager="*res://scripts/save_manager.gd"
 MapData="*res://scripts/map_data.gd"
 
