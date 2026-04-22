@@ -189,6 +189,47 @@ func _maybe_emit_plot_warning(plotter: Actor, ruler: Actor) -> void:
 		"body":       line,
 	})
 
+	_maybe_deliver_host_plot_warning(plotter, ruler, kname)
+
+
+## Private channel: if the player has a loyal host at this court, they
+## receive an unambiguous letter naming the plotter — days, sometimes
+## weeks, before any public dispatch would identify them. Each plot
+## warning delivers at most one host letter; we pick the highest-
+## relationship host available and let the others stay quiet.
+func _maybe_deliver_host_plot_warning(plotter: Actor, ruler: Actor, kname: String) -> void:
+	var candidates: Array[Actor] = Actors.hosts_in(plotter.kingdom_id)
+	if candidates.is_empty():
+		return
+	# Don't let the plotter themself write the warning about themself.
+	candidates = candidates.filter(func(h): return h.id != plotter.id and h.id != ruler.id)
+	if candidates.is_empty():
+		return
+	candidates.sort_custom(func(x: Actor, y: Actor) -> bool: return x.relationship > y.relationship)
+	var host: Actor = candidates[0]
+
+	var plotter_link: String = _actor_link(plotter)
+	var body: String = (
+		"A matter you should know of before the scroll carries it.\n\n"
+		+ "At %s the name on quiet lips is %s. I do not yet have the shape of the plan — who is in, who is merely listening — but the direction is unmistakable. They are measuring the crown.\n\n"
+		+ "I will send more as I have it. If you mean to act, act before the court finds out that the court knows."
+	) % [kname, plotter_link]
+
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter_id: StringName = StringName(
+		"host_plot_warning_%s_%d" % [String(plotter.id), Time.get_ticks_msec()]
+	)
+	var sender: String = "%s, at the court of %s" % [host.display_name(), kname]
+	var letter: Letter = Letter.create(
+		letter_id,
+		sender,
+		date,
+		"A name in the wrong mouths",
+		body,
+		&"host"
+	)
+	EventBus.letter_delivered.emit(letter)
+
 
 ## Ex-hosts (ever_host=true) who've cooled into active hostility can
 ## decide, on any given month, to burn the player by denouncing them to

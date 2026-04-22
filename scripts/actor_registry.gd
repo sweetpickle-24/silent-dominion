@@ -100,6 +100,18 @@ func hosts() -> Array[Actor]:
 	return out
 
 
+## Loyal hosts currently at the court of a given kingdom. Empty if the
+## player has no one placed there. Used by WorldAI to route private
+## early warnings (plots, intrigues) through the host channel before
+## they break in public.
+func hosts_in(kingdom_id: String) -> Array[Actor]:
+	var out: Array[Actor] = []
+	for a in actors.values():
+		if a.kingdom_id == kingdom_id and a.is_host():
+			out.append(a)
+	return out
+
+
 func add_actor(a: Actor) -> void:
 	actors[a.id] = a
 	_rebuild_indices()
