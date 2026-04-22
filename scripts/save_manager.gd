@@ -88,6 +88,7 @@ func _collect_state() -> Dictionary:
 		"scheduler": Scheduler.snapshot(),
 		"exposure":  Exposure.snapshot(),
 		"kingdoms":  KingdomEconomy.snapshot(),
+		"news":      PublicNews.snapshot(),
 	}
 
 
@@ -104,6 +105,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Exposure.restore(blob["exposure"])
 	if blob.has("kingdoms"):
 		KingdomEconomy.restore(blob["kingdoms"])
+	if blob.has("news"):
+		PublicNews.restore(blob["news"])
 
 
 # --- Clock -------------------------------------------------------------------

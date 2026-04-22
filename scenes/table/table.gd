@@ -14,6 +14,7 @@ const DossierViewScript: Script         = preload("res://scripts/dossier_view.gd
 const ComposeViewScript: Script         = preload("res://scripts/compose_view.gd")
 const ExposureIndicatorScript: Script   = preload("res://scripts/exposure_indicator.gd")
 const LedgerViewScript: Script          = preload("res://scripts/ledger_view.gd")
+const PublicNewsViewScript: Script      = preload("res://scripts/public_news_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -82,6 +83,7 @@ func _ready() -> void:
 	_wire_time_dial()
 	_install_pending_tray()
 	_install_exposure_indicator()
+	_install_public_news_badge()
 
 
 # --- Pending actions tray ----------------------------------------------------
@@ -111,6 +113,68 @@ func _install_pending_tray() -> void:
 #
 # Anchored top-left, the visual counterweight to the TimeDial. Shows the
 # current exposure level as a qualitative phrase (no raw number).
+
+# --- Public News unread badge ------------------------------------------------
+#
+# Tiny red wax-dot + count in the top-right of the folded broadsheet.
+# Appears only when PublicNews has unread entries.
+
+var _news_badge: Control
+var _news_badge_count: Label
+
+
+func _install_public_news_badge() -> void:
+	_news_badge = Control.new()
+	_news_badge.name = "UnreadBadge"
+	_news_badge.anchor_left = 1.0
+	_news_badge.anchor_right = 1.0
+	_news_badge.anchor_top = 0.0
+	_news_badge.anchor_bottom = 0.0
+	_news_badge.offset_left = -28.0
+	_news_badge.offset_top = -6.0
+	_news_badge.offset_right = -4.0
+	_news_badge.offset_bottom = 18.0
+	_news_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var dot: Panel = Panel.new()
+	dot.anchor_right = 1.0
+	dot.anchor_bottom = 1.0
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.55, 0.08, 0.08, 1.0)
+	sb.corner_radius_top_left = 12
+	sb.corner_radius_top_right = 12
+	sb.corner_radius_bottom_left = 12
+	sb.corner_radius_bottom_right = 12
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(0, 2)
+	dot.add_theme_stylebox_override("panel", sb)
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_news_badge.add_child(dot)
+
+	_news_badge_count = Label.new()
+	_news_badge_count.anchor_right = 1.0
+	_news_badge_count.anchor_bottom = 1.0
+	_news_badge_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_news_badge_count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_news_badge_count.add_theme_color_override("font_color", Color.WHITE)
+	_news_badge_count.add_theme_font_size_override("font_size", 11)
+	_news_badge_count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_news_badge.add_child(_news_badge_count)
+
+	_public_news.add_child(_news_badge)
+
+	PublicNews.news_changed.connect(_refresh_public_news_badge)
+	_refresh_public_news_badge()
+
+
+func _refresh_public_news_badge() -> void:
+	if _news_badge == null:
+		return
+	var n: int = PublicNews.unread_count()
+	_news_badge.visible = n > 0
+	_news_badge_count.text = str(n) if n < 100 else "99+"
+
 
 func _install_exposure_indicator() -> void:
 	var ind: Control = Control.new()
@@ -211,7 +275,26 @@ func _on_memoirs_clicked() -> void:
 
 
 func _on_public_news_clicked() -> void:
-	open_panel("Public Dispatches", _public_news_placeholder_text())
+	_open_public_news_view()
+
+
+func _open_public_news_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(PublicNewsViewScript)
+	view.name = "PublicNewsView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_public_news_view_closed)
+	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+
+
+func _on_public_news_view_closed() -> void:
+	_overlay_active = false
+	_refresh_public_news_badge()
 
 
 func _on_ledger_clicked() -> void:
