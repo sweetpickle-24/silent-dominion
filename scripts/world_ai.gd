@@ -253,11 +253,11 @@ func _emit_host_defection(a: Actor) -> void:
 	var letter_id: StringName = StringName("host_turned_%s_%d" % [String(a.id), Time.get_ticks_msec()])
 	var body: String = (
 		"It is %s. They went to the court themselves — not dragged, not pressed. "
-		"They read out what they could remember of our arrangement. They did not have your name. They did not have a name at all. "
-		"But they had enough, and they said it aloud, and a room full of dangerous people listened.\n\n"
-		"Your exposure in that quarter has, in effect, risen. "
-		"Assume for now that anyone who was close to them is now closer to whoever is looking for you.\n\n"
-		"Do not send further work to that city for a season. Treat that name as burned."
+		+ "They read out what they could remember of our arrangement. They did not have your name. They did not have a name at all. "
+		+ "But they had enough, and they said it aloud, and a room full of dangerous people listened.\n\n"
+		+ "Your exposure in that quarter has, in effect, risen. "
+		+ "Assume for now that anyone who was close to them is now closer to whoever is looking for you.\n\n"
+		+ "Do not send further work to that city for a season. Treat that name as burned."
 	) % a.display_name()
 	var letter: Letter = Letter.create(
 		letter_id,
