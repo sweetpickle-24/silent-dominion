@@ -110,14 +110,37 @@ func _roll_war_declaration() -> void:
 	var ids: Array = WorldData.kingdoms.keys()
 	if ids.size() < 2:
 		return
-	var a_id: String = String(ids[_rng.randi_range(0, ids.size() - 1)])
-	var b_id: String = a_id
-	var safety: int = 6
-	while b_id == a_id and safety > 0:
-		b_id = String(ids[_rng.randi_range(0, ids.size() - 1)])
-		safety -= 1
-	if a_id == b_id:
-		return
+
+	# Prefer pairs that are already hostile. This keeps wars from
+	# appearing out of nowhere between serene partners most of the
+	# time; a cold war can now escalate naturally.
+	var hostile_pairs: Array = []
+	for i in ids.size():
+		for j in range(i + 1, ids.size()):
+			var a: String = String(ids[i])
+			var b: String = String(ids[j])
+			var s: int = Relations.state_between(a, b)
+			if s == int(Relations.RelationState.AT_WAR):
+				continue
+			if s == int(Relations.RelationState.HOSTILE):
+				hostile_pairs.append([a, b])
+
+	var a_id: String
+	var b_id: String
+	if not hostile_pairs.is_empty() and _rng.randf() < 0.75:
+		var pair: Array = hostile_pairs[_rng.randi_range(0, hostile_pairs.size() - 1)]
+		a_id = String(pair[0])
+		b_id = String(pair[1])
+	else:
+		a_id = String(ids[_rng.randi_range(0, ids.size() - 1)])
+		b_id = a_id
+		var safety: int = 6
+		while (b_id == a_id or Relations.state_between(a_id, b_id) == int(Relations.RelationState.AT_WAR)) and safety > 0:
+			b_id = String(ids[_rng.randi_range(0, ids.size() - 1)])
+			safety -= 1
+		if a_id == b_id:
+			return
+
 	_emit_war_declaration(a_id, b_id)
 
 
@@ -278,6 +301,7 @@ func _emit_war_declaration(a_id: String, b_id: String) -> void:
 	var b: Kingdom = WorldData.get_kingdom(b_id)
 	if a == null or b == null:
 		return
+	Relations.set_at_war(a_id, b_id)
 	_publish({
 		"kind":       &"war_declaration",
 		"kingdom_id": a.id,

@@ -110,6 +110,7 @@ func _ready() -> void:
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.20)
 
 	KingdomEconomy.tick.connect(_on_economy_tick)
+	Relations.relation_changed.connect(_on_relation_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -445,6 +446,36 @@ func _render_detail(p: Province) -> void:
 		))
 		_detail_vbox.add_child(_make_line(k.tax_level_phrase() + "."))
 
+		var at_war: Array[String] = Relations.ids_in_state(k.id, int(Relations.RelationState.AT_WAR))
+		var hostile: Array[String] = Relations.ids_in_state(k.id, int(Relations.RelationState.HOSTILE))
+		var friendly: Array[String] = Relations.ids_in_state(k.id, int(Relations.RelationState.FRIENDLY))
+		var allied: Array[String] = Relations.ids_in_state(k.id, int(Relations.RelationState.ALLIED))
+
+		if not (at_war.is_empty() and hostile.is_empty() and friendly.is_empty() and allied.is_empty()):
+			_detail_vbox.add_child(_make_divider())
+			_detail_vbox.add_child(_make_heading("HOW IT STANDS WITH ITS NEIGHBOURS"))
+			if not at_war.is_empty():
+				_detail_vbox.add_child(_make_line("•  At war with %s." % _join_kingdom_names(at_war)))
+			if not hostile.is_empty():
+				_detail_vbox.add_child(_make_line("•  Cold with %s." % _join_kingdom_names(hostile)))
+			if not friendly.is_empty():
+				_detail_vbox.add_child(_make_line("•  Warm with %s." % _join_kingdom_names(friendly)))
+			if not allied.is_empty():
+				_detail_vbox.add_child(_make_line("•  Sworn to %s." % _join_kingdom_names(allied)))
+
+
+func _join_kingdom_names(ids: Array[String]) -> String:
+	var names: Array[String] = []
+	for id in ids:
+		var k: Kingdom = WorldData.get_kingdom(id)
+		names.append(k.kingdom_name if k != null else id)
+	if names.size() == 1:
+		return names[0]
+	if names.size() == 2:
+		return "%s and %s" % [names[0], names[1]]
+	var last: String = names.pop_back()
+	return "%s, and %s" % [", ".join(names), last]
+
 
 func _clear_detail() -> void:
 	for c in _detail_vbox.get_children():
@@ -502,6 +533,14 @@ func _on_economy_tick(_snap: Array) -> void:
 		var p: Province = WorldData.get_province(_selected_province_id)
 		if p != null:
 			_render_detail(p)
+
+
+func _on_relation_changed(_a: String, _b: String, _s: int) -> void:
+	if _selected_province_id.is_empty():
+		return
+	var p: Province = WorldData.get_province(_selected_province_id)
+	if p != null:
+		_render_detail(p)
 
 
 # --- Helpers -----------------------------------------------------------------

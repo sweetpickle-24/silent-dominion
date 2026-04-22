@@ -22,6 +22,8 @@ var _successions: int   = 0
 var _decrees: int       = 0
 var _treasury_crises: int = 0
 var _wars: int          = 0
+var _peaces: int        = 0
+var _tax_shifts: int    = 0
 var _hosts_won: int     = 0
 var _action_wins: int   = 0
 var _action_losses: int = 0
@@ -54,6 +56,8 @@ func _on_public_event(event: Dictionary) -> void:
 		&"ruler_decree":          _decrees += 1
 		&"treasury_crisis":       _treasury_crises += 1
 		&"war_declaration":       _wars += 1
+		&"peace_declaration":     _peaces += 1
+		&"tax_change":            _tax_shifts += 1
 		&"host_won":              _hosts_won += 1
 
 
@@ -137,6 +141,18 @@ func _compose_body() -> String:
 			_wars, _plural(_wars),
 		])
 
+	if _peaces > 0:
+		anything = true
+		lines.append("— %d peace%s signed. Nobody believes them; everybody signs." % [
+			_peaces, "" if _peaces == 1 else "s",
+		])
+
+	if _tax_shifts > 0:
+		anything = true
+		lines.append("— %d crown%s moved the tax dial this month." % [
+			_tax_shifts, _plural(_tax_shifts),
+		])
+
 	if _hosts_won > 0:
 		anything = true
 		lines.append("— %d new hand%s is now yours, and knows it." % [
@@ -180,6 +196,8 @@ func _reset_buffers() -> void:
 	_decrees = 0
 	_treasury_crises = 0
 	_wars = 0
+	_peaces = 0
+	_tax_shifts = 0
 	_hosts_won = 0
 	_action_wins = 0
 	_action_losses = 0
