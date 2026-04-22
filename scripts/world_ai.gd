@@ -61,6 +61,20 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # as the traits stay high.
 var _plot_warning_last_day: Dictionary = {}
 
+# --- Regency resolution tuning -----------------------------------------------
+#
+# A kingdom without a ruler stays in regency until a strongman takes
+# the crown. We don't resolve immediately — factions need time to
+# jockey. After REGENCY_GRACE_MONTHS a monthly roll fires, escalating
+# with time, until a successor is installed. If no eligible actors
+# exist at all, the regency simply persists (empty throne).
+const REGENCY_GRACE_MONTHS: int   = 6
+const REGENCY_BASE_CHANCE:  float = 0.06
+const REGENCY_RAMP:         float = 0.02
+const REGENCY_CAP:          float = 0.35
+
+var _regency_months: Dictionary = {}   # kingdom_id -> months since regency began
+
 
 func _ready() -> void:
 	_rng.randomize()
@@ -78,6 +92,7 @@ func _on_month_passed(_y: int, _m: int) -> void:
 	_roll_natural_deaths()
 	_roll_assassination_attempts()
 	_roll_host_defections()
+	_roll_regency_resolutions()
 	_roll_war_declaration()
 
 
@@ -455,6 +470,59 @@ func _emit_assassination_attempt(heir: Actor, ruler: Actor) -> void:
 		})
 
 
+## Walk each kingdom currently in regency. After a grace period, roll
+## a rising chance that a strongman emerges and takes the crown by
+## whatever mix of pressure and deal-making the council can no
+## longer resist. The installed ruler is whoever sits highest in the
+## successor pool right now — which may be an actor who wasn't alive
+## or wasn't eligible when the regency began.
+func _roll_regency_resolutions() -> void:
+	for k in WorldData.kingdoms.values():
+		if not k.in_regency:
+			continue
+		var months: int = int(_regency_months.get(k.id, 0)) + 1
+		_regency_months[k.id] = months
+		if months < REGENCY_GRACE_MONTHS:
+			continue
+		var chance: float = clampf(
+			REGENCY_BASE_CHANCE + REGENCY_RAMP * float(months - REGENCY_GRACE_MONTHS),
+			REGENCY_BASE_CHANCE,
+			REGENCY_CAP,
+		)
+		if _rng.randf() >= chance:
+			continue
+		_resolve_regency(k)
+
+
+func _resolve_regency(k: Kingdom) -> void:
+	var pools: Array = [
+		[Actor.Role.HEIR],
+		[Actor.Role.ADVISOR, Actor.Role.GENERAL],
+		[Actor.Role.PRIEST, Actor.Role.MERCHANT, Actor.Role.PHILOSOPHER, Actor.Role.COMMONER],
+	]
+	var successor: Actor = null
+	for pool in pools:
+		successor = _pick_successor(k.id, pool)
+		if successor != null:
+			break
+	if successor == null:
+		return   # still nobody; keep the throne empty
+
+	var prior_role: String = TraitCues.role_title(successor.role).to_lower()
+	successor.role = Actor.Role.RULER
+	k.in_regency = false
+	_regency_months.erase(k.id)
+	_publish({
+		"kind":       &"succession",
+		"kingdom_id": k.id,
+		"actors":     [String(successor.id)],
+		"headline":   "%s takes the empty throne of %s" % [successor.given_name, k.kingdom_name],
+		"body":       "The regency in %s has broken. The %s %s has been raised to the crown — by council decree in the record, by force in the room. The other claimants have either sworn allegiance or stopped being a problem." % [
+			k.kingdom_name, prior_role, _actor_link(successor),
+		],
+	})
+
+
 ## A ruler has died. Find the most plausible successor already on the
 ## roster and promote them; if nothing fits, leave the seat empty and
 ## mark it as a regency in the public dispatch.
@@ -479,6 +547,8 @@ func _handle_succession(dead_ruler: Actor) -> void:
 			break
 
 	if successor == null:
+		k.in_regency = true
+		_regency_months[kid] = 0
 		_publish({
 			"kind":       &"regency",
 			"kingdom_id": kid,
@@ -490,6 +560,8 @@ func _handle_succession(dead_ruler: Actor) -> void:
 
 	var prior_role: String = TraitCues.role_title(successor.role).to_lower()
 	successor.role = Actor.Role.RULER
+	k.in_regency = false
+	_regency_months.erase(kid)
 	_publish({
 		"kind":       &"succession",
 		"kingdom_id": kid,

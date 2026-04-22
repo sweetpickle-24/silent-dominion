@@ -142,7 +142,12 @@ func _monthly_income(k: Kingdom) -> float:
 		var unrest_mult: float = float(UNREST_YIELD_MULTIPLIER.get(p.unrest_band(), 1.0))
 		annual += province_total * unrest_mult
 	var mult: float = float(TAX_LEVEL_MULTIPLIER.get(k.tax_level, 1.0))
-	return (annual / MONTHS_PER_YEAR) * TAX_EFFICIENCY * mult
+	# A regency loses roughly a fifth of what the crown would have
+	# collected to the council's own pockets and to provincial magnates
+	# who sense the empty throne. Grinds on the books until a ruler
+	# is installed.
+	var regency_mult: float = 0.8 if k.in_regency else 1.0
+	return (annual / MONTHS_PER_YEAR) * TAX_EFFICIENCY * mult * regency_mult
 
 
 func _monthly_expenditure(k: Kingdom) -> float:
@@ -463,6 +468,7 @@ func snapshot() -> Array:
 			"treasury_gold":      k.treasury_gold,
 			"treasury_condition": int(k.treasury_condition),
 			"tax_level":          int(k.tax_level),
+			"in_regency":         k.in_regency,
 			"burden_streak":      int(_burden_streak.get(k.id, 0)),
 			"war_streak":         int(_war_streak.get(k.id, 0)),
 			"history":            _history.get(k.id, []).duplicate(),
@@ -485,6 +491,7 @@ func restore(arr: Array) -> void:
 		k.treasury_gold      = float(d.get("treasury_gold", k.treasury_gold))
 		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition))) as Kingdom.TreasuryCondition
 		k.tax_level          = int(d.get("tax_level", int(k.tax_level))) as Kingdom.TaxLevel
+		k.in_regency         = bool(d.get("in_regency", false))
 		_burden_streak[id]   = int(d.get("burden_streak", 0))
 		_war_streak[id]      = int(d.get("war_streak", 0))
 		var hist: Array = []

@@ -33,6 +33,11 @@ enum TaxLevel {
 @export var treasury_condition: TreasuryCondition = TreasuryCondition.STABLE
 @export var tax_level: TaxLevel = TaxLevel.MODEST
 
+## True while the crown sits empty after a failed succession. The
+## council governs in its own name; the province yields are skimmed
+## harder by local magnates. Cleared when a new ruler is installed.
+@export var in_regency: bool = false
+
 
 static func from_dict(d: Dictionary) -> Kingdom:
 	var k: Kingdom = Kingdom.new()
