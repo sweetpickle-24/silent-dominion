@@ -27,6 +27,7 @@ var _wars: int          = 0
 var _peaces: int        = 0
 var _tax_shifts: int    = 0
 var _hosts_won: int     = 0
+var _hosts_turned: int  = 0
 var _action_wins: int   = 0
 var _action_losses: int = 0
 var _whispers_seeded: int = 0
@@ -67,6 +68,7 @@ func _on_public_event(event: Dictionary) -> void:
 		&"peace_declaration":     _peaces += 1
 		&"tax_change":            _tax_shifts += 1
 		&"host_won":              _hosts_won += 1
+		&"host_turned":           _hosts_turned += 1
 
 
 func _on_action_resolved(_action_id: StringName, result: Dictionary) -> void:
@@ -189,6 +191,12 @@ func _compose_body() -> String:
 			_hosts_won, "" if _hosts_won == 1 else "s",
 		])
 
+	if _hosts_turned > 0:
+		anything = true
+		lines.append("— %d former hand%s turned against us and spoke to a ruler. Treat those cities as cold for a season." % [
+			_hosts_turned, "" if _hosts_turned == 1 else "s",
+		])
+
 	if _action_wins > 0 or _action_losses > 0:
 		anything = true
 		if _action_wins > 0 and _action_losses > 0:
@@ -255,6 +263,7 @@ func _reset_buffers() -> void:
 	_peaces = 0
 	_tax_shifts = 0
 	_hosts_won = 0
+	_hosts_turned = 0
 	_action_wins = 0
 	_action_losses = 0
 	_whispers_seeded = 0

@@ -55,7 +55,7 @@ func _on_economy_tick(_snap: Array) -> void:
 func _on_public_event(event: Dictionary) -> void:
 	match event.get("kind", &"misc"):
 		&"death", &"assassination", &"succession", &"host_won",
-		&"assassination_attempt", &"plot_brewing":
+		&"assassination_attempt", &"plot_brewing", &"host_turned":
 			_bump(KEY_DOSSIERS, 1)
 		&"war_declaration", &"peace_declaration", &"tax_change", &"unrest",
 		&"plague", &"famine", &"earthquake", &"recovery":

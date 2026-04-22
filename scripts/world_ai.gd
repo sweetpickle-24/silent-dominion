@@ -39,6 +39,18 @@ const COUP_BASE_CHANCE:         float = 0.0025     # per qualified plotter / mon
 const COUP_WARN_CHANCE:         float = 0.12       # per qualified plotter / month
 const COUP_WARN_COOLDOWN_MONTHS: int  = 4          # don't repeat a warning
 
+# --- Host defection rolls (§5 fragility) -------------------------------------
+#
+# Someone who was once cultivated into a host (ever_host=true) but has
+# since cooled can turn on the player. The "knife in the back" scenario:
+# their ambition or a rival has flipped them, and they try to clear
+# their name by burning yours. Triggers only when the relationship has
+# gone openly hostile and their loyalty trait is already weak.
+const DEFECT_RELATIONSHIP_CEILING: int = -20
+const DEFECT_LOYALTY_CEILING:      int = 40
+const DEFECT_BASE_CHANCE:          float = 0.015   # per qualified ex-host / month
+const DEFECT_EXPOSURE_BUMP:        float = 20.0    # a clean denunciation hurts
+
 const DEATH_BASE_AGE: int = 60                  # before this, no natural death roll
 const DEATH_CURVE: float  = 0.0018              # (age - 60) * curve = monthly death chance
 
@@ -65,6 +77,7 @@ func _on_month_passed(_y: int, _m: int) -> void:
 	_roll_treasury_crises()
 	_roll_natural_deaths()
 	_roll_assassination_attempts()
+	_roll_host_defections()
 	_roll_war_declaration()
 
 
@@ -175,6 +188,86 @@ func _maybe_emit_plot_warning(plotter: Actor, ruler: Actor) -> void:
 		"headline":   "A quiet thickens in the court of %s" % kname,
 		"body":       line,
 	})
+
+
+## Ex-hosts (ever_host=true) who've cooled into active hostility can
+## decide, on any given month, to burn the player by denouncing them to
+## their court. A single roll per qualified actor per month, gated by
+## the `betrayed` latch so the same hand only stabs you once.
+func _roll_host_defections() -> void:
+	for a in Actors.all_actors():
+		if not a.is_alive():
+			continue
+		if not a.ever_host:
+			continue
+		if a.betrayed:
+			continue
+		if a.is_host():
+			# Still loyal. No defection to roll.
+			continue
+		if a.relationship > DEFECT_RELATIONSHIP_CEILING:
+			continue
+		if a.loyalty > DEFECT_LOYALTY_CEILING:
+			continue
+
+		# Chance scales with how far they've curdled and how little
+		# loyalty they had to begin with. A -20 relationship / 40 loyalty
+		# ex-host defects rarely; -80 / 10 defects often.
+		var cold: float = float(DEFECT_RELATIONSHIP_CEILING - a.relationship) / 100.0
+		cold = clampf(cold, 0.0, 1.2)
+		var disloyalty: float = float(DEFECT_LOYALTY_CEILING - a.loyalty) / 50.0
+		disloyalty = clampf(disloyalty, 0.0, 1.5)
+		var chance: float = DEFECT_BASE_CHANCE * (1.0 + cold + disloyalty)
+
+		if _rng.randf() < chance:
+			_emit_host_defection(a)
+
+
+func _emit_host_defection(a: Actor) -> void:
+	a.betrayed = true
+	# They can't harbour a grudge that could re-trigger this later: pin
+	# the relationship to the floor so they fall out of every other
+	# consideration (hosts list, dossier warmth, digest tracking).
+	a.relationship = -100
+
+	Exposure.bump(DEFECT_EXPOSURE_BUMP, "host_defected_" + String(a.id))
+
+	var k: Kingdom = WorldData.get_kingdom(a.kingdom_id)
+	var kname: String = k.kingdom_name if k != null else a.kingdom_id
+
+	# Public dispatch — the court's version. They don't name the player
+	# directly (no court would believe in an immortal patron); they
+	# name a "foreign hand" or "unseen purse".
+	_publish({
+		"kind":       &"host_turned",
+		"kingdom_id": a.kingdom_id,
+		"actors":     [String(a.id)],
+		"headline":   "A confession in the court of %s" % kname,
+		"body":       "At %s, %s has gone to their ruler and named, in a written statement read aloud, a foreign purse that has been paying them for years. No names of consequence were given — none could be verified — but the court now knows, or thinks it knows, the shape of an influence that was here all along." % [
+			kname, _actor_link(a),
+		],
+	})
+
+	# Letter to the player — the go-between explains what just happened.
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter_id: StringName = StringName("host_turned_%s_%d" % [String(a.id), Time.get_ticks_msec()])
+	var body: String = (
+		"It is %s. They went to the court themselves — not dragged, not pressed. "
+		"They read out what they could remember of our arrangement. They did not have your name. They did not have a name at all. "
+		"But they had enough, and they said it aloud, and a room full of dangerous people listened.\n\n"
+		"Your exposure in that quarter has, in effect, risen. "
+		"Assume for now that anyone who was close to them is now closer to whoever is looking for you.\n\n"
+		"Do not send further work to that city for a season. Treat that name as burned."
+	) % a.display_name()
+	var letter: Letter = Letter.create(
+		letter_id,
+		"Your go-between",
+		date,
+		"A hand turned",
+		body,
+		&"host"
+	)
+	EventBus.letter_delivered.emit(letter)
 
 
 func _roll_war_declaration() -> void:

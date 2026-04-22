@@ -53,6 +53,16 @@ enum Role {
 # ...), mutually decays toward zero when ignored.
 @export_range(-100, 100) var relationship: int = 0
 
+# --- Host memory (§5 fragility) ----------------------------------------------
+#
+# Once an actor has been cultivated past HOST_THRESHOLD they remember
+# it — even after the relationship has cooled. That memory is what makes
+# a former host capable of betraying the player later (WorldAI monthly
+# defection roll). `betrayed` latches once they do, so they don't keep
+# denouncing the same immortal every month forever.
+@export var ever_host: bool = false
+@export var betrayed: bool = false
+
 
 # --- Host status (§5) --------------------------------------------------------
 #
@@ -131,6 +141,8 @@ static func from_dict(d: Dictionary) -> Actor:
 			a.set(k, clampi(int(traits[String(k)]), 0, 100))
 
 	a.relationship = clampi(int(d.get("relationship", 0)), -100, 100)
+	a.ever_host    = bool(d.get("ever_host", false))
+	a.betrayed     = bool(d.get("betrayed", false))
 	return a
 
 
@@ -149,6 +161,8 @@ func to_dict() -> Dictionary:
 		"kingdom_id": kingdom_id,
 		"traits": traits,
 		"relationship": relationship,
+		"ever_host": ever_host,
+		"betrayed": betrayed,
 	}
 
 

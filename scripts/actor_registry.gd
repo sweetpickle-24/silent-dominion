@@ -119,6 +119,7 @@ func adjust_relationship(id: StringName, delta: int) -> int:
 	a.relationship = clampi(a.relationship + delta, -100, 100)
 	var now_host: bool = a.is_host()
 	if now_host and not was_host:
+		a.ever_host = true
 		_announce_host_won(a)
 	elif was_host and not now_host:
 		_announce_host_lost(a)
