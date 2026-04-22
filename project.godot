@@ -23,6 +23,7 @@ Scheduler="*res://scripts/scheduler.gd"
 WorldData="*res://scripts/world_data.gd"
 Actors="*res://scripts/actor_registry.gd"
 Inbox="*res://scripts/inbox_manager.gd"
+Actions="*res://scripts/action_runner.gd"
 
 [display]
 

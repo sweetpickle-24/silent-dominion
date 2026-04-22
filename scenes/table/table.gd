@@ -161,7 +161,35 @@ func _on_dossiers_clicked() -> void:
 
 
 func _on_compose_clicked() -> void:
-	open_panel("Compose a Letter", _compose_placeholder_text())
+	# Phase 0 placeholder: Compose issues a random Observe action against
+	# a living ruler. Resolves into an Inbox letter after a few game-days,
+	# proving the core loop end-to-end. Real Compose UI comes later.
+	var target: Actor = _pick_random_observation_target()
+	if target == null:
+		open_panel("Compose a Letter", _compose_placeholder_text())
+		return
+
+	var handle: int = Actions.issue(&"observe", String(target.id))
+	var body: String = ""
+	if handle == Scheduler.INVALID_HANDLE:
+		body = "Your quill hesitated. Try another figure."
+	else:
+		body = "You draft a short letter to your watcher in the quarter.\n\n" \
+			+ "\"Observe %s. Report by the usual route.\"\n\n" \
+			+ "The letter is sealed and sent. A reply will come in due time.\n" \
+			+ "Advance the days on your dial to let it travel."
+		body = body % target.display_name()
+	open_panel("Compose a Letter", body)
+
+
+func _pick_random_observation_target() -> Actor:
+	var living_rulers: Array[Actor] = []
+	for a in Actors.actors_by_role(Actor.Role.RULER):
+		if a.is_alive():
+			living_rulers.append(a)
+	if living_rulers.is_empty():
+		return null
+	return living_rulers[randi() % living_rulers.size()]
 
 
 func _on_inbox_clicked() -> void:

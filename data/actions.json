@@ -1,0 +1,70 @@
+{
+  "_comment": "Phase 0 action palette. Matches docs/03-core-mechanics/action-palette.md. Times are in game-days. Costs are not enforced yet.",
+  "actions": [
+    {
+      "id": "observe",
+      "display_name": "Observe",
+      "blurb": "Task a discreet operative to gather intelligence on a single figure. Low risk, weeks of waiting.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ACTOR",
+      "silver_cost": 5,
+      "exposure_cost": 1,
+      "min_days_to_resolve": 5,
+      "max_days_to_resolve": 14,
+      "base_success_chance": 0.92,
+      "report_sender": "Your watcher in the quarter"
+    },
+    {
+      "id": "cultivate",
+      "display_name": "Cultivate",
+      "blurb": "Invest quietly in a minor figure over many months, building the foundation of a future relationship.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ACTOR",
+      "silver_cost": 40,
+      "exposure_cost": 3,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 90,
+      "base_success_chance": 0.7,
+      "report_sender": "Your go-between"
+    },
+    {
+      "id": "plant_idea",
+      "display_name": "Plant an idea",
+      "blurb": "Introduce a concept into the target's thinking through a trusted intermediary. Slow burn.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ACTOR",
+      "silver_cost": 15,
+      "exposure_cost": 4,
+      "min_days_to_resolve": 20,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.6,
+      "report_sender": "The broker"
+    },
+    {
+      "id": "seed_rumour",
+      "display_name": "Seed a rumour",
+      "blurb": "Release controlled misinformation into market-square gossip through a proxy network.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ACTOR",
+      "silver_cost": 10,
+      "exposure_cost": 3,
+      "min_days_to_resolve": 7,
+      "max_days_to_resolve": 21,
+      "base_success_chance": 0.75,
+      "report_sender": "A trader at the harbour"
+    },
+    {
+      "id": "bribe",
+      "display_name": "Bribe",
+      "blurb": "Offer silver in return for a concrete act. Outcome depends on the target's greed and loyalty.",
+      "tier": "ACTIVE",
+      "target_kind": "ACTOR",
+      "silver_cost": 120,
+      "exposure_cost": 12,
+      "min_days_to_resolve": 3,
+      "max_days_to_resolve": 14,
+      "base_success_chance": 0.55,
+      "report_sender": "Your paymaster"
+    }
+  ]
+}
