@@ -65,6 +65,16 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 			[action_id, Exposure.level_name()])
 		return Scheduler.INVALID_HANDLE
 
+	if def.silver_cost > 0 and not Purse.can_afford(def.silver_cost):
+		push_warning("[Actions] Action '%s' refused: purse cannot cover %d silver" %
+			[action_id, def.silver_cost])
+		return Scheduler.INVALID_HANDLE
+
+	# Deduct now — spending the coin is part of issuing the action, not
+	# of resolving it. If the letter fails, the silver stays spent.
+	if def.silver_cost > 0:
+		Purse.spend(def.silver_cost)
+
 	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve)
 	var fire_day: int = GameClock.absolute_day() + delay
 

@@ -16,6 +16,7 @@ const ExposureIndicatorScript: Script   = preload("res://scripts/exposure_indica
 const LedgerViewScript: Script          = preload("res://scripts/ledger_view.gd")
 const PublicNewsViewScript: Script      = preload("res://scripts/public_news_view.gd")
 const MapViewScript: Script             = preload("res://scripts/map_view.gd")
+const PurseIndicatorScript: Script      = preload("res://scripts/purse_indicator.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -84,6 +85,7 @@ func _ready() -> void:
 	_wire_time_dial()
 	_install_pending_tray()
 	_install_exposure_indicator()
+	_install_purse_indicator()
 	_install_public_news_badge()
 
 
@@ -189,6 +191,22 @@ func _install_exposure_indicator() -> void:
 	ind.offset_top = 20.0
 	ind.offset_right = 260.0
 	ind.offset_bottom = 54.0
+	ind.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(ind)
+
+
+func _install_purse_indicator() -> void:
+	var ind: Control = Control.new()
+	ind.set_script(PurseIndicatorScript)
+	ind.name = "PurseIndicator"
+	ind.anchor_left = 0.0
+	ind.anchor_right = 0.0
+	ind.anchor_top = 0.0
+	ind.anchor_bottom = 0.0
+	ind.offset_left = 20.0
+	ind.offset_top = 60.0
+	ind.offset_right = 260.0
+	ind.offset_bottom = 94.0
 	ind.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(ind)
 

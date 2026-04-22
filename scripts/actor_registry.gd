@@ -93,12 +93,68 @@ func add_actor(a: Actor) -> void:
 
 ## Shift an actor's relationship toward the player by `delta`, clamped
 ## to [-100, +100]. Returns the new value (or 0 if the actor is unknown).
+##
+## When the shift crosses the HOST_THRESHOLD upward (or back under it
+## downward) this also publishes an inbox letter and a public-dispatch
+## note, so the player gets explicit feedback on the §5 transition.
 func adjust_relationship(id: StringName, delta: int) -> int:
 	var a: Actor = get_actor(id)
 	if a == null:
 		return 0
+	var was_host: bool = a.is_host()
 	a.relationship = clampi(a.relationship + delta, -100, 100)
+	var now_host: bool = a.is_host()
+	if now_host and not was_host:
+		_announce_host_won(a)
+	elif was_host and not now_host:
+		_announce_host_lost(a)
 	return a.relationship
+
+
+func _announce_host_won(a: Actor) -> void:
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter_id: StringName = StringName("host_won_%s_%d" % [String(a.id), Time.get_ticks_msec()])
+	var body: String = (
+		"I write this once, and not again. What passed between us these last months was not business; it was a choice, and I have made it. When you send word, I will act. Do not make me regret it.\n\nYours in the work,\n%s"
+	) % a.display_name()
+	var letter: Letter = Letter.create(
+		letter_id,
+		a.display_name(),
+		date,
+		"A letter, in their own hand",
+		body
+	)
+	EventBus.letter_delivered.emit(letter)
+	# Soft public trace too — most hosts don't advertise, but the
+	# scroll is the player's second memory.
+	EventBus.public_event.emit({
+		"kind":       &"host_won",
+		"kingdom_id": a.kingdom_id,
+		"actors":     [String(a.id)],
+		"headline":   "A friend won in %s" % _kingdom_name_for(a.kingdom_id),
+		"body":       "Not a matter for the markets. Noted here only so you do not forget the season in which [url=actor:%s][b]%s[/b][/url] first said yes." % [String(a.id), a.display_name()],
+	})
+
+
+func _announce_host_lost(a: Actor) -> void:
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter_id: StringName = StringName("host_lost_%s_%d" % [String(a.id), Time.get_ticks_msec()])
+	var body: String = (
+		"%s can no longer be counted among your hands. They have cooled, or been cooled, and what was arranged with them is arranged no longer. Treat them as any other name on the table now — not an enemy, but not yours." 
+	) % a.display_name()
+	var letter: Letter = Letter.create(
+		letter_id,
+		"Your go-between",
+		date,
+		"A name falls from the list",
+		body
+	)
+	EventBus.letter_delivered.emit(letter)
+
+
+func _kingdom_name_for(kid: String) -> String:
+	var k: Kingdom = WorldData.get_kingdom(kid)
+	return k.kingdom_name if k != null else kid
 
 
 # --- Debug -------------------------------------------------------------------

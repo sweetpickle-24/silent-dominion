@@ -183,7 +183,8 @@ func _render_action_picker() -> void:
 func _build_action_card(def: ActionDefinition) -> Control:
 	var allowed: bool = Exposure.allows_tier(def.tier)
 	var has_host: bool = not def.requires_host_target or Actors.hosts().size() > 0
-	var enabled: bool = allowed and has_host
+	var can_pay: bool = def.silver_cost <= 0 or Purse.can_afford(def.silver_cost)
+	var enabled: bool = allowed and has_host and can_pay
 
 	var card: Button = Button.new()
 	card.text = ""
@@ -196,6 +197,8 @@ func _build_action_card(def: ActionDefinition) -> Control:
 		card.tooltip_text = Exposure.block_reason(def.tier)
 	elif not has_host:
 		card.tooltip_text = "You have no hosts loyal enough to act for you yet."
+	elif not can_pay:
+		card.tooltip_text = "The purse will not cover this."
 
 	var normal_sb: StyleBoxFlat = _card_stylebox(COLOR_CARD)
 	var hover_sb:  StyleBoxFlat = _card_stylebox(COLOR_CARD_HOVER)
@@ -283,6 +286,14 @@ func _build_action_card(def: ActionDefinition) -> Control:
 		var gate: Label = Label.new()
 		gate.text = "You have no hosts loyal enough to act for you yet. Cultivate one past the threshold first."
 		gate.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		gate.add_theme_font_size_override("font_size", 11)
+		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(gate)
+	elif not can_pay:
+		name_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		var gate: Label = Label.new()
+		gate.text = "The purse will not cover this. Let the months turn, or pick a cheaper instrument."
+		gate.add_theme_color_override("font_color", COLOR_WAX)
 		gate.add_theme_font_size_override("font_size", 11)
 		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(gate)
