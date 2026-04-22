@@ -79,7 +79,8 @@ func _seed_placeholder_letters() -> void:
 		+ "There is work for a patient hand here. The city does "
 		+ "not yet understand what it is becoming.\n\n"
 		+ "Burn this after reading.\n\n"
-		+ "— the usual"
+		+ "— the usual",
+		&"intro"
 	))
 
 	add_letter(Letter.create(
@@ -94,7 +95,8 @@ func _seed_placeholder_letters() -> void:
 		+ "I knew no such man. He smiled as if that were the "
 		+ "answer he expected.\n\n"
 		+ "Send word before the equinox or I sail without you.\n\n"
-		+ "— A."
+		+ "— A.",
+		&"intro"
 	))
 
 	add_letter(Letter.create(
@@ -109,5 +111,6 @@ func _seed_placeholder_letters() -> void:
 		+ "King will not forget. We should decide, soon, which "
 		+ "side of the fire we intend to stand on.\n\n"
 		+ "Awaiting your sign.\n\n"
-		+ "— K."
+		+ "— K.",
+		&"intro"
 	))

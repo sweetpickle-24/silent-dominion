@@ -262,6 +262,7 @@ func _letter_to_dict(l: Letter) -> Dictionary:
 		"subject": l.subject,
 		"body":    l.body,
 		"is_read": l.is_read,
+		"kind":    String(l.kind),
 	}
 
 
@@ -277,6 +278,7 @@ func _letter_from_dict(d: Dictionary) -> Letter:
 		date,
 		String(d.get("subject", "")),
 		String(d.get("body", "")),
+		StringName(String(d.get("kind", "misc"))),
 	)
 	l.is_read = bool(d.get("is_read", false))
 	return l

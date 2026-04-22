@@ -317,7 +317,7 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool) -> L
 	var linked_name: String = _linked_target(def.target_kind, target_id, target_name)
 	var body: String = _body_for(def, linked_name, success)
 
-	return Letter.create(letter_id, def.report_sender, date, subject, body)
+	return Letter.create(letter_id, def.report_sender, date, subject, body, &"action")
 
 
 ## Wrap an Actor target name in a BBCode url so the letter view can

@@ -93,6 +93,7 @@ func _ready() -> void:
 	_install_archive_indicator()
 	_install_public_news_badge()
 	_install_object_unread_dots()
+	_install_inbox_kind_strip()
 
 	# If the player arrived here via 'Return to X' on the title screen,
 	# Session carries the slot to load. Apply it after the scene is
@@ -625,6 +626,79 @@ func _refresh_inbox_visual() -> void:
 		_badge_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE)
 		_badge_tween.tween_property(_inbox_badge, "scale", Vector2(1.12, 1.12), BADGE_PULSE_TIME)
 		_badge_tween.tween_property(_inbox_badge, "scale", Vector2.ONE, BADGE_PULSE_TIME)
+
+	_refresh_inbox_kind_strip()
+
+
+# --- Inbox kind strip --------------------------------------------------------
+#
+# A tiny row of colored pips under the inbox, one per kind of unread letter
+# on the stack. Gives a player a skim-level sense of what's waiting: a green
+# pip means a host letter, a blue one means intel, a wax-red means a
+# resolved action report, etc. Pips appear left-to-right in a stable kind
+# order for scan-ability.
+
+const _KIND_STRIP_ORDER: Array[StringName] = [
+	&"action", &"intel", &"host", &"digest", &"news", &"intro", &"misc",
+]
+var _inbox_kind_strip: HBoxContainer
+
+
+func _install_inbox_kind_strip() -> void:
+	_inbox_kind_strip = HBoxContainer.new()
+	_inbox_kind_strip.name = "KindStrip"
+	_inbox_kind_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_inbox_kind_strip.add_theme_constant_override("separation", 3)
+	# Park just under the unread badge. The badge is anchored inside
+	# the inbox; positioning in local inbox-space is fine.
+	_inbox_kind_strip.position = _inbox_badge.position + Vector2(-4, _inbox_badge.size.y + 4)
+	_inbox.add_child(_inbox_kind_strip)
+	_refresh_inbox_kind_strip()
+
+
+func _refresh_inbox_kind_strip() -> void:
+	if _inbox_kind_strip == null:
+		return
+	for child in _inbox_kind_strip.get_children():
+		child.queue_free()
+
+	var counts: Dictionary = {}
+	for l in Inbox.letters:
+		if l.is_read:
+			continue
+		var k: StringName = l.kind
+		counts[k] = int(counts.get(k, 0)) + 1
+
+	if counts.is_empty():
+		_inbox_kind_strip.visible = false
+		return
+	_inbox_kind_strip.visible = true
+
+	for kind in _KIND_STRIP_ORDER:
+		var n: int = int(counts.get(kind, 0))
+		if n <= 0:
+			continue
+		_inbox_kind_strip.add_child(_make_kind_pip(kind, n))
+
+
+func _make_kind_pip(kind: StringName, count: int) -> Control:
+	var p: Panel = Panel.new()
+	p.custom_minimum_size = Vector2(7.0, 7.0)
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = LetterKind.color_for(kind)
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.shadow_color = Color(0, 0, 0, 0.25)
+	sb.shadow_size = 2
+	p.add_theme_stylebox_override("panel", sb)
+	var label: String = LetterKind.label_for(kind)
+	if label == "":
+		label = String(kind)
+	p.tooltip_text = "%s  x%d" % [label, count]
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	return p
 
 
 # --- Time dial ----------------------------------------------------------------

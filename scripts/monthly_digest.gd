@@ -93,7 +93,8 @@ func _on_month_passed(y: int, m: int) -> void:
 		"Your factotum",
 		date,
 		subject,
-		body
+		body,
+		&"digest"
 	)
 	EventBus.letter_delivered.emit(letter)
 	_reset_buffers()

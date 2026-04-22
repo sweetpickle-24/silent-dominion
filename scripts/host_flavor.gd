@@ -44,7 +44,8 @@ func _send_flavor_letter(host: Actor) -> void:
 		host.display_name(),
 		date,
 		subject,
-		body
+		body,
+		&"host"
 	)
 	EventBus.letter_delivered.emit(letter)
 

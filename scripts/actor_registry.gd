@@ -122,7 +122,8 @@ func _announce_host_won(a: Actor) -> void:
 		a.display_name(),
 		date,
 		"A letter, in their own hand",
-		body
+		body,
+		&"host"
 	)
 	EventBus.letter_delivered.emit(letter)
 	# Soft public trace too — most hosts don't advertise, but the
@@ -147,7 +148,8 @@ func _announce_host_lost(a: Actor) -> void:
 		"Your go-between",
 		date,
 		"A name falls from the list",
-		body
+		body,
+		&"host"
 	)
 	EventBus.letter_delivered.emit(letter)
 

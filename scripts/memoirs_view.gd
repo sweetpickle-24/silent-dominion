@@ -233,18 +233,22 @@ func _letter_row(letter: Letter) -> Control:
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(hb)
 
-	# Read / unread dot
+	# Kind dot (shade communicates kind; fades when read).
 	var dot_wrap: CenterContainer = CenterContainer.new()
 	dot_wrap.custom_minimum_size.x = 10.0
 	var dot: Panel = Panel.new()
 	dot.custom_minimum_size = Vector2(6, 6)
 	var dot_sb: StyleBoxFlat = StyleBoxFlat.new()
-	dot_sb.bg_color = COLOR_WAX if not letter.is_read else Color(0.70, 0.58, 0.38, 0.5)
+	var kind_color: Color = LetterKind.color_for(letter.kind)
+	if letter.is_read:
+		kind_color.a = 0.35
+	dot_sb.bg_color = kind_color
 	dot_sb.corner_radius_top_left = 4
 	dot_sb.corner_radius_top_right = 4
 	dot_sb.corner_radius_bottom_left = 4
 	dot_sb.corner_radius_bottom_right = 4
 	dot.add_theme_stylebox_override("panel", dot_sb)
+	dot.tooltip_text = LetterKind.label_for(letter.kind)
 	dot_wrap.add_child(dot)
 	hb.add_child(dot_wrap)
 
