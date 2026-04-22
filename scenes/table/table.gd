@@ -576,6 +576,8 @@ func _open_dossier_view() -> void:
 	view.anchor_bottom = 1.0
 	add_child(view)
 	view.closed.connect(_on_dossier_view_closed)
+	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
 
 
 func _on_dossier_view_closed() -> void:
@@ -646,6 +648,8 @@ func _open_dossier_view_for_actor(actor: Actor) -> void:
 	view.anchor_bottom = 1.0
 	add_child(view)
 	view.closed.connect(_on_dossier_view_closed)
+	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
+	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
 	view.show_actor(actor)
 
 

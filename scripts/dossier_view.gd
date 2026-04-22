@@ -13,6 +13,10 @@ extends Control
 ## Emits `closed` when dismissed. The table instantiates, displays, awaits.
 
 signal closed
+signal actor_link_clicked(actor_id: StringName)
+signal codebook_link_clicked(anchor: StringName)
+
+const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
 
 enum Mode { LIST, DETAIL }
 
@@ -36,6 +40,11 @@ var _body_margin: MarginContainer
 var _body_vbox: VBoxContainer
 var _kingdom_filter: OptionButton
 var _current_kingdom_filter: String = ALL_KINGDOMS_KEY
+
+## A child LetterView spawned when the player clicks a linked letter
+## from the detail page. While it's set we suppress dossier close on
+## dimmer clicks and escape so the dossier stays underneath.
+var _child_letter_view: Control
 
 
 # --- Lifecycle ---------------------------------------------------------------
@@ -75,6 +84,8 @@ func show_actor(actor: Actor) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
+			if _child_letter_view != null:
+				return   # the letter view handles its own ESC
 			if _mode == Mode.DETAIL:
 				_show_list()
 			else:
@@ -106,6 +117,8 @@ func _build_dimmer() -> void:
 
 func _on_dimmer_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _child_letter_view != null:
+			return   # don't fall through the open letter
 		if _mode == Mode.DETAIL:
 			_show_list()
 		else:
@@ -486,6 +499,34 @@ func _show_detail(actor: Actor) -> void:
 
 	_body_vbox.add_child(_make_divider())
 
+	_body_vbox.add_child(_make_section_heading("LETTERS ON THIS NAME"))
+	var linked: Array[Letter] = _letters_mentioning(actor)
+	if linked.is_empty():
+		_body_vbox.add_child(_make_body_line(
+			"No letter on the table yet names them. The world has not written them down."
+		))
+	else:
+		var letters_box: VBoxContainer = VBoxContainer.new()
+		letters_box.add_theme_constant_override("separation", 2)
+		_body_vbox.add_child(letters_box)
+		var shown: int = 0
+		for l in linked:
+			letters_box.add_child(_build_letter_row(l))
+			shown += 1
+			if shown >= 12:
+				break
+		if linked.size() > shown:
+			var more: Label = _make_body_line(
+				"  …and %d earlier letter%s in the Memoirs." % [
+					linked.size() - shown,
+					"" if linked.size() - shown == 1 else "s",
+				]
+			)
+			more.add_theme_color_override("font_color", COLOR_INK_MUTED)
+			letters_box.add_child(more)
+
+	_body_vbox.add_child(_make_divider())
+
 	_body_vbox.add_child(_make_section_heading("ON FILE"))
 	_body_vbox.add_child(_make_body_line(
 		"Identifier: %s    Role: %s    Kingdom: %s" % [
@@ -553,3 +594,147 @@ func _make_close_button(on_press: Callable) -> Button:
 	b.add_theme_font_size_override("font_size", 13)
 	b.pressed.connect(on_press)
 	return b
+
+
+# --- Linked letters ----------------------------------------------------------
+#
+# Scans the inbox for every letter that mentions this actor and returns
+# them sorted newest-first. A letter "mentions" the actor if its BBCode
+# body carries a `[url=actor:<id>]` anchor, or if the sender display
+# name matches the actor's (covers host-authored letters where the
+# actor is the voice, not a reference).
+
+func _letters_mentioning(actor: Actor) -> Array[Letter]:
+	var id_token: String = "actor:%s" % String(actor.id)
+	var display: String = actor.display_name()
+	var out: Array[Letter] = []
+	for l in Inbox.letters:
+		if l.body.find(id_token) >= 0 or l.sender == display:
+			out.append(l)
+	out.sort_custom(_sort_letters_newest_first)
+	return out
+
+
+func _sort_letters_newest_first(a: Letter, b: Letter) -> bool:
+	# GameDate.year is stored positive for BCE; smaller year = later in time.
+	var ay: int = a.date.year if a.date != null else 0
+	var by: int = b.date.year if b.date != null else 0
+	if ay != by:
+		return ay < by
+	var am: int = a.date.month if a.date != null else 0
+	var bm: int = b.date.month if b.date != null else 0
+	if am != bm:
+		return am > bm
+	var ad: int = a.date.day if a.date != null else 0
+	var bd: int = b.date.day if b.date != null else 0
+	return ad > bd
+
+
+func _build_letter_row(letter: Letter) -> Control:
+	var btn: Button = Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size.y = 32.0
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var hover_sb: StyleBoxFlat = StyleBoxFlat.new()
+	hover_sb.bg_color = COLOR_ROW_HOVER
+	hover_sb.corner_radius_top_left = 3
+	hover_sb.corner_radius_top_right = 3
+	hover_sb.corner_radius_bottom_left = 3
+	hover_sb.corner_radius_bottom_right = 3
+	hover_sb.content_margin_left = 10
+	hover_sb.content_margin_right = 10
+	hover_sb.content_margin_top = 4
+	hover_sb.content_margin_bottom = 4
+	var normal_sb: StyleBoxFlat = hover_sb.duplicate()
+	normal_sb.bg_color = Color(0, 0, 0, 0)
+	btn.add_theme_stylebox_override("normal", normal_sb)
+	btn.add_theme_stylebox_override("hover", hover_sb)
+	btn.add_theme_stylebox_override("pressed", hover_sb)
+
+	var hb: HBoxContainer = HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 10)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(hb)
+
+	# Kind-colored pip
+	var pip: Panel = Panel.new()
+	pip.custom_minimum_size = Vector2(6, 6)
+	var pip_sb: StyleBoxFlat = StyleBoxFlat.new()
+	var pip_color: Color = LetterKind.color_for(letter.kind)
+	if letter.is_read:
+		pip_color.a = 0.4
+	pip_sb.bg_color = pip_color
+	pip_sb.corner_radius_top_left = 4
+	pip_sb.corner_radius_top_right = 4
+	pip_sb.corner_radius_bottom_left = 4
+	pip_sb.corner_radius_bottom_right = 4
+	pip.add_theme_stylebox_override("panel", pip_sb)
+	var pip_wrap: CenterContainer = CenterContainer.new()
+	pip_wrap.custom_minimum_size.x = 8.0
+	pip_wrap.add_child(pip)
+	hb.add_child(pip_wrap)
+
+	var date_l: Label = Label.new()
+	date_l.text = _format_letter_short_date(letter.date)
+	date_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	date_l.add_theme_font_size_override("font_size", 11)
+	date_l.custom_minimum_size.x = 100.0
+	hb.add_child(date_l)
+
+	var subject_l: Label = Label.new()
+	subject_l.text = letter.subject
+	subject_l.add_theme_color_override(
+		"font_color", COLOR_INK if not letter.is_read else COLOR_INK_MUTED
+	)
+	subject_l.add_theme_font_size_override("font_size", 12)
+	subject_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	subject_l.clip_text = true
+	hb.add_child(subject_l)
+
+	btn.pressed.connect(func() -> void: _open_linked_letter(letter))
+	return btn
+
+
+func _format_letter_short_date(d: GameDate) -> String:
+	if d == null:
+		return ""
+	const NAMES: Array[String] = [
+		"Ian", "Feb", "Mar", "Apr", "Mai", "Iun",
+		"Qui", "Sex", "Sep", "Oct", "Nov", "Dec",
+	]
+	var idx: int = clampi(d.month, 1, 12) - 1
+	return "%d %s %d" % [d.day, NAMES[idx], d.year]
+
+
+func _open_linked_letter(letter: Letter) -> void:
+	if _child_letter_view != null:
+		return
+	var view: Control = LetterViewScene.instantiate()
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_child_letter_closed)
+	view.actor_link_clicked.connect(_on_child_actor_link)
+	view.codebook_link_clicked.connect(_on_child_codebook_link)
+	view.call("display", letter)
+	_child_letter_view = view
+
+
+func _on_child_letter_closed() -> void:
+	_child_letter_view = null
+
+
+func _on_child_actor_link(actor_id: StringName) -> void:
+	# Another actor is named in this letter — close down and bubble up
+	# so the table can swap the dossier cleanly onto the new name.
+	actor_link_clicked.emit(actor_id)
+	_child_letter_view = null
+	close()
+
+
+func _on_child_codebook_link(anchor: StringName) -> void:
+	codebook_link_clicked.emit(anchor)
+	_child_letter_view = null
+	close()
