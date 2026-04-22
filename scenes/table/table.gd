@@ -23,6 +23,7 @@ const CodebookViewScript: Script        = preload("res://scripts/codebook_view.g
 const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd")
 const RosterViewScript: Script          = preload("res://scripts/roster_view.gd")
 const VaultViewScript: Script           = preload("res://scripts/vault_view.gd")
+const LibraryViewScript: Script         = preload("res://scripts/library_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -345,6 +346,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_B:
 			_on_codebook_clicked()
 			get_viewport().set_input_as_handled()
+		KEY_F:
+			_on_library_clicked()
+			get_viewport().set_input_as_handled()
 
 
 # Space toggles between PAUSED and the last non-paused speed. First
@@ -370,6 +374,7 @@ func _hotkey_sheet_text() -> String:
 		+ "  V           — Vault (banking network)\n"
 		+ "  C           — Compose a letter\n"
 		+ "  B           — Codebook\n"
+		+ "  F           — Fingerprint Library (rivals)\n"
 		+ "\n"
 		+ "System\n"
 		+ "  Esc         — close the top overlay\n"
@@ -642,6 +647,27 @@ func _open_vault_view() -> void:
 
 
 func _on_vault_view_closed() -> void:
+	_overlay_active = false
+
+
+func _on_library_clicked() -> void:
+	_open_library_view()
+
+
+func _open_library_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(LibraryViewScript)
+	view.name = "LibraryView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_library_view_closed)
+
+
+func _on_library_view_closed() -> void:
 	_overlay_active = false
 
 
