@@ -36,12 +36,12 @@ See `docs/` for the full design specification. This file is about what to build,
 /docs/                  -- this design documentation
 /scenes/                -- Godot scenes (UI screens, table, map, panels)
 /scripts/
-    /simulation/        -- core simulation tick, kingdom AI, world state
-    /organisation/      -- operative/coordinator/lieutenant/entity systems
-    /intelligence/      -- two-reality system, reports, fog of knowledge
-    /memoirs/           -- pattern library, automation engine
-    /ui/                -- table, map, dossier, inbox widgets
-    /save/              -- save/load, chronicle generator
+	/simulation/        -- core simulation tick, kingdom AI, world state
+	/organisation/      -- operative/coordinator/lieutenant/entity systems
+	/intelligence/      -- two-reality system, reports, fog of knowledge
+	/memoirs/           -- pattern library, automation engine
+	/ui/                -- table, map, dossier, inbox widgets
+	/save/              -- save/load, chronicle generator
 /tests/                 -- unit and integration tests
 ```
 

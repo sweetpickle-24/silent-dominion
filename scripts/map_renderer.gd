@@ -102,6 +102,14 @@ func _build_palette() -> void:
 	for i in range(bytes.size()):
 		bytes[i] = 0
 
+	# palette[0] is the "no cell" slot: deep sea, kingdom index 255
+	# so the shader's sea-aware branches treat un-assigned pixels as
+	# ocean rather than unclaimed land.
+	bytes[0] = 66
+	bytes[1] = 102
+	bytes[2] = 133
+	bytes[3] = 255
+
 	for cid in MapData.cells.keys():
 		var cell: MapCell = MapData.cells[cid]
 		var region: Province = WorldData.get_province(cell.region_id)

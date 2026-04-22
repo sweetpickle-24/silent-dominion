@@ -24,6 +24,7 @@ extends RefCounted
 
 const OUT_DIR: String = "res://assets/map/generated"
 const CELLS_JSON: String = "res://data/map_cells.json"
+const LAND_GEOJSON: String = "res://data/natural_earth_mediterranean.json"
 
 # Bitmap resolution. 2048x1024 gives ~1400 px per cell at 1500 cells,
 # which holds up fine at 10x zoom. A bigger bitmap scales the bake
@@ -37,12 +38,12 @@ const MIN_CELLS_PER_REGION: int = 4
 
 const BAKE_SEED: int = 0x5D1E7E53
 
-# Coastline noise warping. Every pixel's classification query is
-# offset by a fractal noise vector. Amp = pixels of coastline wiggle;
-# Freq = noise scale (higher = more jagged). This is the single
-# biggest lever between "child drew it" and "plausible map".
-const COAST_NOISE_AMP:  float = 42.0
-const COAST_NOISE_FREQ: float = 0.006
+# Noise warping is still used for INTER-REGION boundaries so that
+# hand-drawn region edges look organic, but the coastline itself
+# comes straight from Natural Earth and does not get warped (that
+# data is already accurate).
+const REGION_NOISE_AMP:  float = 18.0
+const REGION_NOISE_FREQ: float = 0.010
 
 
 # --- Terrain palette --------------------------------------------------------
@@ -55,6 +56,13 @@ const TERRAIN_COASTAL:   Color = Color(0.80, 0.72, 0.54)
 const TERRAIN_HILLS:     Color = Color(0.60, 0.54, 0.34)
 const TERRAIN_STEPPE:    Color = Color(0.78, 0.66, 0.40)
 const TERRAIN_SEA:       Color = Color(0.32, 0.46, 0.56)
+const TERRAIN_WILDERNESS: Color = Color(0.55, 0.52, 0.42)
+
+# Maximum distance (pixels) a land pixel can be from its nearest
+# land-region seed before it is classified as "wilderness" — real
+# land that no kingdom in our known world claims. Roughly a week's
+# ride at the map scale.
+const WILDERNESS_MAX_DIST_SQ: float = 140.0 * 140.0
 
 const TERRAIN_ENUM_PLAINS:    int = 0
 const TERRAIN_ENUM_FOREST:    int = 1
@@ -77,8 +85,8 @@ var _landmass_polys: Array = []
 var _region_grid: PackedInt32Array = PackedInt32Array()
 var _land_mask: PackedByteArray = PackedByteArray()
 
-var _coast_noise_x: FastNoiseLite = null
-var _coast_noise_y: FastNoiseLite = null
+var _region_noise_x: FastNoiseLite = null
+var _region_noise_y: FastNoiseLite = null
 
 const HASH_W: int = 64
 const HASH_H: int = 32
@@ -102,13 +110,15 @@ func run() -> void:
 	var world_terrain: Dictionary = _read_world_terrains()
 	_prepare_regions(world_terrain)
 	_prepare_landmasses()
-	_init_coast_noise()
+	_init_region_noise()
+
+	# Landmasses first so region rasterisation can skip land-regions
+	# for sea pixels and vice-versa.
+	print("[bake] rasterising landmasses ...")
+	_rasterise_landmasses()
 
 	print("[bake] rasterising regions ...")
 	_rasterise_regions()
-
-	print("[bake] rasterising landmasses ...")
-	_rasterise_landmasses()
 
 	print("[bake] placing Voronoi seeds ...")
 	_place_seeds()
@@ -184,9 +194,38 @@ func _prepare_regions(world_terrain: Dictionary) -> void:
 
 func _prepare_landmasses() -> void:
 	_landmass_polys.clear()
-	for norm in MapGeometry.norm_landmasses():
-		_landmass_polys.append(_norm_poly_to_px(norm))
-	print("[bake]   %d landmasses prepared" % _landmass_polys.size())
+	if not FileAccess.file_exists(LAND_GEOJSON):
+		push_error("[bake] Natural Earth land file missing: %s" % LAND_GEOJSON)
+		# Fall back to hand polygons so the bake still produces something.
+		for norm in MapGeometry.norm_landmasses():
+			_landmass_polys.append(_norm_poly_to_px(norm))
+		return
+
+	var raw: String = FileAccess.get_file_as_string(LAND_GEOJSON)
+	var parsed: Variant = JSON.parse_string(raw)
+	if not (parsed is Dictionary):
+		push_error("[bake] Natural Earth JSON malformed")
+		return
+	var polys: Variant = (parsed as Dictionary).get("polygons", [])
+	if not (polys is Array):
+		return
+	var total_verts: int = 0
+	for poly in polys:
+		if not (poly is Array):
+			continue
+		var latlon: Array = []
+		for pt in poly:
+			if not (pt is Array) or (pt as Array).size() < 2:
+				continue
+			latlon.append(Vector2(float(pt[0]), float(pt[1])))
+		if latlon.size() < 3:
+			continue
+		var norm: PackedVector2Array = MapGeometry.latlon_poly_to_norm(latlon)
+		var px: PackedVector2Array = _norm_poly_to_px(norm)
+		_landmass_polys.append(px)
+		total_verts += px.size()
+	print("[bake]   %d landmasses prepared from Natural Earth (%d verts)"
+		% [_landmass_polys.size(), total_verts])
 
 
 func _norm_poly_to_px(norm: PackedVector2Array) -> PackedVector2Array:
@@ -196,34 +235,33 @@ func _norm_poly_to_px(norm: PackedVector2Array) -> PackedVector2Array:
 	return out
 
 
-func _init_coast_noise() -> void:
-	_coast_noise_x = FastNoiseLite.new()
-	_coast_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_coast_noise_x.seed = BAKE_SEED ^ 0xC0A57
-	_coast_noise_x.frequency = COAST_NOISE_FREQ
-	_coast_noise_x.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_coast_noise_x.fractal_octaves = 4
-	_coast_noise_x.fractal_lacunarity = 2.1
-	_coast_noise_x.fractal_gain = 0.55
+func _init_region_noise() -> void:
+	_region_noise_x = FastNoiseLite.new()
+	_region_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_region_noise_x.seed = BAKE_SEED ^ 0xC0A57
+	_region_noise_x.frequency = REGION_NOISE_FREQ
+	_region_noise_x.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_region_noise_x.fractal_octaves = 3
+	_region_noise_x.fractal_lacunarity = 2.1
+	_region_noise_x.fractal_gain = 0.55
 
-	_coast_noise_y = FastNoiseLite.new()
-	_coast_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_coast_noise_y.seed = BAKE_SEED ^ 0xCA57B
-	_coast_noise_y.frequency = COAST_NOISE_FREQ
-	_coast_noise_y.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_coast_noise_y.fractal_octaves = 4
-	_coast_noise_y.fractal_lacunarity = 2.1
-	_coast_noise_y.fractal_gain = 0.55
+	_region_noise_y = FastNoiseLite.new()
+	_region_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_region_noise_y.seed = BAKE_SEED ^ 0xCA57B
+	_region_noise_y.frequency = REGION_NOISE_FREQ
+	_region_noise_y.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_region_noise_y.fractal_octaves = 3
+	_region_noise_y.fractal_lacunarity = 2.1
+	_region_noise_y.fractal_gain = 0.55
 
 
-## Returns the noise-warped query point for coastline fractalisation.
-## Pixels near polygon boundaries end up classified as if the polygon
-## edge wiggled along the fractal field — coastlines stop being
-## straight lines between control points.
-func _warp(px: float, py: float) -> Vector2:
-	var nx: float = _coast_noise_x.get_noise_2d(px, py)
-	var ny: float = _coast_noise_y.get_noise_2d(px, py)
-	return Vector2(px + nx * COAST_NOISE_AMP, py + ny * COAST_NOISE_AMP)
+## Returns a small noise-warped query point for INTER-region
+## boundaries. We keep hand-drawn region shapes organic without
+## touching the Natural-Earth coastline.
+func _region_warp(px: float, py: float) -> Vector2:
+	var nx: float = _region_noise_x.get_noise_2d(px, py)
+	var ny: float = _region_noise_y.get_noise_2d(px, py)
+	return Vector2(px + nx * REGION_NOISE_AMP, py + ny * REGION_NOISE_AMP)
 
 
 # --- Rasterisation ----------------------------------------------------------
@@ -233,9 +271,10 @@ func _rasterise_regions() -> void:
 	for i in range(_region_grid.size()):
 		_region_grid[i] = -1
 
-	var margin: int = int(ceil(COAST_NOISE_AMP)) + 2
+	var margin: int = int(ceil(REGION_NOISE_AMP)) + 2
 	for region_idx in range(_region_ids.size()):
 		var poly: PackedVector2Array = _region_polys[region_idx]
+		var is_sea: bool = _region_is_sea[region_idx] == 1
 		var bbox: Rect2 = MapGeometry.poly_bbox(poly)
 		var x0: int = maxi(0, int(floor(bbox.position.x)) - margin)
 		var y0: int = maxi(0, int(floor(bbox.position.y)) - margin)
@@ -246,30 +285,37 @@ func _rasterise_regions() -> void:
 			for x in range(x0, x1):
 				if _region_grid[row_off + x] != -1:
 					continue
-				var q: Vector2 = _warp(float(x) + 0.5, float(y) + 0.5)
+				# Clip against real land mask so land-regions can't
+				# claim water and sea-regions can't claim land.
+				var is_land_pixel: bool = _land_mask[row_off + x] == 1
+				if is_sea and is_land_pixel:
+					continue
+				if (not is_sea) and not is_land_pixel:
+					continue
+				var q: Vector2 = _region_warp(float(x) + 0.5, float(y) + 0.5)
 				if Geometry2D.is_point_in_polygon(q, poly):
 					_region_grid[row_off + x] = region_idx
 
 
+## Rasterise the Natural-Earth coastline exactly. No warping — the
+## source data already captures every fjord and island we care about.
 func _rasterise_landmasses() -> void:
 	_land_mask.resize(BITMAP_W * BITMAP_H)
 	for i in range(_land_mask.size()):
 		_land_mask[i] = 0
 
-	var margin: int = int(ceil(COAST_NOISE_AMP)) + 2
 	for poly in _landmass_polys:
 		var bbox: Rect2 = MapGeometry.poly_bbox(poly)
-		var x0: int = maxi(0, int(floor(bbox.position.x)) - margin)
-		var y0: int = maxi(0, int(floor(bbox.position.y)) - margin)
-		var x1: int = mini(BITMAP_W, int(ceil(bbox.position.x + bbox.size.x)) + margin)
-		var y1: int = mini(BITMAP_H, int(ceil(bbox.position.y + bbox.size.y)) + margin)
+		var x0: int = maxi(0, int(floor(bbox.position.x)))
+		var y0: int = maxi(0, int(floor(bbox.position.y)))
+		var x1: int = mini(BITMAP_W, int(ceil(bbox.position.x + bbox.size.x)))
+		var y1: int = mini(BITMAP_H, int(ceil(bbox.position.y + bbox.size.y)))
 		for y in range(y0, y1):
 			var row_off: int = y * BITMAP_W
 			for x in range(x0, x1):
 				if _land_mask[row_off + x] == 1:
 					continue
-				var q: Vector2 = _warp(float(x) + 0.5, float(y) + 0.5)
-				if Geometry2D.is_point_in_polygon(q, poly):
+				if Geometry2D.is_point_in_polygon(Vector2(float(x) + 0.5, float(y) + 0.5), poly):
 					_land_mask[row_off + x] = 1
 
 
@@ -372,7 +418,8 @@ func _build_hash() -> void:
 ## Nearest seed cell id matching a predicate.
 ##   match_region_idx >= 0: only seeds in that exact region.
 ##   match_region_idx == -1: seeds where _region_is_sea == want_sea.
-func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int = 0) -> int:
+##   max_dist_sq > 0: return 0 if nothing is within that squared distance.
+func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int = 0, max_dist_sq: float = 0.0) -> int:
 	var cell_w: float = float(BITMAP_W) / float(HASH_W)
 	var cell_h: float = float(BITMAP_H) / float(HASH_H)
 	var gx: int = clampi(int(px / cell_w), 0, HASH_W - 1)
@@ -412,6 +459,8 @@ func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int
 			if best < step * step:
 				break
 		radius += 1
+	if max_dist_sq > 0.0 and best > max_dist_sq:
+		return 0
 	return best_id
 
 
@@ -469,10 +518,13 @@ func _bake_pixels() -> Dictionary:
 			var is_land: bool = _land_mask[i] == 1
 
 			var cell_id: int = 0
+			var is_wilderness: bool = false
 			if region_idx >= 0:
 				cell_id = _nearest_cell_id(fx, fy, region_idx)
 			elif is_land:
-				cell_id = _nearest_cell_id(fx, fy, -1, 0)
+				cell_id = _nearest_cell_id(fx, fy, -1, 0, WILDERNESS_MAX_DIST_SQ)
+				if cell_id == 0:
+					is_wilderness = true
 
 			var b4: int = i * 4
 			provinces_bytes[b4 + 0] = cell_id & 0xFF
@@ -482,12 +534,18 @@ func _bake_pixels() -> Dictionary:
 
 			# Terrain comes from the cell's region so unassigned-land
 			# pixels still colour correctly once they've been adopted.
+			# Wilderness (real land outside any known region) gets a
+			# dedicated muted colour so it reads as land but isn't
+			# coloured by any kingdom in the political overlay.
 			var terr: Color = TERRAIN_SEA
 			var is_sea_cell: bool = true
 			if cell_id > 0:
 				var cri: int = _seeds_region_idx[cell_id - 1]
 				is_sea_cell = (_region_is_sea[cri] == 1)
 				terr = TERRAIN_SEA if is_sea_cell else _terrain_base(_region_terrain[cri])
+			elif is_wilderness:
+				terr = TERRAIN_WILDERNESS
+				is_sea_cell = false
 			var nt: float = noise_terrain.get_noise_2d(fx, fy) * 0.5 + 0.5
 			var tint: float = 0.85 + nt * 0.30
 			terrain_bytes[b4 + 0] = clampi(int(terr.r * tint * 255.0), 0, 255)
