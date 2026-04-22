@@ -166,6 +166,27 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 				out["plotter_id"]   = String(plotter.id)
 				if success:
 					WorldAI.cool_plotter(plotter.id)
+		&"fan_border":
+			var neighbour: String = Relations.worst_neighbour_of(target_id)
+			if neighbour.is_empty():
+				# Pick any random foreign kingdom as the inflamed frontier.
+				for other in WorldData.kingdoms.keys():
+					var id: String = String(other)
+					if id != target_id:
+						neighbour = id
+						break
+			if not neighbour.is_empty():
+				var n: Kingdom = WorldData.get_kingdom(neighbour)
+				if n != null:
+					out["neighbour_name"] = n.kingdom_name
+					out["neighbour_id"]   = neighbour
+				var before: int = Relations.state_between(target_id, neighbour)
+				out["before_state"] = before
+				if success:
+					Relations.step_worse(target_id, neighbour)
+					out["after_state"] = Relations.state_between(target_id, neighbour)
+				else:
+					out["after_state"] = before
 		_:
 			pass
 	return out
@@ -360,6 +381,8 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 		subject = "The streets are hot"
 	elif def.id == &"quiet_plot":
 		subject = "On the matter in %s" % target_name
+	elif def.id == &"fan_border":
+		subject = "From the frontier of %s" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -421,6 +444,19 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 				return "The markets were crying by the third night. A trader beaten, a loaf overturned, and then the right word passed through the right mouth. By the week's end the city was in the street. What the crown does next is their problem, not ours.\n\nYours in the work,\n%s" % target
 			return "I could not get the spark to take. The city is tired but not yet angry. I lost two contacts to the watch. I am well; do not send the usual signal until I send mine first.\n\n— %s" % target
 
+		&"fan_border":
+			var n_name: String = String(extras.get("neighbour_name", "a neighbouring crown"))
+			var before: int = int(extras.get("before_state", Relations.RelationState.NEUTRAL))
+			var after: int  = int(extras.get("after_state", before))
+			if not success:
+				return "I could not light anything along the border with %s. The traders who should have carried the grievance north carried only grain; the pamphlets I paid for were burned, unread, in the back of a church. The money is gone. The frontier is as quiet as it was." % n_name
+			if after == int(Relations.RelationState.AT_WAR):
+				return "It has caught. Between %s and %s a skirmish has become a campaign; the envoys have been sent home, the levies are on the move. No one yet names the hand that pushed — they name each other, which is exactly what was wanted." % [target, n_name]
+			if before == int(Relations.RelationState.NEUTRAL) and after == int(Relations.RelationState.HOSTILE):
+				return "The border has cooled, then curdled. Officials on both sides of the line between %s and %s now speak about each other the way men speak about thieves. A peace is still on the books; a war is now possible in a way it wasn't a season ago." % [target, n_name]
+			if after == int(Relations.RelationState.HOSTILE):
+				return "Work begun. The frontier between %s and %s is worse for our attention — a step closer to what you're after, though not yet where we want it. Another push may finish it." % [target, n_name]
+			return "Something shifted on the border with %s. Not yet the shape you wanted, but a colder wind than last month. Patience." % n_name
 		&"quiet_plot":
 			var p_name: String = String(extras.get("plotter_name", ""))
 			var p_id:   String = String(extras.get("plotter_id", ""))

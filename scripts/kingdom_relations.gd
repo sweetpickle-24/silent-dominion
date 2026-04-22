@@ -70,6 +70,42 @@ func set_peace(a_id: String, b_id: String) -> void:
 	set_state(a_id, b_id, int(RelationState.HOSTILE))
 
 
+## Move a single pair one step toward war on the ladder
+## ALLIED -> FRIENDLY -> NEUTRAL -> HOSTILE -> AT_WAR. No-op if
+## already at AT_WAR. Used by player actions that inflame relations
+## without immediately starting a war.
+func step_worse(a_id: String, b_id: String) -> void:
+	var s: int = state_between(a_id, b_id)
+	if s == int(RelationState.AT_WAR):
+		return
+	var worse: int = s - 1
+	if worse < int(RelationState.AT_WAR):
+		return
+	if worse == int(RelationState.AT_WAR):
+		set_at_war(a_id, b_id)
+	else:
+		set_state(a_id, b_id, worse)
+
+
+## The neighbour of `kingdom_id` whose relation is already closest to
+## war (lowest RelationState). Ties broken by map order. Returns "" if
+## the kingdom has no strained relations yet.
+func worst_neighbour_of(kingdom_id: String) -> String:
+	var best: String = ""
+	var best_state: int = int(RelationState.ALLIED) + 1
+	for other in WorldData.kingdoms.keys():
+		var id: String = String(other)
+		if id == kingdom_id:
+			continue
+		var s: int = state_between(kingdom_id, id)
+		if s == int(RelationState.AT_WAR):
+			continue
+		if s < best_state:
+			best_state = s
+			best = id
+	return best
+
+
 ## All kingdom ids the given id currently has a given relation with.
 func ids_in_state(a_id: String, state: int) -> Array[String]:
 	var out: Array[String] = []

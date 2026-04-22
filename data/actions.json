@@ -67,6 +67,19 @@
       "report_sender": "Your go-between"
     },
     {
+      "id": "fan_border",
+      "display_name": "Fan a border",
+      "blurb": "Pay emissaries and pamphleteers to inflame the target kingdom's worst frontier. The aim is not a war today — it is to make tomorrow's war feel, to those involved, like their own idea.",
+      "tier": "ACTIVE",
+      "target_kind": "KINGDOM",
+      "silver_cost": 140,
+      "exposure_cost": 8,
+      "min_days_to_resolve": 20,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.55,
+      "report_sender": "Your broker on the frontier"
+    },
+    {
       "id": "bribe",
       "display_name": "Bribe",
       "blurb": "Offer silver in return for a concrete act. Outcome depends on the target's greed and loyalty.",
