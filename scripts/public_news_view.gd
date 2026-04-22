@@ -217,8 +217,16 @@ func _build_dispatch(event: Dictionary) -> Control:
 	col.add_theme_constant_override("separation", 2)
 	hb.add_child(col)
 
+	var channel: String = String(event.get("channel", "neutral"))
+	var origin_day: int = int(event.get("origin_day", event.get("abs_day", 0)))
+	var delivered_day: int = int(event.get("abs_day", 0))
+	var lag_days: int = max(0, delivered_day - origin_day)
 	var date_label: Label = Label.new()
-	date_label.text = GameClock.format_absolute(int(event.get("abs_day", 0)))
+	date_label.text = "%s — %s%s" % [
+		GameClock.format_absolute(delivered_day),
+		PublicNews.channel_phrase(channel),
+		_lag_suffix(channel, lag_days),
+	]
 	date_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	date_label.add_theme_font_size_override("font_size", 10)
 	col.add_child(date_label)
@@ -245,6 +253,20 @@ func _build_dispatch(event: Dictionary) -> Control:
 	col.add_child(body)
 
 	return hb
+
+
+func _lag_suffix(channel: String, lag_days: int) -> String:
+	# Operative channel is effectively same-day; don't clutter the
+	# date line with "zero days ago".
+	if channel == "operative" or lag_days <= 3:
+		return ""
+	if lag_days < 14:
+		return "  (%d days stale)" % lag_days
+	if lag_days < 60:
+		var weeks: int = int(round(float(lag_days) / 7.0))
+		return "  (%d weeks stale)" % weeks
+	var months: int = int(round(float(lag_days) / 30.0))
+	return "  (%d months stale)" % months
 
 
 func _on_meta_clicked(meta: Variant) -> void:

@@ -24,7 +24,10 @@ var _counts: Dictionary = {
 
 func _ready() -> void:
 	KingdomEconomy.tick.connect(_on_economy_tick)
-	EventBus.public_event.connect(_on_public_event)
+	# News bumps are sourced off PublicNews, not off EventBus directly,
+	# so an event arriving through a slow intelligence channel (§34.4)
+	# doesn't light up badges before the player can read the dispatch.
+	PublicNews.news_added.connect(_on_public_event)
 	Relations.relation_changed.connect(_on_relation_changed)
 
 
