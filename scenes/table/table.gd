@@ -87,6 +87,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			WorldData.print_debug_dump()
 			Actors.print_debug_dump()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F5:
+			# Quicksave.
+			SaveManager.save_to_slot()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F9:
+			# Quickload.
+			if SaveManager.load_from_slot():
+				close_panel()
+				_refresh_inbox_visual()
+				_refresh_time_display()
+			get_viewport().set_input_as_handled()
 
 
 # --- Object wiring ------------------------------------------------------------

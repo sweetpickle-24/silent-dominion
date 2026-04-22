@@ -24,6 +24,7 @@ WorldData="*res://scripts/world_data.gd"
 Actors="*res://scripts/actor_registry.gd"
 Inbox="*res://scripts/inbox_manager.gd"
 Actions="*res://scripts/action_runner.gd"
+SaveManager="*res://scripts/save_manager.gd"
 
 [display]
 
