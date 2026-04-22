@@ -343,6 +343,75 @@ func recent_ops_in(kingdom_id: String, lookback_days: int = 720) -> Array:
 	return out
 
 
+## §8.13 false-flag. Forge an op in `kingdom_id` that reads, to any
+## investigation, as having been authored by the named society. The
+## forgery stays good unless someone (future mechanic) actively
+## audits it as a fake — we mark the op with `false_flag_by_player`
+## so that future unmasking has a hook. Returns the op dict on
+## success, or an empty dict if the inputs were invalid.
+func create_false_flag_op(society_id: StringName, kingdom_id: String) -> Dictionary:
+	var s: RivalSociety = get_society(society_id)
+	if s == null:
+		return {}
+	if WorldData.get_kingdom(kingdom_id) == null:
+		return {}
+	var method: StringName = _pick_method(s, kingdom_id)
+	if method == &"":
+		return {}
+	var cover: Dictionary = METHOD_COVERS.get(method, {})
+	var templates: Array = cover.get("templates", [])
+	if templates.is_empty():
+		return {}
+	var headline: String = String(templates[_rng.randi_range(0, templates.size() - 1)]) % _kingdom_name(kingdom_id)
+	var body: String = _body_for(s, method, kingdom_id)
+	var op_id: String = "ff_%d_%s_%s" % [
+		GameClock.absolute_day(),
+		String(s.id),
+		_rng.randi(),
+	]
+	var op: Dictionary = {
+		"op_id":                op_id,
+		"kind":                 cover.get("kind", &"misc"),
+		"headline":             headline,
+		"body":                 body,
+		"kingdom_id":           kingdom_id,
+		"abs_day":              GameClock.absolute_day(),
+		"rival_signature":      String(s.id),
+		"rival_method":         String(method),
+		"rival_suspected":      true,
+		# Hook for future unmasking. Nothing reads this today beyond
+		# the forgery cell's own logs; fingerprint chain treats it as
+		# a real op, which is the whole point of the mechanic.
+		"false_flag_by_player": true,
+	}
+	op_log.append(op)
+	if op_log.size() > OP_LOG_MAX:
+		op_log = op_log.slice(op_log.size() - OP_LOG_MAX, op_log.size())
+	s.ops_count += 1
+	s.bump_foothold(kingdom_id, 5 if s.stronghold_kingdoms.has(kingdom_id) else 8)
+	EventBus.public_event.emit(op)
+	society_acted.emit(s.id, op)
+	return op
+
+
+## Find the highest-confirmation society the player can impersonate.
+## Returns &"" if no society is at or above CONFIRMED (65). Biased
+## toward societies that already have a foothold in the target
+## kingdom: the forgery reads more plausibly where they are known.
+func best_impersonation_target(kingdom_id: String) -> StringName:
+	var best_sid: StringName = &""
+	var best_score: int = -1
+	for s in all_societies():
+		var conf: int = Fingerprints.confirmation_for(s.id)
+		if conf < 65:
+			continue
+		var score: int = conf + (s.foothold_in(kingdom_id) / 4)
+		if score > best_score:
+			best_score = score
+			best_sid = s.id
+	return best_sid
+
+
 # --- Monthly tick ----------------------------------------------------------
 
 func _on_month_passed(_y: int, _m: int) -> void:

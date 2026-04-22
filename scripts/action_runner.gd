@@ -696,6 +696,8 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_quiet_the_legend(target_id, success, out)
 		&"discredit_hunter":
 			_apply_discredit_hunter(target_id, success, out)
+		&"false_flag_operation":
+			_apply_false_flag(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -1153,6 +1155,59 @@ func _apply_discredit_hunter(target_id: String, success: bool, out: Dictionary) 
 	out["verdict"] = &"discredited"
 
 
+## §8.13 false flag. Forges a real-looking rival op in the target
+## kingdom, attributed to the most-confirmed society the player has
+## catalogued (preferably one already active there). Requires at least
+## one CONFIRMED society. A success buys quiet in the region at that
+## society's expense; a failure catalogues the attempt and damages
+## the library entry for the forged society.
+func _apply_false_flag(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	var sid: StringName = Rivals.best_impersonation_target(target_id)
+	if sid == &"":
+		out["verdict"] = &"no_mark"
+		return
+
+	var soc: RivalSociety = Rivals.get_society(sid)
+	out["target_society"] = soc.display_name if soc != null else "a confirmed rival"
+	out["target_society_id"] = String(sid)
+
+	if not success:
+		# Forgery spotted. The library entry rots: our notes on this
+		# society now contain a forgery we ourselves authored, and
+		# anyone who later audits it finds the rot. Reads as big
+		# confirmation damage.
+		Fingerprints.bump_confirmation(sid, -25)
+		Exposure.bump(8.0, "false_flag_failed")
+		# Shadow awareness: the forgery cell got sloppy in the target
+		# region, and that is exactly the kind of thing that becomes
+		# legend.
+		Shadow.bump_awareness(target_id, 8, "false_flag_failed")
+		out["verdict"] = &"exposed"
+		return
+
+	var op: Dictionary = Rivals.create_false_flag_op(sid, target_id)
+	if op.is_empty():
+		out["verdict"] = &"no_mark"
+		return
+
+	# Success side-effects:
+	#  - the forgery reads as real to anyone cross-referencing, so
+	#    our own confirmation on that society goes up (we learned
+	#    the fingerprint well enough to reproduce it),
+	#  - small exposure bump because a real piece of work happened,
+	#    not just ink,
+	#  - awareness heat in the region goes DOWN a touch — the story
+	#    has a name on it, and that name isn't ours.
+	Fingerprints.bump_confirmation(sid, 10)
+	Exposure.bump(2.0, "false_flag_success")
+	Shadow.quiet_in(target_id, 6)
+	out["verdict"] = &"planted"
+	out["op_headline"] = String(op.get("headline", ""))
+
+
 ## A botched move leaves loose threads. The *player's* exposure meter
 ## only pays the tail if there was no coverage — otherwise §14.2
 ## compartmentalisation kicks in and the heat sticks to the cell that
@@ -1473,6 +1528,13 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"made_worse":    subject = "%s is worse than before" % target_name
 			&"not_a_hunter":  subject = "%s was not the hunter you feared" % target_name
 			_:                subject = "On %s, and the stories they tell" % target_name
+	elif def.id == &"false_flag_operation":
+		var fv: StringName = StringName(String(extras.get("verdict", "")))
+		match fv:
+			&"planted":   subject = "A hand not ours was seen in %s" % target_name
+			&"exposed":   subject = "The forgery in %s was spotted" % target_name
+			&"no_mark":   subject = "No mark to forge in %s" % target_name
+			_:            subject = "On the forgery cell's work in %s" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -1554,6 +1616,8 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _quiet_the_legend_body(extras)
 		&"discredit_hunter":
 			return _discredit_hunter_body(target, extras)
+		&"false_flag_operation":
+			return _false_flag_body(extras)
 
 		&"host_sway_court":
 			if success:
@@ -2048,6 +2112,42 @@ func _discredit_hunter_body(target: String, extras: Dictionary) -> String:
 				+ "That is a different problem for a different day."
 				) % target
 	return "On the matter of %s and the stories they tell, no clear report." % target
+
+
+## §8.13 false-flag body.
+func _false_flag_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var soc: String = String(extras.get("target_society", "a confirmed rival"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_mark":
+			return ("We have no fingerprint confirmed well enough to forge. The library must be "
+				+ "filled in — a society must reach the catalogued tier — before the cell will "
+				+ "put its name to a forgery. The silver is returned. No attempt was made in %s."
+				) % region
+		&"planted":
+			var headline: String = String(extras.get("op_headline", ""))
+			var head_line: String = ""
+			if not headline.is_empty():
+				head_line = "\n\nThe cover story has already reached the public: \"%s\"\n\n" % headline
+			return (("In %s, something has happened, and the story being told about it carries the "
+				+ "signature of %s. It is not the rough shape of their work, either — it is the "
+				+ "particular, small, characteristic tells that our library has catalogued from "
+				+ "their past operations. The cell did its work with the archive on the table."
+				+ head_line
+				+ "They will feel this: foothold in the region, and a piece of their reputation "
+				+ "spent against our problem without their consent. Our problem, for the moment, "
+				+ "is smaller than it was.") % [region, soc])
+		&"exposed":
+			return ("The forgery in %s was spotted. The right eye, in the right archive, noticed "
+				+ "that the signature of %s was reproduced too cleanly — the rough edges that "
+				+ "real operations carry were all, in this case, in the wrong places. The file "
+				+ "on %s now carries a rotten entry that our own hand wrote, and the people who "
+				+ "care about such things are asking who would bother to forge that hand.\n\n"
+				+ "The cell is intact. The archive, less so. We have work to do to scrub the "
+				+ "confirmation back up, and the region's ear is now sharper than it was."
+				) % [region, soc, soc]
+	return "On the forgery work in %s, no clear report." % region
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

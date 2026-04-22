@@ -367,6 +367,19 @@
       "max_days_to_resolve": 75,
       "base_success_chance": 0.55,
       "report_sender": "Your counter-rumour chief"
+    },
+    {
+      "id": "false_flag_operation",
+      "display_name": "Run a false-flag operation",
+      "blurb": "Do the work ourselves, but leave someone else's hand on it. A forged signature — the little tells a confirmed rival has taught us — costs them a region and buys us quiet. Fails loudly: a forgery spotted is a forgery catalogued, and the catalogue now points back at us.",
+      "tier": "HIGH",
+      "target_kind": "KINGDOM",
+      "silver_cost": 320,
+      "exposure_cost": 5,
+      "min_days_to_resolve": 21,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.5,
+      "report_sender": "Your forgery cell"
     }
   ]
 }
