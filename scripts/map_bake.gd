@@ -1,68 +1,54 @@
 class_name MapBakeJob
 extends RefCounted
 ## Map bake job. Generates the bitmap pipeline assets and writes them
-## under res://. Runs inline from MapData on first boot, or manually via
-## a CLI entry point.
+## under res://. Runs inline from MapData on first boot or manually
+## via the CLI entry point `scripts/map_bake_main.gd`.
 ##
 ## Outputs:
-##   res://assets/map/generated/provinces.png  (RGBA8, RGB encodes cell id)
+##   res://assets/map/generated/provinces.png  (RGBA8, RGB = cell id)
 ##   res://assets/map/generated/terrain.png    (RGBA8, RGB = terrain tint)
 ##   res://assets/map/generated/shading.png    (RGBA8, R = hillshade)
 ##   res://data/map_cells.json                 (per-cell metadata)
 ##
-## Algorithm:
-##   1. Rasterise each region polygon (bbox-restricted point-in-polygon)
-##      into a pixel→region_idx grid. Same for the landmass mask.
-##   2. Scatter Voronoi seeds inside each region, count proportional to
-##      region area. Bucket into a spatial hash.
-##   3. Per pixel: region_idx -> nearest seed in that region (fallback
-##      to nearest land seed for land pixels outside every region).
-##   4. Per pixel: write provinces bitmap (id in RGB), terrain bitmap
-##      (terrain-tinted colour + noise), shading bitmap (multi-octave
-##      simplex hillshade).
-##   5. Write three PNGs + cells JSON.
+## Pipeline (v3):
+##   1. Rasterise the Natural-Earth coastline into a land mask.
+##   2. Uniformly Poisson-disc-sample ~N cell seeds across ALL land.
+##      Spacing is computed from total land area so cells end up the
+##      same size no matter which region they land in.
+##   3. Each seed is assigned to the *region* whose centre point is
+##      closest (region centres come from `MapGeometry.latlon_regions`).
+##   4. Per pixel: nearest seed (bucketed spatial hash) → cell id;
+##      terrain = parent region's terrain; kingdom = parent region's
+##      owner.
+##   5. Sea pixels get cell id 0 — no cells, no borders, no clicks.
+##
+## The old hand-drawn region polygons are gone. Regions cover all of
+## the real land implicitly — no grey holes.
 
 const OUT_DIR: String = "res://assets/map/generated"
 const CELLS_JSON: String = "res://data/map_cells.json"
 const LAND_GEOJSON: String = "res://data/natural_earth_mediterranean.json"
 
-# Bitmap resolution. 2048x1024 gives ~1400 px per cell at 1500 cells,
-# which holds up fine at 10x zoom. A bigger bitmap scales the bake
-# time linearly; 4096x2048 takes ~4x longer.
 const BITMAP_W: int = 2048
 const BITMAP_H: int = 1024
 
-const TARGET_CELLS_LAND: int = 1200
-const TARGET_CELLS_SEA:  int =  300
-const MIN_CELLS_PER_REGION: int = 4
+# Target cell count across the entire visible land area. ~1500 gives
+# roughly "CK3 county density" at our bbox scale.
+const TARGET_CELLS: int = 1500
 
 const BAKE_SEED: int = 0x5D1E7E53
-
-# Noise warping is still used for INTER-REGION boundaries so that
-# hand-drawn region edges look organic, but the coastline itself
-# comes straight from Natural Earth and does not get warped (that
-# data is already accurate).
-const REGION_NOISE_AMP:  float = 18.0
-const REGION_NOISE_FREQ: float = 0.010
 
 
 # --- Terrain palette --------------------------------------------------------
 
-const TERRAIN_PLAINS:    Color = Color(0.70, 0.66, 0.40)
-const TERRAIN_FOREST:    Color = Color(0.30, 0.42, 0.22)
-const TERRAIN_MOUNTAINS: Color = Color(0.48, 0.42, 0.36)
-const TERRAIN_DESERT:    Color = Color(0.92, 0.81, 0.54)
+const TERRAIN_PLAINS:    Color = Color(0.72, 0.68, 0.42)
+const TERRAIN_FOREST:    Color = Color(0.30, 0.44, 0.22)
+const TERRAIN_MOUNTAINS: Color = Color(0.52, 0.46, 0.38)
+const TERRAIN_DESERT:    Color = Color(0.92, 0.82, 0.54)
 const TERRAIN_COASTAL:   Color = Color(0.80, 0.72, 0.54)
-const TERRAIN_HILLS:     Color = Color(0.60, 0.54, 0.34)
-const TERRAIN_STEPPE:    Color = Color(0.78, 0.66, 0.40)
-const TERRAIN_SEA:       Color = Color(0.32, 0.46, 0.56)
-const TERRAIN_WILDERNESS: Color = Color(0.55, 0.52, 0.42)
-
-# Maximum distance (pixels) a land pixel can be from its nearest
-# land-region seed before it is classified as "wilderness" — real
-# land that no kingdom in our known world claims. Roughly a week's
-# ride at the map scale.
-const WILDERNESS_MAX_DIST_SQ: float = 140.0 * 140.0
+const TERRAIN_HILLS:     Color = Color(0.62, 0.56, 0.34)
+const TERRAIN_STEPPE:    Color = Color(0.80, 0.70, 0.44)
+const TERRAIN_SEA:       Color = Color(0.28, 0.42, 0.54)
 
 const TERRAIN_ENUM_PLAINS:    int = 0
 const TERRAIN_ENUM_FOREST:    int = 1
@@ -76,25 +62,24 @@ const TERRAIN_ENUM_STEPPE:    int = 6
 # --- State ------------------------------------------------------------------
 
 var _region_ids: Array[String] = []
-var _region_polys: Array = []
 var _region_terrain: PackedInt32Array = PackedInt32Array()
-var _region_is_sea: PackedByteArray = PackedByteArray()
+var _region_center_px: PackedVector2Array = PackedVector2Array()
 
 var _landmass_polys: Array = []
-
-var _region_grid: PackedInt32Array = PackedInt32Array()
 var _land_mask: PackedByteArray = PackedByteArray()
+var _land_pixel_count: int = 0
 
-var _region_noise_x: FastNoiseLite = null
-var _region_noise_y: FastNoiseLite = null
-
-const HASH_W: int = 64
-const HASH_H: int = 32
+# Voronoi seeds — one per cell.
 var _seeds_pos: PackedVector2Array = PackedVector2Array()
 var _seeds_region_idx: PackedInt32Array = PackedInt32Array()
 var _seeds_cell_id: PackedInt32Array = PackedInt32Array()
+
+# Spatial hash for nearest-seed queries.
+const HASH_W: int = 128
+const HASH_H: int = 64
 var _hash: Array = []
 
+# Cell -> aggregate stats (built in the bake pass).
 var _cell_pixel_count: PackedInt32Array = PackedInt32Array()
 var _cell_centroid_sum_x: PackedFloat64Array = PackedFloat64Array()
 var _cell_centroid_sum_y: PackedFloat64Array = PackedFloat64Array()
@@ -110,18 +95,12 @@ func run() -> void:
 	var world_terrain: Dictionary = _read_world_terrains()
 	_prepare_regions(world_terrain)
 	_prepare_landmasses()
-	_init_region_noise()
 
-	# Landmasses first so region rasterisation can skip land-regions
-	# for sea pixels and vice-versa.
 	print("[bake] rasterising landmasses ...")
 	_rasterise_landmasses()
 
-	print("[bake] rasterising regions ...")
-	_rasterise_regions()
-
-	print("[bake] placing Voronoi seeds ...")
-	_place_seeds()
+	print("[bake] placing uniform Voronoi seeds ...")
+	_place_seeds_uniform()
 
 	print("[bake] building spatial hash ...")
 	_build_hash()
@@ -147,7 +126,6 @@ func run() -> void:
 func _read_world_terrains() -> Dictionary:
 	var out: Dictionary = {}
 	if not FileAccess.file_exists("res://data/world_500bce.json"):
-		push_error("[bake] world_500bce.json missing")
 		return out
 	var raw: String = FileAccess.get_file_as_string("res://data/world_500bce.json")
 	var parsed: Variant = JSON.parse_string(raw)
@@ -178,17 +156,23 @@ func _terrain_string_to_enum(s: String) -> int:
 
 func _prepare_regions(world_terrain: Dictionary) -> void:
 	_region_ids.clear()
-	_region_polys.clear()
 	_region_terrain = PackedInt32Array()
-	_region_is_sea = PackedByteArray()
+	_region_center_px = PackedVector2Array()
 
-	var src: Dictionary = MapGeometry.norm_regions()
+	var src: Dictionary = MapGeometry.latlon_regions()
 	for rid in src.keys():
+		var r: Dictionary = src[rid]
 		_region_ids.append(String(rid))
-		_region_polys.append(_norm_poly_to_px(src[rid]))
-		_region_terrain.append(int(world_terrain.get(rid, TERRAIN_ENUM_PLAINS)))
-		_region_is_sea.append(1 if MapGeometry.is_sea_region(rid) else 0)
-
+		# Region terrain: authoritative from MapGeometry; world JSON
+		# override if it carries one (keeps old content working).
+		var t_str: String = String(r.get("terrain", "PLAINS"))
+		var t: int = _terrain_string_to_enum(t_str)
+		if world_terrain.has(rid):
+			t = int(world_terrain[rid])
+		_region_terrain.append(t)
+		_region_center_px.append(
+			MapGeometry.region_center_px(r, BITMAP_W, BITMAP_H)
+		)
 	print("[bake]   %d regions prepared" % _region_ids.size())
 
 
@@ -196,15 +180,10 @@ func _prepare_landmasses() -> void:
 	_landmass_polys.clear()
 	if not FileAccess.file_exists(LAND_GEOJSON):
 		push_error("[bake] Natural Earth land file missing: %s" % LAND_GEOJSON)
-		# Fall back to hand polygons so the bake still produces something.
-		for norm in MapGeometry.norm_landmasses():
-			_landmass_polys.append(_norm_poly_to_px(norm))
 		return
-
 	var raw: String = FileAccess.get_file_as_string(LAND_GEOJSON)
 	var parsed: Variant = JSON.parse_string(raw)
 	if not (parsed is Dictionary):
-		push_error("[bake] Natural Earth JSON malformed")
 		return
 	var polys: Variant = (parsed as Dictionary).get("polygons", [])
 	if not (polys is Array):
@@ -235,70 +214,8 @@ func _norm_poly_to_px(norm: PackedVector2Array) -> PackedVector2Array:
 	return out
 
 
-func _init_region_noise() -> void:
-	_region_noise_x = FastNoiseLite.new()
-	_region_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_region_noise_x.seed = BAKE_SEED ^ 0xC0A57
-	_region_noise_x.frequency = REGION_NOISE_FREQ
-	_region_noise_x.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_region_noise_x.fractal_octaves = 3
-	_region_noise_x.fractal_lacunarity = 2.1
-	_region_noise_x.fractal_gain = 0.55
-
-	_region_noise_y = FastNoiseLite.new()
-	_region_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_region_noise_y.seed = BAKE_SEED ^ 0xCA57B
-	_region_noise_y.frequency = REGION_NOISE_FREQ
-	_region_noise_y.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_region_noise_y.fractal_octaves = 3
-	_region_noise_y.fractal_lacunarity = 2.1
-	_region_noise_y.fractal_gain = 0.55
-
-
-## Returns a small noise-warped query point for INTER-region
-## boundaries. We keep hand-drawn region shapes organic without
-## touching the Natural-Earth coastline.
-func _region_warp(px: float, py: float) -> Vector2:
-	var nx: float = _region_noise_x.get_noise_2d(px, py)
-	var ny: float = _region_noise_y.get_noise_2d(px, py)
-	return Vector2(px + nx * REGION_NOISE_AMP, py + ny * REGION_NOISE_AMP)
-
-
 # --- Rasterisation ----------------------------------------------------------
 
-func _rasterise_regions() -> void:
-	_region_grid.resize(BITMAP_W * BITMAP_H)
-	for i in range(_region_grid.size()):
-		_region_grid[i] = -1
-
-	var margin: int = int(ceil(REGION_NOISE_AMP)) + 2
-	for region_idx in range(_region_ids.size()):
-		var poly: PackedVector2Array = _region_polys[region_idx]
-		var is_sea: bool = _region_is_sea[region_idx] == 1
-		var bbox: Rect2 = MapGeometry.poly_bbox(poly)
-		var x0: int = maxi(0, int(floor(bbox.position.x)) - margin)
-		var y0: int = maxi(0, int(floor(bbox.position.y)) - margin)
-		var x1: int = mini(BITMAP_W, int(ceil(bbox.position.x + bbox.size.x)) + margin)
-		var y1: int = mini(BITMAP_H, int(ceil(bbox.position.y + bbox.size.y)) + margin)
-		for y in range(y0, y1):
-			var row_off: int = y * BITMAP_W
-			for x in range(x0, x1):
-				if _region_grid[row_off + x] != -1:
-					continue
-				# Clip against real land mask so land-regions can't
-				# claim water and sea-regions can't claim land.
-				var is_land_pixel: bool = _land_mask[row_off + x] == 1
-				if is_sea and is_land_pixel:
-					continue
-				if (not is_sea) and not is_land_pixel:
-					continue
-				var q: Vector2 = _region_warp(float(x) + 0.5, float(y) + 0.5)
-				if Geometry2D.is_point_in_polygon(q, poly):
-					_region_grid[row_off + x] = region_idx
-
-
-## Rasterise the Natural-Earth coastline exactly. No warping — the
-## source data already captures every fjord and island we care about.
 func _rasterise_landmasses() -> void:
 	_land_mask.resize(BITMAP_W * BITMAP_H)
 	for i in range(_land_mask.size()):
@@ -318,89 +235,111 @@ func _rasterise_landmasses() -> void:
 				if Geometry2D.is_point_in_polygon(Vector2(float(x) + 0.5, float(y) + 0.5), poly):
 					_land_mask[row_off + x] = 1
 
+	_land_pixel_count = 0
+	for i in range(_land_mask.size()):
+		_land_pixel_count += _land_mask[i]
+	print("[bake]   land mask: %d / %d pixels (%.1f%%)"
+		% [_land_pixel_count, _land_mask.size(),
+		   100.0 * float(_land_pixel_count) / float(_land_mask.size())])
 
-# --- Voronoi seeds ----------------------------------------------------------
 
-func _place_seeds() -> void:
+# --- Uniform Voronoi seeds --------------------------------------------------
+#
+# Proper Poisson-disc via dart-throwing with a seed spatial hash. All
+# existing seeds within a 3x3 hash neighbourhood are checked (not just
+# the last N), so accepted seeds really are min_dist apart. This is
+# what makes cell sizes uniform.
+
+func _place_seeds_uniform() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = BAKE_SEED
 
-	var land_areas: PackedFloat64Array = PackedFloat64Array()
-	var sea_areas:  PackedFloat64Array = PackedFloat64Array()
-	land_areas.resize(_region_ids.size())
-	sea_areas.resize(_region_ids.size())
-	var total_land_area: float = 0.0
-	var total_sea_area:  float = 0.0
-	for region_idx in range(_region_ids.size()):
-		var a: float = absf(_polygon_area(_region_polys[region_idx]))
-		if _region_is_sea[region_idx] == 1:
-			sea_areas[region_idx] = a
-			total_sea_area += a
-		else:
-			land_areas[region_idx] = a
-			total_land_area += a
+	# Target area per cell — derived from real land area so cells are
+	# the same size regardless of which region they end up in.
+	var area_per_cell: float = float(_land_pixel_count) / float(TARGET_CELLS)
+	# Poisson-disc min distance: a dart-throwing disc that packs to
+	# ~hex density yields area ≈ r^2 * sqrt(3) * π / (2π) ≈ r² * 1.5.
+	# Back-solving for r and scaling 0.85× accounts for coast wastage.
+	var min_dist: float = sqrt(area_per_cell / 1.5) * 0.85
+	var min_dist_sq: float = min_dist * min_dist
 
-	var counts: PackedInt32Array = PackedInt32Array()
-	counts.resize(_region_ids.size())
-	for region_idx in range(_region_ids.size()):
-		var target: int
-		if _region_is_sea[region_idx] == 1:
-			target = int(round(sea_areas[region_idx] / maxf(total_sea_area, 1.0) * float(TARGET_CELLS_SEA)))
-		else:
-			target = int(round(land_areas[region_idx] / maxf(total_land_area, 1.0) * float(TARGET_CELLS_LAND)))
-		counts[region_idx] = maxi(target, MIN_CELLS_PER_REGION)
+	print("[bake]   poisson disc: target=%d, min_dist=%.1fpx" % [TARGET_CELLS, min_dist])
+
+	# Spatial hash sized so a 3x3 neighbourhood covers min_dist radius.
+	# Cell side = min_dist / sqrt(2) guarantees the 3x3 block fully
+	# contains the disc.
+	var hash_cell: float = min_dist / sqrt(2.0)
+	var hw: int = maxi(1, int(ceil(float(BITMAP_W) / hash_cell)))
+	var hh: int = maxi(1, int(ceil(float(BITMAP_H) / hash_cell)))
+	var seed_hash: Array = []
+	seed_hash.resize(hw * hh)
+	for i in range(seed_hash.size()):
+		seed_hash[i] = -1  # -1 = empty; one seed per cell max
 
 	_seeds_pos = PackedVector2Array()
 	_seeds_region_idx = PackedInt32Array()
 	_seeds_cell_id = PackedInt32Array()
-	var next_id: int = 1   # 0 is reserved for void
+	var next_id: int = 1  # cell 0 reserved for sea / void
 
-	for region_idx in range(_region_ids.size()):
-		var poly: PackedVector2Array = _region_polys[region_idx]
-		var bbox: Rect2 = MapGeometry.poly_bbox(poly)
-		var want: int = counts[region_idx]
-		var got: int = 0
-		var attempts: int = 0
-		var max_attempts: int = want * 80
-		var min_dist_sq: float = (bbox.size.length() * bbox.size.length()) / maxf(float(want) * 2.2, 1.0)
-		while got < want and attempts < max_attempts:
-			attempts += 1
-			var pt: Vector2 = Vector2(
-				rng.randf_range(bbox.position.x, bbox.position.x + bbox.size.x),
-				rng.randf_range(bbox.position.y, bbox.position.y + bbox.size.y),
-			)
-			if not Geometry2D.is_point_in_polygon(pt, poly):
+	var max_attempts: int = TARGET_CELLS * 40
+	var attempts: int = 0
+	while _seeds_pos.size() < TARGET_CELLS and attempts < max_attempts:
+		attempts += 1
+		var pt: Vector2 = Vector2(
+			rng.randf_range(0.0, float(BITMAP_W)),
+			rng.randf_range(0.0, float(BITMAP_H)),
+		)
+		# Must be on land.
+		var ix: int = int(pt.x)
+		var iy: int = int(pt.y)
+		if ix < 0 or iy < 0 or ix >= BITMAP_W or iy >= BITMAP_H:
+			continue
+		if _land_mask[iy * BITMAP_W + ix] != 1:
+			continue
+		# Poisson-disc check against the 3x3 hash neighbourhood.
+		var gx: int = clampi(int(pt.x / hash_cell), 0, hw - 1)
+		var gy: int = clampi(int(pt.y / hash_cell), 0, hh - 1)
+		var too_close: bool = false
+		for dy in range(-2, 3):
+			if too_close:
+				break
+			var cy: int = gy + dy
+			if cy < 0 or cy >= hh:
 				continue
-			# Tiny Poisson-disc reject: no two seeds of the same region
-			# closer than min_dist. We only check the last 48 seeds to
-			# stay O(N).
-			var too_close: bool = false
-			var lo: int = maxi(0, _seeds_pos.size() - 48)
-			for i in range(_seeds_pos.size() - 1, lo - 1, -1):
-				if _seeds_region_idx[i] != region_idx:
+			for dx in range(-2, 3):
+				var cx: int = gx + dx
+				if cx < 0 or cx >= hw:
 					continue
-				if _seeds_pos[i].distance_squared_to(pt) < min_dist_sq:
+				var neighbor: int = seed_hash[cy * hw + cx]
+				if neighbor < 0:
+					continue
+				if _seeds_pos[neighbor].distance_squared_to(pt) < min_dist_sq:
 					too_close = true
 					break
-			if too_close:
-				continue
-			_seeds_pos.append(pt)
-			_seeds_region_idx.append(region_idx)
-			_seeds_cell_id.append(next_id)
-			next_id += 1
-			got += 1
+		if too_close:
+			continue
 
-	print("[bake]   placed %d seeds" % _seeds_pos.size())
+		# Accept.
+		var sid: int = _seeds_pos.size()
+		_seeds_pos.append(pt)
+		_seeds_region_idx.append(_closest_region_idx(pt))
+		_seeds_cell_id.append(next_id)
+		next_id += 1
+		seed_hash[gy * hw + gx] = sid
+
+	print("[bake]   placed %d seeds (target %d, attempts %d)"
+		% [_seeds_pos.size(), TARGET_CELLS, attempts])
 
 
-func _polygon_area(poly: PackedVector2Array) -> float:
-	if poly.size() < 3:
-		return 0.0
-	var a: float = 0.0
-	for i in range(poly.size()):
-		var j: int = (i + 1) % poly.size()
-		a += poly[i].x * poly[j].y - poly[j].x * poly[i].y
-	return a * 0.5
+func _closest_region_idx(px: Vector2) -> int:
+	var best: float = INF
+	var best_idx: int = 0
+	for i in range(_region_center_px.size()):
+		var d: float = _region_center_px[i].distance_squared_to(px)
+		if d < best:
+			best = d
+			best_idx = i
+	return best_idx
 
 
 # --- Spatial hash + nearest-seed --------------------------------------------
@@ -415,11 +354,7 @@ func _build_hash() -> void:
 		(_hash[gy * HASH_W + gx] as Array).append(i)
 
 
-## Nearest seed cell id matching a predicate.
-##   match_region_idx >= 0: only seeds in that exact region.
-##   match_region_idx == -1: seeds where _region_is_sea == want_sea.
-##   max_dist_sq > 0: return 0 if nothing is within that squared distance.
-func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int = 0, max_dist_sq: float = 0.0) -> int:
+func _nearest_cell_id(px: float, py: float) -> int:
 	var cell_w: float = float(BITMAP_W) / float(HASH_W)
 	var cell_h: float = float(BITMAP_H) / float(HASH_H)
 	var gx: int = clampi(int(px / cell_w), 0, HASH_W - 1)
@@ -441,14 +376,6 @@ func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int
 				if cx < 0 or cy < 0 or cx >= HASH_W or cy >= HASH_H:
 					continue
 				for si in _hash[cy * HASH_W + cx]:
-					var sri: int = _seeds_region_idx[si]
-					var ok: bool
-					if match_region_idx >= 0:
-						ok = (sri == match_region_idx)
-					else:
-						ok = (_region_is_sea[sri] == want_sea)
-					if not ok:
-						continue
 					var sp: Vector2 = _seeds_pos[si]
 					var d: float = (sp.x - px) * (sp.x - px) + (sp.y - py) * (sp.y - py)
 					if d < best:
@@ -459,8 +386,6 @@ func _nearest_cell_id(px: float, py: float, match_region_idx: int, want_sea: int
 			if best < step * step:
 				break
 		radius += 1
-	if max_dist_sq > 0.0 and best > max_dist_sq:
-		return 0
 	return best_id
 
 
@@ -470,7 +395,7 @@ func _bake_pixels() -> Dictionary:
 	var noise_terrain: FastNoiseLite = FastNoiseLite.new()
 	noise_terrain.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise_terrain.seed = BAKE_SEED
-	noise_terrain.frequency = 0.0035
+	noise_terrain.frequency = 0.0040
 
 	var noise_shade: FastNoiseLite = FastNoiseLite.new()
 	noise_shade.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -514,17 +439,12 @@ func _bake_pixels() -> Dictionary:
 		for x in range(BITMAP_W):
 			var i: int = row_off + x
 			var fx: float = float(x) + 0.5
-			var region_idx: int = _region_grid[i]
 			var is_land: bool = _land_mask[i] == 1
 
+			# Sea pixels never get a cell. Shader paints them as water.
 			var cell_id: int = 0
-			var is_wilderness: bool = false
-			if region_idx >= 0:
-				cell_id = _nearest_cell_id(fx, fy, region_idx)
-			elif is_land:
-				cell_id = _nearest_cell_id(fx, fy, -1, 0, WILDERNESS_MAX_DIST_SQ)
-				if cell_id == 0:
-					is_wilderness = true
+			if is_land:
+				cell_id = _nearest_cell_id(fx, fy)
 
 			var b4: int = i * 4
 			provinces_bytes[b4 + 0] = cell_id & 0xFF
@@ -532,20 +452,11 @@ func _bake_pixels() -> Dictionary:
 			provinces_bytes[b4 + 2] = (cell_id >> 16) & 0xFF
 			provinces_bytes[b4 + 3] = 255
 
-			# Terrain comes from the cell's region so unassigned-land
-			# pixels still colour correctly once they've been adopted.
-			# Wilderness (real land outside any known region) gets a
-			# dedicated muted colour so it reads as land but isn't
-			# coloured by any kingdom in the political overlay.
+			# Terrain.
 			var terr: Color = TERRAIN_SEA
-			var is_sea_cell: bool = true
 			if cell_id > 0:
 				var cri: int = _seeds_region_idx[cell_id - 1]
-				is_sea_cell = (_region_is_sea[cri] == 1)
-				terr = TERRAIN_SEA if is_sea_cell else _terrain_base(_region_terrain[cri])
-			elif is_wilderness:
-				terr = TERRAIN_WILDERNESS
-				is_sea_cell = false
+				terr = _terrain_base(_region_terrain[cri])
 			var nt: float = noise_terrain.get_noise_2d(fx, fy) * 0.5 + 0.5
 			var tint: float = 0.85 + nt * 0.30
 			terrain_bytes[b4 + 0] = clampi(int(terr.r * tint * 255.0), 0, 255)
@@ -553,8 +464,9 @@ func _bake_pixels() -> Dictionary:
 			terrain_bytes[b4 + 2] = clampi(int(terr.b * tint * 255.0), 0, 255)
 			terrain_bytes[b4 + 3] = 255
 
+			# Shading: bolder on land, flatter on water.
 			var ns: float = noise_shade.get_noise_2d(fx, fy) * 0.5 + 0.5
-			var shade: float = 0.35 + ns * 0.65 if is_land else 0.50 + ns * 0.25
+			var shade: float = 0.35 + ns * 0.65 if is_land else 0.48 + ns * 0.18
 			var s8: int = clampi(int(shade * 255.0), 0, 255)
 			shading_bytes[b4 + 0] = s8
 			shading_bytes[b4 + 1] = s8
@@ -602,7 +514,6 @@ func _terrain_base(t: int) -> Color:
 func _ensure_dir(path: String) -> void:
 	var d: DirAccess = DirAccess.open("res://")
 	if d == null:
-		push_error("[bake] cannot open res://")
 		return
 	if not d.dir_exists(path):
 		d.make_dir_recursive(path)

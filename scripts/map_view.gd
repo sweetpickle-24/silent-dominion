@@ -39,7 +39,25 @@ const KINGDOM_COLORS: Dictionary = {
 	"carthage":        Color(0.60, 0.20, 0.22),
 	"rome":            Color(0.88, 0.52, 0.30),
 	"etruscan_league": Color(0.40, 0.58, 0.32),
+	"thebes":          Color(0.55, 0.40, 0.22),
+	"syracuse":        Color(0.52, 0.72, 0.62),
+	"massalia":        Color(0.42, 0.60, 0.78),
+	"odrysia":         Color(0.72, 0.55, 0.32),
+	"molossia":        Color(0.60, 0.50, 0.28),
+	"colchis":         Color(0.48, 0.58, 0.70),
+	"nabatea":         Color(0.74, 0.58, 0.38),
+	"kush":            Color(0.55, 0.35, 0.28),
+	"cyrene":          Color(0.68, 0.78, 0.52),
+	"tartessos":       Color(0.68, 0.42, 0.36),
 }
+
+# Major legend kingdoms (tier-1 powers only). Keeps the footer
+# readable now that we track 19 kingdoms.
+const LEGEND_KINGDOMS: Array = [
+	"athens", "sparta", "corinth", "thebes",
+	"macedon", "persia", "egypt", "carthage",
+	"rome", "etruscan_league", "syracuse",
+]
 
 # --- Layout -----------------------------------------------------------------
 
@@ -367,9 +385,7 @@ func _clear_detail() -> void:
 func _render_legend() -> void:
 	for c in _legend.get_children():
 		c.queue_free()
-	var ids: Array = KINGDOM_COLORS.keys()
-	ids.sort()
-	for id in ids:
+	for id in LEGEND_KINGDOMS:
 		var k: Kingdom = WorldData.get_kingdom(String(id))
 		if k == null:
 			continue
@@ -691,20 +707,35 @@ func _on_unrest_changed(province_id: String) -> void:
 		_render_detail(p)
 
 
-# --- Labels -----------------------------------------------------------------
+# --- Labels + cities --------------------------------------------------------
+#
+# Zoom tiers follow the §7.3 "Map and Zoom Levels" doc:
+#
+#   World    (zoom ~1.0)    kingdom borders, only tier-1 cities + big regions
+#   Regional (zoom ~1.8)    region borders, tier-2 cities
+#   Province (zoom ~4.0)    every region labelled, tier-3 cities
+#   City     (zoom ~7.0+)   city districts drawn around tier-1/2 cities
+#
+# Everything is drawn in canvas-space on top of the pan/zoom transform,
+# so fonts stay readable at every zoom.
 
-## Draw region labels in canvas-space. We scale font-size down as the
-## user zooms so labels keep their physical size, but we fade small
-## regions in only once the user is close enough for them to matter.
+const LOD_REGIONAL: float = 1.8
+const LOD_PROVINCE: float = 3.5
+const LOD_CITY:     float = 6.5
+
 func _draw_labels(_c: Control = null) -> void:
 	if _renderer == null:
 		return
+	_draw_region_labels()
+	_draw_cities()
+	if _zoom_user >= LOD_CITY:
+		_draw_city_districts()
+
+
+func _draw_region_labels() -> void:
 	var font: Font = get_theme_default_font()
-	var base_size: int = 14
 	for rid in WorldData.provinces.keys():
 		var prov: Province = WorldData.provinces[rid]
-		if MapGeometry.is_sea_region(rid):
-			continue
 		var cell_ids: Array = MapData.cells_in_region(rid)
 		if cell_ids.is_empty():
 			continue
@@ -718,24 +749,196 @@ func _draw_labels(_c: Control = null) -> void:
 		if biggest == null:
 			continue
 		var bs: Vector2 = _renderer.bitmap_size()
+		var eff: float = _fit_zoom * _zoom_user
 		var px: Vector2 = Vector2(
-			biggest.center_uv.x * bs.x * (_fit_zoom * _zoom_user) + _map_offset.x,
-			biggest.center_uv.y * bs.y * (_fit_zoom * _zoom_user) + _map_offset.y,
+			biggest.center_uv.x * bs.x * eff + _map_offset.x,
+			biggest.center_uv.y * bs.y * eff + _map_offset.y,
 		)
 		if px.x < 0 or px.y < 0 or px.x > _canvas.size.x or px.y > _canvas.size.y:
 			continue
-		var size: int = base_size
-		var alpha: float = 1.0
+
+		# Tier the label by how big the region is.
+		var tier: int = 1
 		if prov.population < 200:
-			alpha = clampf((_zoom_user - 1.8) / 0.8, 0.0, 1.0)
-			if alpha <= 0.01:
-				continue
+			tier = 2
+		if prov.population < 50:
+			tier = 3
+
+		var alpha: float = _region_label_alpha(tier)
+		if alpha <= 0.02:
+			continue
+		var size: int = _region_label_size(tier)
 		var txt: String = prov.province_name
 		var tsize: Vector2 = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
 		var pos: Vector2 = Vector2(px.x - tsize.x * 0.5, px.y + tsize.y * 0.4)
 		var shadow: Color = Color(0, 0, 0, 0.55 * alpha)
 		_labels_layer.draw_string(font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, shadow)
 		_labels_layer.draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.98, 0.94, 0.84, alpha))
+
+
+func _region_label_alpha(tier: int) -> float:
+	match tier:
+		1: return 1.0
+		2: return clampf((_zoom_user - 1.4) / 0.8, 0.0, 1.0)
+		3: return clampf((_zoom_user - 3.0) / 1.0, 0.0, 1.0)
+	return 1.0
+
+
+func _region_label_size(tier: int) -> int:
+	match tier:
+		1: return 14
+		2: return 12
+		3: return 11
+	return 12
+
+
+## City markers. Drawn as small inked circles with shadowed labels.
+## Each city has a tier; its visibility fades in as the player zooms
+## past that tier's threshold. Capitals (tier ≤ 2) are always on.
+func _draw_cities() -> void:
+	var font: Font = get_theme_default_font()
+	var bs: Vector2 = _renderer.bitmap_size()
+	var eff: float = _fit_zoom * _zoom_user
+	for cid in MapGeometry.cities().keys():
+		var city: Dictionary = MapGeometry.cities()[cid]
+		var tier: int = int(city.get("tier", 3))
+		var alpha: float = _city_alpha(tier)
+		if alpha <= 0.02:
+			continue
+		var n: Vector2 = MapGeometry.ll_to_norm(float(city.get("lon", 0.0)), float(city.get("lat", 0.0)))
+		var px: Vector2 = Vector2(
+			n.x * bs.x * eff + _map_offset.x,
+			n.y * bs.y * eff + _map_offset.y,
+		)
+		if px.x < 0 or px.y < 0 or px.x > _canvas.size.x or px.y > _canvas.size.y:
+			continue
+
+		var dot_r: float = _city_dot_radius(tier)
+		var k_col: Color = KINGDOM_COLORS.get(String(city.get("kingdom", "")), Color(0.92, 0.88, 0.74))
+		var ring_col: Color = Color(0, 0, 0, 0.80 * alpha)
+		_labels_layer.draw_circle(px, dot_r + 1.2, ring_col)
+		_labels_layer.draw_circle(px, dot_r, Color(k_col.r, k_col.g, k_col.b, alpha))
+		_labels_layer.draw_circle(px, dot_r * 0.38, Color(0.12, 0.08, 0.04, alpha))
+
+		var txt: String = String(city.get("name", ""))
+		if txt.is_empty():
+			continue
+		var size: int = _city_label_size(tier)
+		var tsize: Vector2 = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		var pos: Vector2 = Vector2(px.x - tsize.x * 0.5, px.y - dot_r - 4.0)
+		var shadow: Color = Color(0, 0, 0, 0.75 * alpha)
+		_labels_layer.draw_string(font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, shadow)
+		_labels_layer.draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.96, 0.86, alpha))
+
+
+func _city_alpha(tier: int) -> float:
+	match tier:
+		1: return 1.0
+		2: return clampf((_zoom_user - 1.2) / 0.6, 0.0, 1.0)
+		3: return clampf((_zoom_user - LOD_PROVINCE) / 0.8, 0.0, 1.0)
+		4: return clampf((_zoom_user - LOD_CITY)    / 0.8, 0.0, 1.0)
+	return 1.0
+
+
+func _city_dot_radius(tier: int) -> float:
+	match tier:
+		1: return 4.5
+		2: return 3.5
+		3: return 2.5
+		4: return 2.0
+	return 2.5
+
+
+func _city_label_size(tier: int) -> int:
+	match tier:
+		1: return 13
+		2: return 12
+		3: return 11
+		4: return 10
+	return 11
+
+
+## City districts are the innermost zoom (§8.5). We ring a few
+## procedural district polygons around each tier-1/2 city and label
+## them. Districts aren't clickable yet — they will feed into the host
+## system once §10 lands — but they make the city-zoom feel like the
+## docs describe.
+const CITY_DISTRICTS: Array = [
+	"Administrative", "Financial", "Merchant",
+	"Religious", "Scholarly", "Port",
+]
+
+func _draw_city_districts() -> void:
+	var font: Font = get_theme_default_font()
+	var bs: Vector2 = _renderer.bitmap_size()
+	var eff: float = _fit_zoom * _zoom_user
+	var alpha: float = clampf((_zoom_user - LOD_CITY) / 1.5, 0.0, 1.0)
+	if alpha <= 0.02:
+		return
+	var ring_r: float = 40.0 + eff * 0.6
+	for cid in MapGeometry.cities().keys():
+		var city: Dictionary = MapGeometry.cities()[cid]
+		if int(city.get("tier", 3)) > 2:
+			continue
+		var n: Vector2 = MapGeometry.ll_to_norm(float(city.get("lon", 0.0)), float(city.get("lat", 0.0)))
+		var center: Vector2 = Vector2(
+			n.x * bs.x * eff + _map_offset.x,
+			n.y * bs.y * eff + _map_offset.y,
+		)
+		if center.x < -ring_r or center.y < -ring_r:
+			continue
+		if center.x > _canvas.size.x + ring_r or center.y > _canvas.size.y + ring_r:
+			continue
+
+		var n_dist: int = CITY_DISTRICTS.size()
+		for i in range(n_dist):
+			var t0: float = float(i) / float(n_dist) * TAU
+			var t1: float = float(i + 1) / float(n_dist) * TAU
+			var wedge: PackedVector2Array = PackedVector2Array()
+			wedge.append(center)
+			var steps: int = 12
+			for s in range(steps + 1):
+				var t: float = lerpf(t0, t1, float(s) / float(steps))
+				wedge.append(center + Vector2(cos(t), sin(t)) * ring_r)
+			var col: Color = _district_color(i)
+			col.a *= 0.22 * alpha
+			_labels_layer.draw_colored_polygon(wedge, col)
+			# Thin border.
+			var border: PackedVector2Array = PackedVector2Array()
+			border.append(center + Vector2(cos(t0), sin(t0)) * ring_r)
+			border.append(center)
+			border.append(center + Vector2(cos(t1), sin(t1)) * ring_r)
+			_labels_layer.draw_polyline(border, Color(0.08, 0.05, 0.02, 0.55 * alpha), 1.0)
+			# Label.
+			var tm: float = (t0 + t1) * 0.5
+			var label_pos: Vector2 = center + Vector2(cos(tm), sin(tm)) * (ring_r * 0.60)
+			var txt: String = CITY_DISTRICTS[i]
+			var tsize: Vector2 = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
+			_labels_layer.draw_string(
+				font,
+				label_pos - tsize * 0.5,
+				txt,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
+				Color(0.98, 0.94, 0.84, alpha),
+			)
+		# Outer ring.
+		var ring: PackedVector2Array = PackedVector2Array()
+		var steps2: int = 64
+		for s in range(steps2 + 1):
+			var t: float = float(s) / float(steps2) * TAU
+			ring.append(center + Vector2(cos(t), sin(t)) * ring_r)
+		_labels_layer.draw_polyline(ring, Color(0.08, 0.05, 0.02, 0.75 * alpha), 1.2)
+
+
+func _district_color(i: int) -> Color:
+	match i:
+		0: return Color(0.92, 0.72, 0.32, 1.0)   # admin
+		1: return Color(0.38, 0.56, 0.88, 1.0)   # financial
+		2: return Color(0.78, 0.52, 0.24, 1.0)   # merchant
+		3: return Color(0.72, 0.38, 0.62, 1.0)   # religious
+		4: return Color(0.32, 0.68, 0.58, 1.0)   # scholarly
+		5: return Color(0.30, 0.48, 0.78, 1.0)   # port
+	return Color(0.70, 0.65, 0.52, 1.0)
 
 
 # --- Helpers ----------------------------------------------------------------

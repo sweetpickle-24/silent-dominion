@@ -158,6 +158,16 @@ func _kingdom_color(id: String) -> Color:
 		"carthage":        return Color(0.60, 0.20, 0.22)
 		"rome":            return Color(0.88, 0.52, 0.30)
 		"etruscan_league": return Color(0.40, 0.58, 0.32)
+		"thebes":          return Color(0.55, 0.40, 0.22)
+		"syracuse":        return Color(0.52, 0.72, 0.62)
+		"massalia":        return Color(0.42, 0.60, 0.78)
+		"odrysia":         return Color(0.72, 0.55, 0.32)
+		"molossia":        return Color(0.60, 0.50, 0.28)
+		"colchis":         return Color(0.48, 0.58, 0.70)
+		"nabatea":         return Color(0.74, 0.58, 0.38)
+		"kush":            return Color(0.55, 0.35, 0.28)
+		"cyrene":          return Color(0.68, 0.78, 0.52)
+		"tartessos":       return Color(0.68, 0.42, 0.36)
 	return Color(0.70, 0.65, 0.52)
 
 
