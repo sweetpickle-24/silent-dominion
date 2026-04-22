@@ -75,6 +75,17 @@ func ruler_of(kingdom_id: String) -> Actor:
 	return null
 
 
+## Every living non-ruler actor whose relationship has crossed the
+## HOST_THRESHOLD. The §5 "stable of hosts" for the player — the only
+## actors through whom high-intervention actions can currently travel.
+func hosts() -> Array[Actor]:
+	var out: Array[Actor] = []
+	for a in actors.values():
+		if a.is_host():
+			out.append(a)
+	return out
+
+
 func add_actor(a: Actor) -> void:
 	actors[a.id] = a
 	_rebuild_indices()

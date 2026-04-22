@@ -54,6 +54,23 @@ enum Role {
 @export_range(-100, 100) var relationship: int = 0
 
 
+# --- Host status (§5) --------------------------------------------------------
+#
+# An actor becomes a "host" once they're loyal enough to act on your
+# behalf. Rulers are explicitly excluded — you don't run a ruler, you
+# influence them. Status is derived from relationship, so it rises and
+# falls with cultivation/decay automatically.
+const HOST_THRESHOLD: int = 60
+
+
+func is_host() -> bool:
+	if not is_alive():
+		return false
+	if role == Role.RULER:
+		return false
+	return relationship >= HOST_THRESHOLD
+
+
 # --- Lifecycle ---------------------------------------------------------------
 
 func is_alive() -> bool:

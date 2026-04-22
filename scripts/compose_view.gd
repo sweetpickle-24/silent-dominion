@@ -182,6 +182,8 @@ func _render_action_picker() -> void:
 
 func _build_action_card(def: ActionDefinition) -> Control:
 	var allowed: bool = Exposure.allows_tier(def.tier)
+	var has_host: bool = not def.requires_host_target or Actors.hosts().size() > 0
+	var enabled: bool = allowed and has_host
 
 	var card: Button = Button.new()
 	card.text = ""
@@ -189,13 +191,15 @@ func _build_action_card(def: ActionDefinition) -> Control:
 	card.focus_mode = Control.FOCUS_NONE
 	card.custom_minimum_size.y = 84.0
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.disabled = not allowed
+	card.disabled = not enabled
 	if not allowed:
 		card.tooltip_text = Exposure.block_reason(def.tier)
+	elif not has_host:
+		card.tooltip_text = "You have no hosts loyal enough to act for you yet."
 
 	var normal_sb: StyleBoxFlat = _card_stylebox(COLOR_CARD)
 	var hover_sb:  StyleBoxFlat = _card_stylebox(COLOR_CARD_HOVER)
-	if not allowed:
+	if not enabled:
 		normal_sb = _card_stylebox(Color(0.90, 0.86, 0.78, 1.0))
 	card.add_theme_stylebox_override("normal", normal_sb)
 	card.add_theme_stylebox_override("hover", hover_sb)
@@ -236,6 +240,13 @@ func _build_action_card(def: ActionDefinition) -> Control:
 	tier_tag.add_theme_font_size_override("font_size", 10)
 	title_row.add_child(tier_tag)
 
+	if def.requires_host_target:
+		var host_tag: Label = Label.new()
+		host_tag.text = "VIA HOST"
+		host_tag.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
+		host_tag.add_theme_font_size_override("font_size", 10)
+		title_row.add_child(host_tag)
+
 	# Blurb
 	var blurb: Label = Label.new()
 	blurb.text = def.blurb
@@ -264,6 +275,14 @@ func _build_action_card(def: ActionDefinition) -> Control:
 		var gate: Label = Label.new()
 		gate.text = Exposure.block_reason(def.tier)
 		gate.add_theme_color_override("font_color", COLOR_WAX)
+		gate.add_theme_font_size_override("font_size", 11)
+		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(gate)
+	elif not has_host:
+		name_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		var gate: Label = Label.new()
+		gate.text = "You have no hosts loyal enough to act for you yet. Cultivate one past the threshold first."
+		gate.add_theme_color_override("font_color", COLOR_INK_MUTED)
 		gate.add_theme_font_size_override("font_size", 11)
 		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(gate)
@@ -368,8 +387,11 @@ func _render_actor_target_list() -> void:
 	scroll.add_child(list)
 
 	var candidates: Array[Actor] = []
+	var host_only: bool = _selected_action != null and _selected_action.requires_host_target
 	for a in Actors.all_actors():
 		if not a.is_alive():
+			continue
+		if host_only and not a.is_host():
 			continue
 		if _kingdom_filter != ALL_KINGDOMS_KEY and a.kingdom_id != _kingdom_filter:
 			continue
@@ -380,7 +402,12 @@ func _render_actor_target_list() -> void:
 		return x.kingdom_id < y.kingdom_id)
 
 	if candidates.is_empty():
-		list.add_child(_make_body_line("No names fit that description on the table just now."))
+		if host_only:
+			list.add_child(_make_body_line(
+				"No host is yet loyal enough to act for you. Cultivate one past the threshold, and return."
+			))
+		else:
+			list.add_child(_make_body_line("No names fit that description on the table just now."))
 		return
 
 	for a in candidates:
@@ -425,6 +452,15 @@ func _build_actor_target_row(actor: Actor) -> Control:
 	meta.add_theme_font_size_override("font_size", 11)
 	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(meta)
+
+	if actor.is_host():
+		var host_tag: Label = Label.new()
+		host_tag.text = "HOST"
+		host_tag.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
+		host_tag.add_theme_font_size_override("font_size", 10)
+		host_tag.custom_minimum_size.x = 40.0
+		host_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hbox.add_child(host_tag)
 
 	row.pressed.connect(func() -> void: _issue_action(String(actor.id)))
 	return row

@@ -309,6 +309,15 @@ func _build_list_row(actor: Actor) -> Control:
 		rel.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hbox.add_child(rel)
 
+	if actor.is_host():
+		var host_tag: Label = Label.new()
+		host_tag.text = "HOST"
+		host_tag.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
+		host_tag.add_theme_font_size_override("font_size", 10)
+		host_tag.custom_minimum_size.x = 48.0
+		host_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hbox.add_child(host_tag)
+
 	row.pressed.connect(func() -> void: _show_detail(actor))
 	return row
 
@@ -398,6 +407,12 @@ func _show_detail(actor: Actor) -> void:
 	_body_vbox.add_child(_make_body_line(
 		"They %s." % TraitCues.relationship_phrase(actor.relationship)
 	))
+	if actor.is_host():
+		var host_line: Label = _make_body_line(
+			"They will act on your behalf, if you ask it carefully. They are a host."
+		)
+		host_line.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
+		_body_vbox.add_child(host_line)
 
 	_body_vbox.add_child(_make_divider())
 

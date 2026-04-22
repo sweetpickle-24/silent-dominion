@@ -53,6 +53,13 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		push_warning("[Actions] Action '%s' requires a target" % action_id)
 		return Scheduler.INVALID_HANDLE
 
+	if def.requires_host_target:
+		var host: Actor = Actors.get_actor(StringName(target_id))
+		if host == null or not host.is_host():
+			push_warning("[Actions] Action '%s' requires a loyal host; '%s' is not one." %
+				[action_id, target_id])
+			return Scheduler.INVALID_HANDLE
+
 	if not Exposure.allows_tier(def.tier):
 		push_warning("[Actions] Action '%s' blocked by exposure level: %s" %
 			[action_id, Exposure.level_name()])
@@ -150,6 +157,17 @@ func _modified_success_chance(def: ActionDefinition, target_id: String) -> float
 		var rel_bias: float = float(actor.relationship) / 200.0                # -0.5 .. +0.5
 		return clampf(def.base_success_chance + rel_bias, 0.05, 0.97)
 
+	if def.requires_host_target:
+		if actor == null:
+			return def.base_success_chance
+		# The host is the one doing the work: their charisma and the
+		# warmth of their loyalty to you set the ceiling. Paranoia of
+		# the court (proxied by their own paranoia) drags them down.
+		var char_bias: float    = (float(actor.charisma) - 50.0) / 150.0     # ~ +/- 0.33
+		var rel_bias_h: float   = (float(actor.relationship) - 60.0) / 200.0 # small extra tilt above the threshold
+		var par_bias: float     = -(float(actor.paranoia) - 50.0) / 300.0
+		return clampf(def.base_success_chance + char_bias + rel_bias_h + par_bias, 0.05, 0.95)
+
 	return def.base_success_chance
 
 
@@ -169,6 +187,12 @@ func _apply_relationship_effects(def: ActionDefinition, target_id: String, succe
 			delta = 2 if success else 0
 		&"seed_rumour":
 			delta = -5 if success else -1           # rumours target THEM, so damage their view of you if they trace it
+		&"host_sway_court":
+			# Using a host deepens the bond whether it worked or not;
+			# failure costs them a little because they stuck their neck out.
+			delta = 3 if success else -4
+		&"host_agitate":
+			delta = 2 if success else -6
 		_:
 			return 0
 	if delta == 0:
@@ -199,6 +223,10 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool) -> L
 		subject = "Word from the broker, re: %s" % target_name
 	elif def.id == &"cultivate":
 		subject = "A season of small kindnesses, re: %s" % target_name
+	elif def.id == &"host_sway_court":
+		subject = "From your host at court"
+	elif def.id == &"host_agitate":
+		subject = "The streets are hot"
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -249,6 +277,16 @@ func _body_for(def: ActionDefinition, target: String, success: bool) -> String:
 			if success:
 				return "It is done. %s accepted the silver, and the small thing you asked of them has been quietly arranged.\n\nMy account, and their receipt, are in the usual place." % target
 			return "The offer was placed with care and refused — without noise, to our good fortune. The silver is returned. %s is not to be approached this way again, at least not through this hand." % target
+
+		&"host_sway_court":
+			if success:
+				return "It is arranged. I made your case as though it were my own, and the matter was decided as you wished it. No name of yours has been spoken — only mine, which is as it should be.\n\nI remain in service,\n%s" % target
+			return "I tried, and failed. The counsel was thick with other mouths and mine was only one. No suspicion fell on you. None, I believe, fell on me. But the decision is not ours this time.\n\n— %s" % target
+
+		&"host_agitate":
+			if success:
+				return "The markets were crying by the third night. A trader beaten, a loaf overturned, and then the right word passed through the right mouth. By the week's end the city was in the street. What the crown does next is their problem, not ours.\n\nYours in the work,\n%s" % target
+			return "I could not get the spark to take. The city is tired but not yet angry. I lost two contacts to the watch. I am well; do not send the usual signal until I send mine first.\n\n— %s" % target
 
 		_:
 			return "%s %s" % [outcome_lines, target]

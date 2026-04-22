@@ -42,6 +42,12 @@ enum TargetKind {
 # resolution letter. Keep short; "operative" for Phase 0.
 @export var report_sender: String = "Anonymous operative"
 
+# §5 host cultivation: if true, the ACTOR target must currently qualify
+# as a host (loyal, non-ruler, alive). The chosen host executes the act
+# on the player's behalf — so their traits drive the success roll and
+# exposure is dampened because the visible hand is theirs, not yours.
+@export var requires_host_target: bool = false
+
 
 static func from_dict(d: Dictionary) -> ActionDefinition:
 	var a: ActionDefinition = ActionDefinition.new()
@@ -56,6 +62,7 @@ static func from_dict(d: Dictionary) -> ActionDefinition:
 	a.max_days_to_resolve  = int(d.get("max_days_to_resolve", 10))
 	a.base_success_chance  = float(d.get("base_success_chance", 0.75))
 	a.report_sender        = String(d.get("report_sender", "Anonymous operative"))
+	a.requires_host_target = bool(d.get("requires_host_target", false))
 	return a
 
 

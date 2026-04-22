@@ -65,6 +65,34 @@
       "max_days_to_resolve": 14,
       "base_success_chance": 0.55,
       "report_sender": "Your paymaster"
+    },
+    {
+      "id": "host_sway_court",
+      "display_name": "Have a host sway the court",
+      "blurb": "Through a loyal host, shape the next decision of the crown they serve. Their hand, not yours — exposure stays low.",
+      "tier": "HIGH",
+      "target_kind": "ACTOR",
+      "silver_cost": 80,
+      "exposure_cost": 5,
+      "min_days_to_resolve": 14,
+      "max_days_to_resolve": 45,
+      "base_success_chance": 0.55,
+      "report_sender": "Your host",
+      "requires_host_target": true
+    },
+    {
+      "id": "host_agitate",
+      "display_name": "Have a host stir unrest",
+      "blurb": "Ask a loyal host to light popular anger in their own city. The throat shouting is theirs; the fingers holding the taper are yours.",
+      "tier": "HIGH",
+      "target_kind": "ACTOR",
+      "silver_cost": 60,
+      "exposure_cost": 6,
+      "min_days_to_resolve": 20,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.5,
+      "report_sender": "Your host",
+      "requires_host_target": true
     }
   ]
 }
