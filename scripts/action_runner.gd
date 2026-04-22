@@ -135,6 +135,8 @@ func _resolve(descriptor: Dictionary) -> void:
 
 	if success:
 		_maybe_publish_public_trace(def, target_id)
+	else:
+		_apply_failure_exposure(def)
 
 	EventBus.action_resolved.emit(action_id, {
 		"success":      success,
@@ -142,6 +144,23 @@ func _resolve(descriptor: Dictionary) -> void:
 		"summary":      report.subject,
 		"rel_delta":    rel_delta,
 	})
+
+
+## A botched covert move leaves loose threads someone may follow. Nudge
+## exposure up by a small amount that scales with the action's tier.
+## Doesn't push the meter into a new band on its own, but stacks across
+## a bad season. Passive/watch actions are exempt — nothing happens
+## there that can be traced back.
+func _apply_failure_exposure(def: ActionDefinition) -> void:
+	if def.exposure_cost <= 0.0:
+		return
+	var tail: float = 0.0
+	match def.tier:
+		ActionDefinition.Tier.DEEP_SHADOW: tail = 1.0
+		ActionDefinition.Tier.ACTIVE:      tail = 2.0
+		ActionDefinition.Tier.HIGH:        tail = 4.0
+	if tail > 0.0:
+		Exposure.bump(tail, "failed_" + String(def.id))
 
 
 ## For successful actions that produce an observable consequence in the

@@ -38,6 +38,7 @@ const BAND_FADING: int             = 15     # >= FADING
 
 const P_FOLLOWUP_PER_MONTH: float = 0.28
 const AGITATE_UNREST_TAIL: int    = 2       # small monthly unrest nudge
+const LOUD_EXPOSURE_TAIL: float   = 0.8     # per LOUD whisper, per tick
 
 
 ## Each entry keys on a stable composite id so two different kinds
@@ -103,6 +104,7 @@ func debug_dump() -> void:
 
 func _on_month_passed(_y: int, _m: int) -> void:
 	var expired: Array[String] = []
+	var loud_count: int = 0
 	for key in _active.keys():
 		var w: Dictionary = _active[key]
 		var old_band: int = _band_for(int(w.get("strength", 0)))
@@ -112,6 +114,8 @@ func _on_month_passed(_y: int, _m: int) -> void:
 		var new_band: int = _band_for(new_strength)
 		# Emit follow-up dispatch & side effects only while alive.
 		if new_band >= BAND_FADING:
+			if new_band >= BAND_LOUD:
+				loud_count += 1
 			if _rng.randf() < P_FOLLOWUP_PER_MONTH:
 				_emit_followup(w, new_band, old_band)
 			if StringName(w.get("kind", &"")) == &"agitate" and new_band >= BAND_CARRIED:
@@ -122,6 +126,11 @@ func _on_month_passed(_y: int, _m: int) -> void:
 						Unrest.bump(home, AGITATE_UNREST_TAIL)
 		else:
 			expired.append(key)
+
+	# Loud whispers pull attention. One loud line is tolerable; several
+	# in the same season cumulatively creep up the exposure meter.
+	if loud_count > 0:
+		Exposure.bump(float(loud_count) * LOUD_EXPOSURE_TAIL, "loud_whispers")
 	for key in expired:
 		var w: Dictionary = _active[key]
 		whisper_faded.emit(

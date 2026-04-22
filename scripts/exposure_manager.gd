@@ -76,6 +76,13 @@ func allows_tier(tier: ActionDefinition.Tier) -> bool:
 			return level != Level.EXPOSED
 
 
+## Public bump. Positive values raise exposure, negative values lower it.
+## Used by systems other than the direct action-issued hook (whisper
+## follow-ups, botched covert actions, discovered ties).
+func bump(delta: float, _reason: String = "") -> void:
+	_add(delta)
+
+
 ## Reason string for a blocked action. Returns empty string if allowed.
 func block_reason(tier: ActionDefinition.Tier) -> String:
 	if allows_tier(tier):
