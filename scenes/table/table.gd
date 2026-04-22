@@ -11,6 +11,7 @@ extends Control
 const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
 const PendingTrayScript: Script    = preload("res://scripts/pending_tray.gd")
 const DossierViewScript: Script    = preload("res://scripts/dossier_view.gd")
+const ComposeViewScript: Script    = preload("res://scripts/compose_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -215,35 +216,24 @@ func _on_dossier_view_closed() -> void:
 
 
 func _on_compose_clicked() -> void:
-	# Phase 0 placeholder: Compose issues a random Observe action against
-	# a living ruler. Resolves into an Inbox letter after a few game-days,
-	# proving the core loop end-to-end. Real Compose UI comes later.
-	var target: Actor = _pick_random_observation_target()
-	if target == null:
-		open_panel("Compose a Letter", _compose_placeholder_text())
+	_open_compose_view()
+
+
+func _open_compose_view() -> void:
+	if _overlay_active:
 		return
-
-	var handle: int = Actions.issue(&"observe", String(target.id))
-	var body: String = ""
-	if handle == Scheduler.INVALID_HANDLE:
-		body = "Your quill hesitated. Try another figure."
-	else:
-		body = "You draft a short letter to your watcher in the quarter.\n\n" \
-			+ "\"Observe %s. Report by the usual route.\"\n\n" \
-			+ "The letter is sealed and sent. A reply will come in due time.\n" \
-			+ "Advance the days on your dial to let it travel."
-		body = body % target.display_name()
-	open_panel("Compose a Letter", body)
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(ComposeViewScript)
+	view.name = "ComposeView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_compose_view_closed)
 
 
-func _pick_random_observation_target() -> Actor:
-	var living_rulers: Array[Actor] = []
-	for a in Actors.actors_by_role(Actor.Role.RULER):
-		if a.is_alive():
-			living_rulers.append(a)
-	if living_rulers.is_empty():
-		return null
-	return living_rulers[randi() % living_rulers.size()]
+func _on_compose_view_closed() -> void:
+	_overlay_active = false
 
 
 func _on_inbox_clicked() -> void:
