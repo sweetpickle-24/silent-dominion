@@ -10,6 +10,7 @@ extends Control
 
 const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
 const PendingTrayScript: Script    = preload("res://scripts/pending_tray.gd")
+const DossierViewScript: Script    = preload("res://scripts/dossier_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -193,7 +194,24 @@ func _on_ledger_clicked() -> void:
 
 
 func _on_dossiers_clicked() -> void:
-	open_panel("Dossiers", _dossiers_placeholder_text())
+	_open_dossier_view()
+
+
+func _open_dossier_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(DossierViewScript)
+	view.name = "DossierView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_dossier_view_closed)
+
+
+func _on_dossier_view_closed() -> void:
+	_overlay_active = false
 
 
 func _on_compose_clicked() -> void:
