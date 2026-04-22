@@ -84,15 +84,31 @@ const PANEL_W: float   = 280.0
 const TILE_SIZE: Vector2 = Vector2(116, 40)
 const TILE_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
 
+# --- Pan / zoom --------------------------------------------------------------
+#
+# All tiles live on an inner `_map_layer` Control that sits inside the
+# clipped `_canvas`. Panning drags that layer; zooming scales it around
+# the cursor. The tiles themselves do not know about zoom — they render
+# at a fixed 1x pixel size and let the layer's transform do the work.
+const ZOOM_MIN:   float = 0.60
+const ZOOM_MAX:   float = 3.00
+const ZOOM_STEP:  float = 1.15
+
 # --- Nodes / state -----------------------------------------------------------
 
 var _dimmer: ColorRect
 var _sheet: PanelContainer
 var _canvas: Panel
+var _map_layer: Control
 var _detail_panel: PanelContainer
 var _detail_vbox: VBoxContainer
 var _legend: HBoxContainer
 var _selected_province_id: String = ""
+
+var _zoom: float = 1.0
+var _pan:  Vector2 = Vector2.ZERO
+var _panning: bool = false
+var _pan_anchor: Vector2 = Vector2.ZERO
 
 ## A single floating PanelContainer that follows the cursor to show a
 ## small "cartouche" of info about the hovered province. Reused across
@@ -229,8 +245,20 @@ func _build_sheet() -> void:
 	_canvas.add_theme_stylebox_override("panel", csb)
 	_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_canvas.mouse_filter = MOUSE_FILTER_PASS
+	_canvas.mouse_filter = MOUSE_FILTER_STOP
+	_canvas.clip_contents = true
+	_canvas.gui_input.connect(_on_canvas_gui_input)
+	_canvas.resized.connect(_on_canvas_resized)
 	row.add_child(_canvas)
+
+	# Inner layer that we pan and scale. Tiles are added as children of
+	# this layer; the canvas only provides the clipped viewport and
+	# catches the gui input for pan/zoom.
+	_map_layer = Control.new()
+	_map_layer.anchor_right = 0.0
+	_map_layer.anchor_bottom = 0.0
+	_map_layer.mouse_filter = MOUSE_FILTER_PASS
+	_canvas.add_child(_map_layer)
 
 	# Detail column on the right.
 	_detail_panel = PanelContainer.new()
@@ -284,19 +312,24 @@ func _build_sheet() -> void:
 # --- Canvas: province tiles --------------------------------------------------
 
 func _render_canvas() -> void:
-	for child in _canvas.get_children():
+	if _map_layer == null:
+		return
+	for child in _map_layer.get_children():
 		child.queue_free()
 	# Deferred so _canvas.size has been computed by the layout pass.
 	call_deferred("_place_tiles")
 
 
 func _place_tiles() -> void:
-	if _canvas == null:
+	if _canvas == null or _map_layer == null:
 		return
 	var rect: Vector2 = _canvas.size
 	if rect.x <= 0.0 or rect.y <= 0.0:
 		call_deferred("_place_tiles")
 		return
+	# Size the inner layer to match the viewport so the first frame
+	# is centered; pan/zoom then moves it around inside the clip.
+	_map_layer.size = rect
 	for pid in PROVINCE_COORDS.keys():
 		var p: Province = WorldData.get_province(pid)
 		if p == null:
@@ -307,17 +340,18 @@ func _place_tiles() -> void:
 			pos_norm.x * rect.x - TILE_SIZE.x * 0.5,
 			pos_norm.y * rect.y - TILE_SIZE.y * 0.5
 		)
-		_canvas.add_child(tile)
+		_map_layer.add_child(tile)
+	_apply_transform()
 
 
 func _build_tile(p: Province) -> Control:
 	var btn: Button = Button.new()
 	btn.text = ""
-	btn.flat = true
 	btn.custom_minimum_size = TILE_SIZE
 	btn.size = TILE_SIZE
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.pivot_offset = TILE_SIZE * 0.5
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var is_sea: bool = p.owning_kingdom.is_empty()
 	var base: Color = COLOR_SEA_BG if is_sea else _kingdom_bg(p.owning_kingdom)
@@ -543,6 +577,14 @@ func _build_legend_swatch(k: Kingdom) -> Control:
 
 # --- Hooks -------------------------------------------------------------------
 
+func _on_canvas_resized() -> void:
+	# The canvas size is what drives tile positions. On the first
+	# layout pass the size can tick from 0 up to its final value in
+	# several steps; re-place tiles each time rather than locking in
+	# the first (possibly tiny) rect.
+	_render_canvas()
+
+
 func _on_economy_tick(_snap: Array) -> void:
 	_render_canvas()
 	# If a province is selected, re-render its detail so condition cues refresh.
@@ -656,6 +698,61 @@ func _make_divider() -> HSeparator:
 	var s: HSeparator = HSeparator.new()
 	s.add_theme_color_override("color", COLOR_PARCHMENT_EDGE)
 	return s
+
+
+# --- Pan / zoom --------------------------------------------------------------
+#
+# Pan: left-click-drag on empty canvas area (tiles eat their own clicks).
+# Zoom: mouse wheel anchored on the cursor, so zooming in keeps the
+# province under the pointer roughly under the pointer.
+
+func _on_canvas_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_zoom_at(mb.position, ZOOM_STEP)
+			accept_event()
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_zoom_at(mb.position, 1.0 / ZOOM_STEP)
+			accept_event()
+		elif mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				_panning = true
+				_pan_anchor = mb.position
+				accept_event()
+			else:
+				_panning = false
+	elif event is InputEventMouseMotion and _panning:
+		var mm: InputEventMouseMotion = event
+		_pan += mm.relative
+		_apply_transform()
+		accept_event()
+
+
+func _zoom_at(canvas_pt: Vector2, factor: float) -> void:
+	var new_zoom: float = clampf(_zoom * factor, ZOOM_MIN, ZOOM_MAX)
+	if is_equal_approx(new_zoom, _zoom):
+		return
+	# Keep the point under the cursor stable: translate so that the
+	# canvas-space anchor maps to the same layer-space point before
+	# and after the scale change.
+	var before: Vector2 = (canvas_pt - _pan) / _zoom
+	_zoom = new_zoom
+	_pan = canvas_pt - before * _zoom
+	_apply_transform()
+
+
+func _apply_transform() -> void:
+	if _map_layer == null:
+		return
+	_map_layer.scale = Vector2(_zoom, _zoom)
+	_map_layer.position = _pan
+
+
+func _reset_view() -> void:
+	_zoom = 1.0
+	_pan = Vector2.ZERO
+	_apply_transform()
 
 
 # --- Cartouche ---------------------------------------------------------------

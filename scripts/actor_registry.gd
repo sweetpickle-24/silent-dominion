@@ -331,15 +331,16 @@ func _generate_given_name(kingdom_id: String) -> String:
 func _generate_age_for_role(role: int) -> int:
 	# Ranges chosen to feel like a court: heirs young, rulers never
 	# generated here (RULER is short-circuited upstream), priests and
-	# philosophers skew older.
+	# philosophers skew older. Match patterns must be constant
+	# expressions — enum members qualify, int() casts do not.
 	match role:
-		int(Actor.Role.HEIR):        return _rng.randi_range(12, 25)
-		int(Actor.Role.GENERAL):     return _rng.randi_range(32, 55)
-		int(Actor.Role.ADVISOR):     return _rng.randi_range(35, 60)
-		int(Actor.Role.PRIEST):      return _rng.randi_range(40, 65)
-		int(Actor.Role.MERCHANT):    return _rng.randi_range(28, 55)
-		int(Actor.Role.PHILOSOPHER): return _rng.randi_range(35, 65)
-		_:                           return _rng.randi_range(25, 55)
+		Actor.Role.HEIR:        return _rng.randi_range(12, 25)
+		Actor.Role.GENERAL:     return _rng.randi_range(32, 55)
+		Actor.Role.ADVISOR:     return _rng.randi_range(35, 60)
+		Actor.Role.PRIEST:      return _rng.randi_range(40, 65)
+		Actor.Role.MERCHANT:    return _rng.randi_range(28, 55)
+		Actor.Role.PHILOSOPHER: return _rng.randi_range(35, 65)
+		_:                      return _rng.randi_range(25, 55)
 
 
 func _default_province(kingdom_id: String) -> String:
@@ -362,17 +363,17 @@ func _randomise_traits(a: Actor, role: int) -> void:
 	for k in Actor.TRAIT_KEYS:
 		a.set(k, clampi(50 + _rng.randi_range(-20, 20), 10, 90))
 	match role:
-		int(Actor.Role.HEIR):
+		Actor.Role.HEIR:
 			a.ambition = clampi(a.ambition + 10, 10, 90)
-		int(Actor.Role.GENERAL):
+		Actor.Role.GENERAL:
 			a.ruthlessness = clampi(a.ruthlessness + 10, 10, 90)
-		int(Actor.Role.ADVISOR):
+		Actor.Role.ADVISOR:
 			a.intellect = clampi(a.intellect + 8, 10, 90)
-		int(Actor.Role.PRIEST):
+		Actor.Role.PRIEST:
 			a.piety = clampi(a.piety + 15, 10, 90)
-		int(Actor.Role.MERCHANT):
+		Actor.Role.MERCHANT:
 			a.greed = clampi(a.greed + 10, 10, 90)
-		int(Actor.Role.PHILOSOPHER):
+		Actor.Role.PHILOSOPHER:
 			a.intellect = clampi(a.intellect + 12, 10, 90)
 			a.curiosity = clampi(a.curiosity + 10, 10, 90)
 		_:
