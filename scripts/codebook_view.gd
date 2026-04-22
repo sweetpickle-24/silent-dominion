@@ -13,13 +13,17 @@ extends Control
 signal closed
 
 ## Optional anchor to scroll the glossary to on open. Set via
-## `set_anchor()` before the view is parented.
+## `set_anchor_id()` before the view is parented.
+##
+## NOTE: named `set_anchor_id` (not `set_anchor`) on purpose — Control
+## already declares `set_anchor(side, anchor, ...)`, and overriding it
+## with a different signature breaks the parser.
 var _pending_anchor: StringName = &""
 var _section_headers: Dictionary = {}   # StringName -> Control
 
 ## Set before adding this view to the tree. Scrolls the glossary to
 ## the section with the given id after the first frame.
-func set_anchor(a: StringName) -> void:
+func set_anchor_id(a: StringName) -> void:
 	_pending_anchor = a
 
 # --- Visual tokens -----------------------------------------------------------

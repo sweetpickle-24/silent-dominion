@@ -272,17 +272,17 @@ func _unique_kingdom_ids() -> Array:
 
 func _build_kingdom_heading(kingdom_id: String) -> Control:
 	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
-	var name: String = k.kingdom_name if k != null else kingdom_id
-	var wrap: MarginContainer = MarginContainer.new()
-	wrap.add_theme_constant_override("margin_top", 10)
-	wrap.add_theme_constant_override("margin_bottom", 2)
-	wrap.add_theme_constant_override("margin_left", 4)
+	var k_name: String = k.kingdom_name if k != null else kingdom_id
+	var box: MarginContainer = MarginContainer.new()
+	box.add_theme_constant_override("margin_top", 10)
+	box.add_theme_constant_override("margin_bottom", 2)
+	box.add_theme_constant_override("margin_left", 4)
 	var h: Label = Label.new()
-	h.text = name.to_upper()
+	h.text = k_name.to_upper()
 	h.add_theme_color_override("font_color", Color(0.44, 0.36, 0.14, 1.0))
 	h.add_theme_font_size_override("font_size", 11)
-	wrap.add_child(h)
-	return wrap
+	box.add_child(h)
+	return box
 
 
 func _build_list_row(actor: Actor) -> Control:

@@ -345,8 +345,11 @@ func _render_detail(kingdom_id: String) -> void:
 	var prev: Dictionary = KingdomEconomy.preview(k)
 	var income: float = float(prev.get("income", 0.0))
 	var expend: float = float(prev.get("expenditure", 0.0))
+	var war_cost: float = float(prev.get("war_cost", 0.0))
 	var net: float = income - expend
 	_body_vbox.add_child(_make_body_line(_flow_phrase(net, expend)))
+	if war_cost > 0.0:
+		_body_vbox.add_child(_make_body_line(_war_burden_phrase(war_cost, expend)))
 
 	_body_vbox.add_child(_make_close_button("Set aside", func() -> void: close()))
 
@@ -386,6 +389,20 @@ func _province_contribution_phrase(p: Province) -> String:
 	if v < 14.0:    return "a modest tithe"
 	if v < 28.0:    return "a handsome share"
 	return "the backbone of the treasury"
+
+
+## A line explaining how much of the crown's monthly cost is war —
+## qualitative only, like every other number in the ledger. `expend`
+## here is the full expenditure (with war cost already included).
+func _war_burden_phrase(war_cost: float, expend: float) -> String:
+	var share: float = war_cost / max(1.0, expend)
+	if share < 0.20:
+		return "A portion of what goes out now goes to the armies in the field."
+	if share < 0.40:
+		return "The war is a drag on the books. Not yet ruinous, but felt at every pay-day."
+	if share < 0.60:
+		return "The war eats the treasury in earnest. What the crown takes in, the army takes out."
+	return "The war has become the crown's main expense. Every other line is a footnote to it."
 
 
 func _flow_phrase(net: float, expend: float) -> String:
@@ -476,21 +493,21 @@ func _build_trajectory_strip(
 	block_h: int,
 	show_caption: bool,
 ) -> Control:
-	var wrap: VBoxContainer = VBoxContainer.new()
-	wrap.add_theme_constant_override("separation", 2)
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: VBoxContainer = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	if show_caption:
 		var caption: Label = Label.new()
 		caption.text = "← older   |   newer →"
 		caption.add_theme_color_override("font_color", COLOR_INK_MUTED)
 		caption.add_theme_font_size_override("font_size", 10)
-		wrap.add_child(caption)
+		box.add_child(caption)
 
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(row)
+	box.add_child(row)
 
 	var history: Array = KingdomEconomy.history_for(kingdom_id)
 	# Right-align: if history has fewer entries than slots, pad empty
@@ -505,7 +522,7 @@ func _build_trajectory_strip(
 	for cond in taken:
 		row.add_child(_make_trajectory_block(int(cond), block_h))
 
-	return wrap
+	return box
 
 
 func _make_trajectory_block(condition: int, block_h: int) -> Control:

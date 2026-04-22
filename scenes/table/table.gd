@@ -479,7 +479,7 @@ func _open_codebook_view(anchor: StringName = &"") -> void:
 	view.anchor_right = 1.0
 	view.anchor_bottom = 1.0
 	if anchor != &"":
-		view.call("set_anchor", anchor)
+		view.call("set_anchor_id", anchor)
 	add_child(view)
 	view.closed.connect(_on_codebook_view_closed)
 

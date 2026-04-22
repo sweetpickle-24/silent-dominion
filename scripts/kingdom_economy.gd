@@ -58,6 +58,24 @@ const MAX_RUINOUS_MONTHS:  int = 4
 
 var _burden_streak: Dictionary = {}  # kingdom_id -> months at BURDENED+
 
+# --- War costs (§33.3 lever chain) -------------------------------------------
+#
+# Per §33.3 a war is supposed to produce treasury strain via military
+# expenditure. Every month a kingdom is at war with at least one other
+# kingdom, it pays a flat WAR_BASE_COST + a per-province scalar for
+# its army footprint. The burden ramps with war length: mobilisation
+# is cheap, a long war is not. Each additional active war layers a
+# FRONT_MULTIPLIER on top — a two-front war is meaningfully worse
+# than a one-front war, but not double, because the army can't be
+# everywhere at once.
+const WAR_BASE_COST:          float = 4.0
+const WAR_PER_PROVINCE_COST:  float = 0.8
+const WAR_RAMP_PER_MONTH:     float = 0.04   # +4% per month at war
+const WAR_RAMP_CAP:           float = 1.5    # caps at +150%
+const FRONT_MULTIPLIER:       float = 0.6    # additional fronts at 60% cost
+
+var _war_streak: Dictionary = {}  # kingdom_id -> consecutive months with at least one active war
+
 ## Per-kingdom rolling history of the treasury condition, one slot per
 ## tick. Oldest entries drop off. Used by the Ledger to render a small
 ## trajectory strip so the player can read "bleeding / holding / building"
@@ -83,7 +101,8 @@ func _on_month_passed(_y: int, _m: int) -> void:
 
 func _tick_kingdom(k: Kingdom) -> Dictionary:
 	var income: float      = _monthly_income(k)
-	var expenditure: float = _monthly_expenditure(k)
+	var war_cost: float    = _monthly_war_cost(k)
+	var expenditure: float = _monthly_expenditure(k) + war_cost
 	var net: float         = income - expenditure
 
 	k.treasury_silver += net
@@ -96,6 +115,7 @@ func _tick_kingdom(k: Kingdom) -> Dictionary:
 		"name":        k.kingdom_name,
 		"income":      income,
 		"expenditure": expenditure,
+		"war_cost":    war_cost,
 		"net":         net,
 		"treasury":    k.treasury_silver,
 		"condition":   int(k.treasury_condition),
@@ -125,6 +145,34 @@ func _monthly_income(k: Kingdom) -> float:
 
 func _monthly_expenditure(k: Kingdom) -> float:
 	return BASE_MONTHLY_COST + PER_PROVINCE_UPKEEP * float(k.owned_provinces.size())
+
+
+## Monthly silver the crown bleeds for active wars. Returns 0 for
+## kingdoms at peace. For kingdoms at war, it is a base mobilisation
+## cost plus a per-province army-footprint scalar, times a ramp that
+## climbs with how many months the kingdom has been at war, with
+## additional fronts layered on at reduced cost. Mutates the per-
+## kingdom war streak counter, so this must be called exactly once
+## per kingdom per monthly tick.
+func _monthly_war_cost(k: Kingdom) -> float:
+	var fronts: int = Relations.ids_in_state(k.id, int(Relations.RelationState.AT_WAR)).size()
+	if fronts <= 0:
+		_war_streak.erase(k.id)
+		return 0.0
+
+	var streak: int = int(_war_streak.get(k.id, 0)) + 1
+	_war_streak[k.id] = streak
+
+	var pop_provinces: int = 0
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p != null and p.population > 0:
+			pop_provinces += 1
+
+	var base: float = WAR_BASE_COST + WAR_PER_PROVINCE_COST * float(pop_provinces)
+	var ramp: float = clampf(WAR_RAMP_PER_MONTH * float(streak - 1), 0.0, WAR_RAMP_CAP)
+	var front_scale: float = 1.0 + FRONT_MULTIPLIER * float(fronts - 1)
+	return base * (1.0 + ramp) * front_scale
 
 
 ## Rulers reach for the tax lever when they must. If the treasury is
@@ -271,12 +319,33 @@ func _condition_for(treasury: float, expenditure: float, net: float) -> Kingdom.
 # --- Public helpers ----------------------------------------------------------
 
 ## Snapshot the current month's flow for a kingdom without mutating
-## state. Useful for the Ledger to show "this month: +12 / -9".
+## state. Useful for the Ledger to show "this month: +12 / -9". Reads
+## the war-cost contribution without advancing the streak counter.
 func preview(k: Kingdom) -> Dictionary:
+	var war_cost: float = _preview_war_cost(k)
 	return {
 		"income":      _monthly_income(k),
-		"expenditure": _monthly_expenditure(k),
+		"expenditure": _monthly_expenditure(k) + war_cost,
+		"war_cost":    war_cost,
 	}
+
+
+## Non-mutating variant of `_monthly_war_cost` for UI previews. Uses
+## the existing streak counter without incrementing it.
+func _preview_war_cost(k: Kingdom) -> float:
+	var fronts: int = Relations.ids_in_state(k.id, int(Relations.RelationState.AT_WAR)).size()
+	if fronts <= 0:
+		return 0.0
+	var streak: int = maxi(1, int(_war_streak.get(k.id, 1)))
+	var pop_provinces: int = 0
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p != null and p.population > 0:
+			pop_provinces += 1
+	var base: float = WAR_BASE_COST + WAR_PER_PROVINCE_COST * float(pop_provinces)
+	var ramp: float = clampf(WAR_RAMP_PER_MONTH * float(streak - 1), 0.0, WAR_RAMP_CAP)
+	var front_scale: float = 1.0 + FRONT_MULTIPLIER * float(fronts - 1)
+	return base * (1.0 + ramp) * front_scale
 
 
 ## The last HISTORY_CAPACITY treasury conditions for this kingdom, oldest
@@ -340,6 +409,7 @@ func snapshot() -> Array:
 			"treasury_condition": int(k.treasury_condition),
 			"tax_level":          int(k.tax_level),
 			"burden_streak":      int(_burden_streak.get(k.id, 0)),
+			"war_streak":         int(_war_streak.get(k.id, 0)),
 			"history":            _history.get(k.id, []).duplicate(),
 		})
 	return out
@@ -347,6 +417,7 @@ func snapshot() -> Array:
 
 func restore(arr: Array) -> void:
 	_burden_streak.clear()
+	_war_streak.clear()
 	_history.clear()
 	for d in arr:
 		if typeof(d) != TYPE_DICTIONARY:
@@ -360,6 +431,7 @@ func restore(arr: Array) -> void:
 		k.treasury_condition = int(d.get("treasury_condition", int(k.treasury_condition))) as Kingdom.TreasuryCondition
 		k.tax_level          = int(d.get("tax_level", int(k.tax_level))) as Kingdom.TaxLevel
 		_burden_streak[id]   = int(d.get("burden_streak", 0))
+		_war_streak[id]      = int(d.get("war_streak", 0))
 		var hist: Array = []
 		for v in d.get("history", []):
 			hist.append(int(v))

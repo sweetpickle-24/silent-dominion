@@ -194,15 +194,15 @@ func _empty_state() -> Control:
 
 
 func _year_heading(year: int) -> Control:
-	var wrap: MarginContainer = MarginContainer.new()
-	wrap.add_theme_constant_override("margin_top", 12)
-	wrap.add_theme_constant_override("margin_bottom", 2)
+	var box: MarginContainer = MarginContainer.new()
+	box.add_theme_constant_override("margin_top", 12)
+	box.add_theme_constant_override("margin_bottom", 2)
 	var h: Label = Label.new()
 	h.text = "%d BCE" % year
 	h.add_theme_color_override("font_color", COLOR_ACCENT)
 	h.add_theme_font_size_override("font_size", 12)
-	wrap.add_child(h)
-	return wrap
+	box.add_child(h)
+	return box
 
 
 func _letter_row(letter: Letter) -> Control:
