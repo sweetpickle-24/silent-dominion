@@ -70,6 +70,41 @@ static func phrase_for(trait_key: StringName, value: int) -> String:
 	return ""
 
 
+## Return the trait keys for a single actor ordered by how far they
+## sit from 50 (most extreme first). Keys whose value is within the
+## 'average' band are filtered out. Used by the dossier roster to
+## render a compact trait strip.
+static func notable_trait_keys(actor: Actor, max_count: int = 3) -> Array[StringName]:
+	var scored: Array = []
+	for k in Actor.TRAIT_KEYS:
+		var v: int = actor.get_trait(k)
+		if v >= 30 and v <= 70:
+			continue   # unremarkable
+		scored.append({ "key": k, "distance": abs(v - 50), "value": v })
+	scored.sort_custom(func(a, b): return int(a["distance"]) > int(b["distance"]))
+	var out: Array[StringName] = []
+	for i in range(min(max_count, scored.size())):
+		out.append(StringName(scored[i]["key"]))
+	return out
+
+
+## A single-letter glyph for a trait key, used in the dossier roster
+## strip. Kept short on purpose — the strip is a hint, not a readout.
+static func trait_glyph(key: StringName) -> String:
+	match key:
+		&"ambition":     return "A"
+		&"paranoia":     return "P"
+		&"loyalty":      return "L"
+		&"piety":        return "π"
+		&"intellect":    return "I"
+		&"greed":        return "$"
+		&"ruthlessness": return "R"
+		&"curiosity":    return "?"
+		&"resilience":   return "●"
+		&"charisma":     return "C"
+		_: return "·"
+
+
 ## Collect every notable trait for an Actor as an array of phrases,
 ## ordered by how extreme the value is (most extreme first).
 static func notable_phrases(actor: Actor) -> Array[String]:

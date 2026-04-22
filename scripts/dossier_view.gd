@@ -215,7 +215,11 @@ func _render_list() -> void:
 		empty.add_theme_font_size_override("font_size", 13)
 		roster.add_child(empty)
 	else:
+		var current_kingdom: String = "__none__"
 		for a in entries:
+			if a.kingdom_id != current_kingdom:
+				current_kingdom = a.kingdom_id
+				roster.add_child(_build_kingdom_heading(current_kingdom))
 			roster.add_child(_build_list_row(a))
 
 	_body_vbox.add_child(_make_close_button(func() -> void: close()))
@@ -251,6 +255,21 @@ func _unique_kingdom_ids() -> Array:
 		if a.kingdom_id != "":
 			s[a.kingdom_id] = true
 	return s.keys()
+
+
+func _build_kingdom_heading(kingdom_id: String) -> Control:
+	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
+	var name: String = k.kingdom_name if k != null else kingdom_id
+	var wrap: MarginContainer = MarginContainer.new()
+	wrap.add_theme_constant_override("margin_top", 10)
+	wrap.add_theme_constant_override("margin_bottom", 2)
+	wrap.add_theme_constant_override("margin_left", 4)
+	var h: Label = Label.new()
+	h.text = name.to_upper()
+	h.add_theme_color_override("font_color", Color(0.44, 0.36, 0.14, 1.0))
+	h.add_theme_font_size_override("font_size", 11)
+	wrap.add_child(h)
+	return wrap
 
 
 func _build_list_row(actor: Actor) -> Control:
@@ -290,13 +309,16 @@ func _build_list_row(actor: Actor) -> Control:
 	hbox.add_child(name_label)
 
 	var meta: Label = Label.new()
-	var k: Kingdom = WorldData.get_kingdom(actor.kingdom_id)
-	var kingdom_name: String = k.kingdom_name if k != null else actor.kingdom_id
-	meta.text = "%s — %s" % [TraitCues.role_title(actor.role), kingdom_name]
+	meta.text = TraitCues.role_title(actor.role)
 	meta.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	meta.add_theme_font_size_override("font_size", 12)
 	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	meta.custom_minimum_size.x = 110.0
 	hbox.add_child(meta)
+
+	var trait_strip: Control = _build_trait_strip(actor)
+	if trait_strip != null:
+		hbox.add_child(trait_strip)
 
 	# Only surface relationship when it's left neutral territory. Prevents
 	# the roster from shouting "INDIFFERENT" at every unmet face.
@@ -320,6 +342,54 @@ func _build_list_row(actor: Actor) -> Control:
 
 	row.pressed.connect(func() -> void: _show_detail(actor))
 	return row
+
+
+func _build_trait_strip(actor: Actor) -> Control:
+	var keys: Array[StringName] = TraitCues.notable_trait_keys(actor, 3)
+	if keys.is_empty():
+		return null
+	var hb: HBoxContainer = HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 3)
+	hb.custom_minimum_size.x = 66.0
+	hb.alignment = BoxContainer.ALIGNMENT_END
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for k in keys:
+		var value: int = actor.get_trait(k)
+		hb.add_child(_build_trait_chip(k, value))
+	return hb
+
+
+func _build_trait_chip(key: StringName, value: int) -> Control:
+	var chip: PanelContainer = PanelContainer.new()
+	var is_high: bool = value > 70
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	if is_high:
+		sb.bg_color = Color(0.44, 0.36, 0.14, 1.0)   # ink-mustard
+	else:
+		sb.bg_color = Color(0.55, 0.42, 0.28, 0.55)  # dust
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 5
+	sb.content_margin_right = 5
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	chip.add_theme_stylebox_override("panel", sb)
+	chip.mouse_filter = Control.MOUSE_FILTER_PASS
+	chip.tooltip_text = "%s: %s" % [
+		String(key).capitalize(),
+		("notably high" if is_high else "notably low"),
+	]
+
+	var l: Label = Label.new()
+	l.text = TraitCues.trait_glyph(key)
+	l.add_theme_color_override("font_color", Color(0.96, 0.92, 0.82, 1.0))
+	l.add_theme_font_size_override("font_size", 10)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chip.add_child(l)
+	return chip
 
 
 func _relationship_tag(v: int) -> String:
