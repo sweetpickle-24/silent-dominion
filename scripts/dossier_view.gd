@@ -538,6 +538,8 @@ func _show_detail(actor: Actor) -> void:
 
 	_maybe_build_org_section(actor)
 
+	_maybe_build_mandate_section(actor)
+
 	_body_vbox.add_child(_make_section_heading("LETTERS ON THIS NAME"))
 	var linked: Array[Letter] = _letters_mentioning(actor)
 	if linked.is_empty():
@@ -683,6 +685,64 @@ func _make_promote_lieutenant_button(actor: Actor) -> Button:
 func _kingdom_name_of(kid: String) -> String:
 	var k: Kingdom = WorldData.get_kingdom(kid)
 	return k.kingdom_name if k != null else kid
+
+
+# --- Mandates section -------------------------------------------------------
+#
+# Shows active removal-mandate progress against this actor, if any.
+# For rulers with no active mandate, offers a "Mark for removal"
+# button. For non-rulers this section stays silent — removal mandates
+# are only offered against figures holding a crown.
+
+func _maybe_build_mandate_section(actor: Actor) -> void:
+	if actor.dead:
+		return
+	var active: Mandate = _active_removal_for(actor.id)
+	if active == null and actor.role != Actor.Role.RULER:
+		return
+
+	_body_vbox.add_child(_make_section_heading("MANDATES"))
+
+	if active != null:
+		var phase: Dictionary = active.active_phase()
+		_body_vbox.add_child(_make_body_line(
+			"Under mandate: %s." % active.headline.to_lower()
+		))
+		if not phase.is_empty():
+			_body_vbox.add_child(_make_body_line(
+				"Current phase — %s (%d of %d). %s" % [
+					String(phase.get("name", "")),
+					int(phase.get("progress", 0)),
+					int(phase.get("target", 1)),
+					String(phase.get("description", "")),
+				]
+			))
+		return
+
+	var btn: Button = Button.new()
+	btn.text = "Declare a removal mandate"
+	btn.flat = false
+	btn.add_theme_font_size_override("font_size", 12)
+	btn.custom_minimum_size.y = 28.0
+	btn.pressed.connect(func() -> void: _on_declare_removal(actor))
+	_body_vbox.add_child(btn)
+
+
+func _on_declare_removal(actor: Actor) -> void:
+	var mid: StringName = Mandates.offer_removal_mandate(actor.id, false)
+	if mid != &"":
+		_show_detail(actor)   # refresh so the section now shows progress
+
+
+func _active_removal_for(actor_id: StringName) -> Mandate:
+	for m in Mandates.all_mandates():
+		if (
+			m.category == Mandate.Category.REMOVAL
+			and m.target_actor_id == actor_id
+			and m.status == Mandate.Status.ACTIVE
+		):
+			return m
+	return null
 
 
 # --- Widget factories --------------------------------------------------------
