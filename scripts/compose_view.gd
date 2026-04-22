@@ -181,18 +181,26 @@ func _render_action_picker() -> void:
 
 
 func _build_action_card(def: ActionDefinition) -> Control:
+	var allowed: bool = Exposure.allows_tier(def.tier)
+
 	var card: Button = Button.new()
 	card.text = ""
 	card.flat = true
 	card.focus_mode = Control.FOCUS_NONE
 	card.custom_minimum_size.y = 84.0
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.disabled = not allowed
+	if not allowed:
+		card.tooltip_text = Exposure.block_reason(def.tier)
 
 	var normal_sb: StyleBoxFlat = _card_stylebox(COLOR_CARD)
 	var hover_sb:  StyleBoxFlat = _card_stylebox(COLOR_CARD_HOVER)
+	if not allowed:
+		normal_sb = _card_stylebox(Color(0.90, 0.86, 0.78, 1.0))
 	card.add_theme_stylebox_override("normal", normal_sb)
 	card.add_theme_stylebox_override("hover", hover_sb)
 	card.add_theme_stylebox_override("pressed", hover_sb)
+	card.add_theme_stylebox_override("disabled", normal_sb)
 
 	var margin: MarginContainer = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 14)
@@ -247,6 +255,18 @@ func _build_action_card(def: ActionDefinition) -> Control:
 	meta.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	meta.add_theme_font_size_override("font_size", 10)
 	vbox.add_child(meta)
+
+	# If exposure currently bars this tier, surface the reason inline
+	# instead of silently making the card unclickable.
+	if not allowed:
+		name_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		tier_tag.text = "BARRED  —  " + tier_tag.text
+		var gate: Label = Label.new()
+		gate.text = Exposure.block_reason(def.tier)
+		gate.add_theme_color_override("font_color", COLOR_WAX)
+		gate.add_theme_font_size_override("font_size", 11)
+		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(gate)
 
 	card.pressed.connect(func() -> void: _on_action_chosen(def))
 	return card

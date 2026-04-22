@@ -8,10 +8,11 @@ extends Control
 ## Currently only the inbox has real behaviour; the map and codebook still
 ## show placeholder panels.
 
-const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
-const PendingTrayScript: Script    = preload("res://scripts/pending_tray.gd")
-const DossierViewScript: Script    = preload("res://scripts/dossier_view.gd")
-const ComposeViewScript: Script    = preload("res://scripts/compose_view.gd")
+const LetterViewScene: PackedScene      = preload("res://scenes/inbox/letter_view.tscn")
+const PendingTrayScript: Script         = preload("res://scripts/pending_tray.gd")
+const DossierViewScript: Script         = preload("res://scripts/dossier_view.gd")
+const ComposeViewScript: Script         = preload("res://scripts/compose_view.gd")
+const ExposureIndicatorScript: Script   = preload("res://scripts/exposure_indicator.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -79,6 +80,7 @@ func _ready() -> void:
 
 	_wire_time_dial()
 	_install_pending_tray()
+	_install_exposure_indicator()
 
 
 # --- Pending actions tray ----------------------------------------------------
@@ -102,6 +104,27 @@ func _install_pending_tray() -> void:
 	tray.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	tray.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(tray)
+
+
+# --- Exposure indicator ------------------------------------------------------
+#
+# Anchored top-left, the visual counterweight to the TimeDial. Shows the
+# current exposure level as a qualitative phrase (no raw number).
+
+func _install_exposure_indicator() -> void:
+	var ind: Control = Control.new()
+	ind.set_script(ExposureIndicatorScript)
+	ind.name = "ExposureIndicator"
+	ind.anchor_left = 0.0
+	ind.anchor_right = 0.0
+	ind.anchor_top = 0.0
+	ind.anchor_bottom = 0.0
+	ind.offset_left = 20.0
+	ind.offset_top = 20.0
+	ind.offset_right = 260.0
+	ind.offset_bottom = 54.0
+	ind.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(ind)
 
 
 func _unhandled_input(event: InputEvent) -> void:

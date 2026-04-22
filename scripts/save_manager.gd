@@ -86,6 +86,7 @@ func _collect_state() -> Dictionary:
 		"actors":    _actors_snapshot(),
 		"inbox":     _inbox_snapshot(),
 		"scheduler": Scheduler.snapshot(),
+		"exposure":  Exposure.snapshot(),
 	}
 
 
@@ -98,6 +99,8 @@ func _apply_state(blob: Dictionary) -> void:
 		_inbox_restore(blob["inbox"])
 	if blob.has("scheduler"):
 		Scheduler.restore(blob["scheduler"])
+	if blob.has("exposure"):
+		Exposure.restore(blob["exposure"])
 
 
 # --- Clock -------------------------------------------------------------------

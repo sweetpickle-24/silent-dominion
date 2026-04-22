@@ -53,6 +53,11 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		push_warning("[Actions] Action '%s' requires a target" % action_id)
 		return Scheduler.INVALID_HANDLE
 
+	if not Exposure.allows_tier(def.tier):
+		push_warning("[Actions] Action '%s' blocked by exposure level: %s" %
+			[action_id, Exposure.level_name()])
+		return Scheduler.INVALID_HANDLE
+
 	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve)
 	var fire_day: int = GameClock.absolute_day() + delay
 
