@@ -28,6 +28,7 @@ Exposure="*res://scripts/exposure_manager.gd"
 KingdomEconomy="*res://scripts/kingdom_economy.gd"
 Purse="*res://scripts/player_purse.gd"
 PublicNews="*res://scripts/public_news.gd"
+Digest="*res://scripts/monthly_digest.gd"
 WorldAI="*res://scripts/world_ai.gd"
 SaveManager="*res://scripts/save_manager.gd"
 
