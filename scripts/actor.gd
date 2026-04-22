@@ -45,6 +45,14 @@ enum Role {
 @export_range(0, 100) var resilience: int = 50
 @export_range(0, 100) var charisma: int = 50
 
+# --- Relationship (not a trait; §5 host cultivation) -------------------------
+#
+# -100 .. +100. 0 = they have no personal stance on you; positive = growing
+# warmth and eventually loyalty; negative = wariness up to open hostility.
+# Moves when the player interacts with them (cultivate, bribe, seed_rumour,
+# ...), mutually decays toward zero when ignored.
+@export_range(-100, 100) var relationship: int = 0
+
 
 # --- Lifecycle ---------------------------------------------------------------
 
@@ -104,6 +112,8 @@ static func from_dict(d: Dictionary) -> Actor:
 	for k in TRAIT_KEYS:
 		if traits.has(String(k)):
 			a.set(k, clampi(int(traits[String(k)]), 0, 100))
+
+	a.relationship = clampi(int(d.get("relationship", 0)), -100, 100)
 	return a
 
 
@@ -121,6 +131,7 @@ func to_dict() -> Dictionary:
 		"province_id": province_id,
 		"kingdom_id": kingdom_id,
 		"traits": traits,
+		"relationship": relationship,
 	}
 
 

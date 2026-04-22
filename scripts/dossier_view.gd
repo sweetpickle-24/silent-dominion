@@ -298,8 +298,38 @@ func _build_list_row(actor: Actor) -> Control:
 	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(meta)
 
+	# Only surface relationship when it's left neutral territory. Prevents
+	# the roster from shouting "INDIFFERENT" at every unmet face.
+	if actor.relationship >= 11 or actor.relationship <= -11:
+		var rel: Label = Label.new()
+		rel.text = _relationship_tag(actor.relationship)
+		rel.add_theme_color_override("font_color", _relationship_color(actor.relationship))
+		rel.add_theme_font_size_override("font_size", 10)
+		rel.custom_minimum_size.x = 90.0
+		rel.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hbox.add_child(rel)
+
 	row.pressed.connect(func() -> void: _show_detail(actor))
 	return row
+
+
+func _relationship_tag(v: int) -> String:
+	var band: StringName = TraitCues.relationship_band(v)
+	match band:
+		&"hostile":  return "HOSTILE"
+		&"wary":     return "WARY"
+		&"polite":   return "POLITE"
+		&"warming":  return "WARMING"
+		&"loyal":    return "LOYAL"
+		_: return ""
+
+
+func _relationship_color(v: int) -> Color:
+	if v <= -31: return Color(0.55, 0.08, 0.08, 1.0)    # wine
+	if v <= -11: return Color(0.62, 0.30, 0.12, 1.0)    # muted rust
+	if v >=  61: return Color(0.18, 0.34, 0.22, 1.0)    # forest green
+	if v >=  11: return Color(0.40, 0.36, 0.14, 1.0)    # mustard
+	return COLOR_INK_MUTED
 
 
 # --- Detail mode -------------------------------------------------------------
@@ -361,6 +391,13 @@ func _show_detail(actor: Actor) -> void:
 		for phrase in phrases:
 			var bullet: Label = _make_body_line("•  %s." % phrase)
 			_body_vbox.add_child(bullet)
+
+	_body_vbox.add_child(_make_divider())
+
+	_body_vbox.add_child(_make_section_heading("THEIR STANCE TOWARD YOU"))
+	_body_vbox.add_child(_make_body_line(
+		"They %s." % TraitCues.relationship_phrase(actor.relationship)
+	))
 
 	_body_vbox.add_child(_make_divider())
 

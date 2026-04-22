@@ -108,31 +108,73 @@ func _resolve(descriptor: Dictionary) -> void:
 	var success_chance: float = _modified_success_chance(def, target_id)
 	var success: bool = _rng.randf() < success_chance
 
+	# Apply relationship changes BEFORE the report is built so the tone
+	# of future letters can lean on the new standing if we ever want
+	# that. The returned delta is echoed to the log for debugging.
+	var rel_delta: int = _apply_relationship_effects(def, target_id, success)
+
 	var report: Letter = _build_report(def, target_id, success)
 	EventBus.letter_delivered.emit(report)
 
 	EventBus.action_resolved.emit(action_id, {
-		"success":   success,
-		"target_id": target_id,
-		"summary":   report.subject,
+		"success":      success,
+		"target_id":    target_id,
+		"summary":      report.subject,
+		"rel_delta":    rel_delta,
 	})
 
 
 func _modified_success_chance(def: ActionDefinition, target_id: String) -> float:
-	# Phase 0 modifier: a bribe pulls toward the target's greed (higher
-	# greed -> easier bribe), while anything else uses the base chance
-	# untouched. This seeds the trait-driven mechanics without pretending
-	# to be the real resistance formula yet (§24.3).
-	if def.id != &"bribe":
-		return def.base_success_chance
-
+	# Phase 0 modifier set:
+	#   bribe     — pulls toward greed (high greed, easier) and away from
+	#               loyalty (loyal pockets won't open).
+	#   cultivate — compounds: each successful approach nudges the
+	#               relationship, and a warm relationship makes further
+	#               cultivation meaningfully easier (and hostility makes
+	#               it correspondingly harder).
+	# Anything else uses the base chance untouched. Seeds the trait-driven
+	# resistance model without pretending to be the full §24.3 formula yet.
 	var actor: Actor = Actors.get_actor(StringName(target_id))
-	if actor == null:
-		return def.base_success_chance
 
-	var greed_bias: float = (float(actor.greed) - 50.0) / 100.0  # -0.5 .. +0.5
-	var loyalty_bias: float = (50.0 - float(actor.loyalty)) / 100.0
-	return clampf(def.base_success_chance + greed_bias + loyalty_bias * 0.5, 0.05, 0.95)
+	if def.id == &"bribe":
+		if actor == null:
+			return def.base_success_chance
+		var greed_bias: float   = (float(actor.greed) - 50.0) / 100.0          # -0.5 .. +0.5
+		var loyalty_bias: float = (50.0 - float(actor.loyalty)) / 100.0
+		return clampf(def.base_success_chance + greed_bias + loyalty_bias * 0.5, 0.05, 0.95)
+
+	if def.id == &"cultivate":
+		if actor == null:
+			return def.base_success_chance
+		# +/- 30 points of relationship shifts chance by +/- ~0.15.
+		var rel_bias: float = float(actor.relationship) / 200.0                # -0.5 .. +0.5
+		return clampf(def.base_success_chance + rel_bias, 0.05, 0.97)
+
+	return def.base_success_chance
+
+
+# --- Relationship effects ----------------------------------------------------
+
+func _apply_relationship_effects(def: ActionDefinition, target_id: String, success: bool) -> int:
+	if def.target_kind != ActionDefinition.TargetKind.ACTOR or target_id.is_empty():
+		return 0
+	var id: StringName = StringName(target_id)
+	var delta: int = 0
+	match def.id:
+		&"cultivate":
+			delta = 12 if success else 2            # even a dud visit builds a little rapport
+		&"bribe":
+			delta = 4 if success else -6            # a refused bribe stings
+		&"plant_idea":
+			delta = 2 if success else 0
+		&"seed_rumour":
+			delta = -5 if success else -1           # rumours target THEM, so damage their view of you if they trace it
+		_:
+			return 0
+	if delta == 0:
+		return 0
+	Actors.adjust_relationship(id, delta)
+	return delta
 
 
 # --- Report authoring --------------------------------------------------------

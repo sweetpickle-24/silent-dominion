@@ -90,6 +90,29 @@ static func notable_phrases(actor: Actor) -> Array[String]:
 	return out
 
 
+## Convert an actor's relationship value (-100..+100) into the phrase
+## the dossier surfaces. Always returns something — even "indifferent".
+static func relationship_phrase(value: int) -> String:
+	if value <= -61: return "harbours active hostility toward you"
+	if value <= -31: return "distrustful, keeps their distance"
+	if value <= -11: return "cool to your approaches"
+	if value <=  10: return "has no particular stance on you — yet"
+	if value <=  30: return "polite, but no more"
+	if value <=  60: return "slowly warming to you"
+	return "loyal to your whisper"
+
+
+## Category id for relationship, useful if the UI needs to colour or
+## group rows (not shown to the player directly).
+static func relationship_band(value: int) -> StringName:
+	if value <= -61: return &"hostile"
+	if value <= -11: return &"wary"
+	if value <=  10: return &"neutral"
+	if value <=  30: return &"polite"
+	if value <=  60: return &"warming"
+	return &"loyal"
+
+
 static func role_title(role: Actor.Role) -> String:
 	match role:
 		Actor.Role.RULER:       return "Ruler"

@@ -18,10 +18,29 @@ var _by_province: Dictionary = {}
 var _by_role: Dictionary = {}
 
 
+## Monthly drift toward 0 applied to every actor's relationship score.
+## Without neglect-pressure the player can "bank" cultivated warmth
+## forever; one point per month means a full success (+12) buys roughly
+## a year of grace before it has fully faded.
+const RELATIONSHIP_MONTHLY_DECAY: int = 1
+
+
 func _ready() -> void:
 	_load_from_json(ACTOR_DATA_PATH)
 	_rebuild_indices()
 	print("[Actors] Loaded %d actors from %s" % [actors.size(), ACTOR_DATA_PATH])
+
+	GameClock.month_passed.connect(_on_month_passed)
+
+
+func _on_month_passed(_y: int, _m: int) -> void:
+	# Pull every relationship one step closer to 0. Neutral actors are
+	# untouched. This is the "out of sight, out of mind" drift.
+	for a in actors.values():
+		if a.relationship > 0:
+			a.relationship = maxi(0, a.relationship - RELATIONSHIP_MONTHLY_DECAY)
+		elif a.relationship < 0:
+			a.relationship = mini(0, a.relationship + RELATIONSHIP_MONTHLY_DECAY)
 
 
 # --- Public API --------------------------------------------------------------
@@ -59,6 +78,16 @@ func ruler_of(kingdom_id: String) -> Actor:
 func add_actor(a: Actor) -> void:
 	actors[a.id] = a
 	_rebuild_indices()
+
+
+## Shift an actor's relationship toward the player by `delta`, clamped
+## to [-100, +100]. Returns the new value (or 0 if the actor is unknown).
+func adjust_relationship(id: StringName, delta: int) -> int:
+	var a: Actor = get_actor(id)
+	if a == null:
+		return 0
+	a.relationship = clampi(a.relationship + delta, -100, 100)
+	return a.relationship
 
 
 # --- Debug -------------------------------------------------------------------
