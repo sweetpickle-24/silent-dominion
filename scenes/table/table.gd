@@ -92,6 +92,7 @@ func _ready() -> void:
 	_install_purse_indicator()
 	_install_archive_indicator()
 	_install_public_news_badge()
+	_install_object_unread_dots()
 
 	# If the player arrived here via 'Return to X' on the title screen,
 	# Session carries the slot to load. Apply it after the scene is
@@ -323,6 +324,7 @@ func _play_open_animation(obj: Control) -> void:
 # --- Per-object actions -------------------------------------------------------
 
 func _on_map_clicked() -> void:
+	Notifications.mark_seen(Notifications.KEY_MAP)
 	_open_map_view()
 
 
@@ -433,6 +435,7 @@ func _on_public_news_view_closed() -> void:
 
 
 func _on_ledger_clicked() -> void:
+	Notifications.mark_seen(Notifications.KEY_LEDGER)
 	_open_ledger_view()
 
 
@@ -454,6 +457,7 @@ func _on_ledger_view_closed() -> void:
 
 
 func _on_dossiers_clicked() -> void:
+	Notifications.mark_seen(Notifications.KEY_DOSSIERS)
 	_open_dossier_view()
 
 
@@ -696,3 +700,59 @@ func _compose_placeholder_text() -> String:
 		+ "and your seal ring.\n\n" \
 		+ "This is how orders leave the table. Every action you\n" \
 		+ "take is a letter sealed and sent."
+
+
+# --- Per-object unread dots --------------------------------------------------
+#
+# The inbox and news scroll have their own unread badges. The rest of
+# the table (ledger, dossiers, map) gets a smaller wax dot tied to the
+# Notifications autoload. The dot appears when new material has landed
+# and hides when the object is opened.
+
+var _unread_dots: Dictionary = {}  # StringName -> Panel
+
+func _install_object_unread_dots() -> void:
+	_unread_dots[Notifications.KEY_LEDGER]   = _make_unread_dot(_ledger)
+	_unread_dots[Notifications.KEY_DOSSIERS] = _make_unread_dot(_dossiers)
+	_unread_dots[Notifications.KEY_MAP]      = _make_unread_dot(_map)
+
+	Notifications.changed.connect(_refresh_object_unread_dots)
+	_refresh_object_unread_dots()
+
+
+func _make_unread_dot(parent: Control) -> Panel:
+	if parent == null:
+		return null
+	var dot: Panel = Panel.new()
+	dot.name = "UnseenDot"
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dot.anchor_left = 1.0
+	dot.anchor_right = 1.0
+	dot.anchor_top = 0.0
+	dot.anchor_bottom = 0.0
+	dot.offset_left = -18.0
+	dot.offset_top = -2.0
+	dot.offset_right = -4.0
+	dot.offset_bottom = 12.0
+
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.55, 0.08, 0.08, 1.0)
+	sb.corner_radius_top_left = 7
+	sb.corner_radius_top_right = 7
+	sb.corner_radius_bottom_left = 7
+	sb.corner_radius_bottom_right = 7
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 3
+	sb.shadow_offset = Vector2(0, 2)
+	dot.add_theme_stylebox_override("panel", sb)
+	dot.visible = false
+	parent.add_child(dot)
+	return dot
+
+
+func _refresh_object_unread_dots() -> void:
+	for key in _unread_dots.keys():
+		var d: Panel = _unread_dots[key]
+		if d == null:
+			continue
+		d.visible = Notifications.has_any(key)
