@@ -269,6 +269,18 @@ func _build_coverage_row(kingdom_id: String, score: int) -> Control:
 	phrase_label.add_theme_font_size_override("font_size", 11)
 	row.add_child(phrase_label)
 
+	# Shadow awareness suffix: only surfaces at institutional+. Reads
+	# as a muted red tag so it doesn't compete with the fog-state
+	# phrase but still flags "this region is getting loud".
+	var aw_tier: int = Shadow.awareness_tier_in(kingdom_id)
+	if aw_tier >= Shadow.TIER_INSTITUTIONAL:
+		var aw_label: Label = Label.new()
+		aw_label.text = "— drawing eyes" if aw_tier == Shadow.TIER_INSTITUTIONAL \
+			else "— they speak of you here"
+		aw_label.add_theme_color_override("font_color", Color(0.62, 0.18, 0.12, 1.0))
+		aw_label.add_theme_font_size_override("font_size", 11)
+		row.add_child(aw_label)
+
 	return row
 
 

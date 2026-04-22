@@ -493,6 +493,19 @@ func _show_detail(actor: Actor) -> void:
 			freshness_line.add_theme_color_override("font_color", color)
 			_body_vbox.add_child(freshness_line)
 
+	# Hunter warning (§10.5). If this actor is actively hunting the
+	# shadow figure, we flag it prominently. This reads above the
+	# normal "what is said of them" list because the dossier itself
+	# is now a dangerous object — if they ever got this file, they
+	# would have us.
+	if Shadow.is_hunter(String(actor.id)):
+		var hunter_line: Label = _make_body_line(
+			"This name is on our own hunter list. They are building a file on "
+			+ "the shadow figure and have stopped asking the ordinary questions."
+		)
+		hunter_line.add_theme_color_override("font_color", Color(0.62, 0.18, 0.12, 1.0))
+		_body_vbox.add_child(hunter_line)
+
 	_body_vbox.add_child(_make_divider())
 
 	_body_vbox.add_child(_make_section_heading("WHAT IS SAID OF THEM"))

@@ -24,6 +24,7 @@ const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd
 const RosterViewScript: Script          = preload("res://scripts/roster_view.gd")
 const VaultViewScript: Script           = preload("res://scripts/vault_view.gd")
 const LibraryViewScript: Script         = preload("res://scripts/library_view.gd")
+const LegendIndicatorScript: Script     = preload("res://scripts/legend_indicator.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -98,6 +99,7 @@ func _ready() -> void:
 	_install_exposure_indicator()
 	_install_purse_indicator()
 	_install_archive_indicator()
+	_install_legend_indicator()
 	_install_public_news_badge()
 	_install_object_unread_dots()
 	_install_inbox_kind_strip()
@@ -260,6 +262,22 @@ func _install_archive_indicator() -> void:
 	ind.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(ind)
 	ind.pressed.connect(_open_slots_view)
+
+
+func _install_legend_indicator() -> void:
+	var ind: Control = Control.new()
+	ind.set_script(LegendIndicatorScript)
+	ind.name = "LegendIndicator"
+	ind.anchor_left = 0.0
+	ind.anchor_right = 0.0
+	ind.anchor_top = 0.0
+	ind.anchor_bottom = 0.0
+	ind.offset_left = 20.0
+	ind.offset_top = 140.0
+	ind.offset_right = 280.0
+	ind.offset_bottom = 190.0
+	ind.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(ind)
 
 
 func _unhandled_input(event: InputEvent) -> void:
