@@ -692,6 +692,10 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_neutralize_rival(target_id, success, out)
 		&"turn_rival_operative":
 			_apply_turn_rival(target_id, success, out)
+		&"quiet_the_legend":
+			_apply_quiet_the_legend(target_id, success, out)
+		&"discredit_hunter":
+			_apply_discredit_hunter(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -1104,6 +1108,51 @@ func _apply_turn_rival(target_id: String, success: bool, out: Dictionary) -> voi
 	out["operative_society"] = soc.display_name if soc != null else "an unrecognised organisation"
 
 
+## §10.1 quiet-the-legend. Rolls back awareness heat in a kingdom.
+## Success drops heat by a flat amount; failure just burns silver.
+func _apply_quiet_the_legend(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+	var prev_tier: int = Shadow.awareness_tier_in(target_id)
+	out["prev_tier"] = prev_tier
+
+	if not success:
+		out["verdict"] = &"no_movement"
+		return
+
+	Shadow.quiet_in(target_id, 15)
+	var next_tier: int = Shadow.awareness_tier_in(target_id)
+	out["verdict"] = &"quieted"
+	out["new_tier"] = next_tier
+	out["heat_after"] = Shadow.awareness_heat_in(target_id)
+
+
+## §10.5 hunter discredit. Removes hunter status on the target actor.
+## Target must actually be a hunter; failure leaves them alive and
+## louder than before.
+func _apply_discredit_hunter(target_id: String, success: bool, out: Dictionary) -> void:
+	var a: Actor = Actors.get_actor(StringName(target_id))
+	if a == null:
+		out["verdict"] = &"invalid_target"
+		return
+	out["actor_name"] = a.display_name()
+	if not Shadow.is_hunter(target_id):
+		out["verdict"] = &"not_a_hunter"
+		return
+
+	if not success:
+		# Hunter doubles down. They now suspect someone tried to
+		# silence them — which, to them, reads as proof.
+		Shadow.bump_awareness(a.kingdom_id, 10, "hunter_confirmed_by_failure")
+		Exposure.bump(5.0, "discredit_failed")
+		out["verdict"] = &"made_worse"
+		return
+
+	# Quiet discrediting: hunter removed, legend barely moves.
+	Shadow.resolve_hunter(target_id, false)
+	out["verdict"] = &"discredited"
+
+
 ## A botched move leaves loose threads. The *player's* exposure meter
 ## only pays the tail if there was no coverage — otherwise §14.2
 ## compartmentalisation kicks in and the heat sticks to the cell that
@@ -1411,6 +1460,19 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"botched":    subject = "The turn failed in %s" % target_name
 			&"no_target":  subject = "No operative to turn in %s" % target_name
 			_:             subject = "On turning an operative in %s" % target_name
+	elif def.id == &"quiet_the_legend":
+		var qv: StringName = StringName(String(extras.get("verdict", "")))
+		match qv:
+			&"quieted":      subject = "The talk in %s is thinner" % target_name
+			&"no_movement":  subject = "The talk in %s did not move" % target_name
+			_:               subject = "On the talk in %s" % target_name
+	elif def.id == &"discredit_hunter":
+		var hv: StringName = StringName(String(extras.get("verdict", "")))
+		match hv:
+			&"discredited":   subject = "%s is no longer a hunter" % target_name
+			&"made_worse":    subject = "%s is worse than before" % target_name
+			&"not_a_hunter":  subject = "%s was not the hunter you feared" % target_name
+			_:                subject = "On %s, and the stories they tell" % target_name
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -1488,6 +1550,10 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _neutralize_rival_body(extras)
 		&"turn_rival_operative":
 			return _turn_rival_body(extras)
+		&"quiet_the_legend":
+			return _quiet_the_legend_body(extras)
+		&"discredit_hunter":
+			return _discredit_hunter_body(target, extras)
 
 		&"host_sway_court":
 			if success:
@@ -1931,6 +1997,57 @@ func _turn_rival_body(extras: Dictionary) -> String:
 				+ "a year; hope for three. Every month they live is a month their side watches the wrong door."
 				) % [nm, soc, role, soc]
 	return "On turning an operative in %s, no clear report." % region
+
+
+## §10.1 legend-quieting body.
+func _quiet_the_legend_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_movement":
+			return ("The counter-rumours in %s failed to take. They were too clever, or they arrived too late, "
+				+ "or the original stories had too much root already. The talk continues at the volume it was. "
+				+ "We can try again next season, with a different mouth."
+				) % region
+		&"quieted":
+			var prev_tier: int = int(extras.get("prev_tier", Shadow.TIER_NONE))
+			var new_tier: int  = int(extras.get("new_tier", prev_tier))
+			var crossed: bool  = new_tier < prev_tier
+			if crossed:
+				return ("The talk in %s has thinned, measurably. The stories about the unseen hand have been "
+					+ "diluted — by three counter-rumours, by a well-timed scandal about a local family, by a "
+					+ "preacher whose theme this month was humility. People have moved on. The town is, to the "
+					+ "ear of a listening spy, one tier quieter."
+					) % region
+			return ("The talk in %s is a little thinner than last month. Not yet quiet — but no longer growing. "
+				+ "Another pass of the same work will move the needle again."
+				) % region
+	return "On the matter of rumour in %s, no clear report." % region
+
+
+## §10.5 hunter-discredit body.
+func _discredit_hunter_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"invalid_target":
+			return "%s is not in our records. Nothing was attempted." % target
+		&"not_a_hunter":
+			return ("%s was not a hunter in the formal sense. They are a nuisance, perhaps, or a gossip — "
+				+ "but they are not the kind of figure who has made our exposure their life's work. "
+				+ "No intervention was attempted. The silver is returned.") % target
+		&"made_worse":
+			return ("%s saw the attempt at discrediting for what it was. They are now, to the people who listen "
+				+ "to them, a figure of confirmed truth — because who would bother to silence someone who had "
+				+ "nothing? Their following is larger than it was a month ago, and so is our problem."
+				) % target
+		&"discredited":
+			return ("%s is finished as a hunter. Not dead — that would have been loud. Discredited. A single "
+				+ "wrong fact, which they defended publicly to the point of embarrassment, was enough to let "
+				+ "their colleagues smile and stop returning their letters. They will go on writing. No one "
+				+ "of consequence will read it.\n\nThe notes they have already written remain, somewhere. "
+				+ "That is a different problem for a different day."
+				) % target
+	return "On the matter of %s and the stories they tell, no clear report." % target
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

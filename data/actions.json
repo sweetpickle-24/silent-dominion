@@ -341,6 +341,32 @@
       "max_days_to_resolve": 60,
       "base_success_chance": 0.55,
       "report_sender": "Your counter-intelligence chief"
+    },
+    {
+      "id": "quiet_the_legend",
+      "display_name": "Quiet the legend",
+      "blurb": "When a region begins to talk about us — even without knowing we are the us they are talking about — we pay priests to preach other miracles, pamphleteers to print other conspiracies, drinkers to tell other stories. Patient work. Not heroic. Necessary.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 100,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 75,
+      "base_success_chance": 0.7,
+      "report_sender": "Your counter-rumour chief"
+    },
+    {
+      "id": "discredit_hunter",
+      "display_name": "Discredit a hunter",
+      "blurb": "A hunter believes. Belief cannot be bought or frightened. It can, sometimes, be made to look ridiculous. Salt their sources. Give them one wrong fact they will defend publicly. Let their colleagues do the rest. Fails loudly when it fails.",
+      "tier": "HIGH",
+      "target_kind": "ACTOR",
+      "silver_cost": 240,
+      "exposure_cost": 6,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 75,
+      "base_success_chance": 0.55,
+      "report_sender": "Your counter-rumour chief"
     }
   ]
 }

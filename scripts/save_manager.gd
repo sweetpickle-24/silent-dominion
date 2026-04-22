@@ -167,6 +167,7 @@ func _collect_state() -> Dictionary:
 		"picture":      Picture.snapshot(),
 		"rivals":       Rivals.snapshot(),
 		"fingerprints": Fingerprints.snapshot(),
+		"shadow":       Shadow.snapshot(),
 		"beats":        Beats.snapshot(),
 	}
 
@@ -206,6 +207,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Rivals.restore(blob["rivals"])
 	if blob.has("fingerprints"):
 		Fingerprints.restore(blob["fingerprints"])
+	if blob.has("shadow"):
+		Shadow.restore(blob["shadow"])
 	if blob.has("beats"):
 		Beats.restore(blob["beats"])
 
