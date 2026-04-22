@@ -148,6 +148,8 @@ func _adjust_tax_level(k: Kingdom) -> void:
 		Kingdom.TreasuryCondition.FLUSH:
 			target = int(Kingdom.TaxLevel.INDULGENT) if old == int(Kingdom.TaxLevel.MODEST) else int(Kingdom.TaxLevel.MODEST)
 
+	target = _personality_bias_tax(k, old, target)
+
 	# Cap how long a ruler can stay at painful settings. Once the cap
 	# is hit, force a step down regardless of the treasury state.
 	if old == int(Kingdom.TaxLevel.RUINOUS):
@@ -170,6 +172,61 @@ func _adjust_tax_level(k: Kingdom) -> void:
 
 	k.tax_level = target
 	_emit_tax_change(k, old, target)
+
+
+## Shift the purely treasury-driven target by the reigning ruler's
+## personality. Greedy and ruthless crowns push the dial one notch up;
+## pious crowns won't push it to the highest painful setting without
+## reason; paranoid crowns who feel their streets getting restless
+## climb down sooner than the books say they should. The treasury
+## still sets the base; this is only a ±1 nudge.
+func _personality_bias_tax(k: Kingdom, old: int, target: int) -> int:
+	var ruler: Actor = Actors.ruler_of(k.id)
+	if ruler == null or not ruler.is_alive():
+		return target
+
+	var shift: int = 0
+
+	# Pressure upward: greed + ruthlessness want more silver through.
+	var greed_pressure: int = 0
+	if ruler.greed >= 70:        greed_pressure += 1
+	if ruler.ruthlessness >= 70: greed_pressure += 1
+	if greed_pressure > 0 and target < int(Kingdom.TaxLevel.RUINOUS):
+		shift += 1
+
+	# Pressure downward: pious rulers balk at ruinous levies; paranoid
+	# rulers with a restless capital feel the danger and ease back.
+	var restraint: int = 0
+	if ruler.piety >= 70 and target == int(Kingdom.TaxLevel.RUINOUS):
+		restraint += 1
+	if ruler.paranoia >= 70 and _kingdom_is_restless(k) and target >= int(Kingdom.TaxLevel.BURDENED):
+		restraint += 1
+	if restraint > 0:
+		shift -= 1
+
+	if shift == 0:
+		return target
+
+	var nudged: int = clampi(target + shift, int(Kingdom.TaxLevel.INDULGENT), int(Kingdom.TaxLevel.RUINOUS))
+
+	# Don't let personality snap the dial around on its own. If the
+	# biased target differs from the treasury-driven target by more
+	# than one notch off `old`, hold the line.
+	if abs(nudged - old) > 1:
+		return target
+
+	return nudged
+
+
+func _kingdom_is_restless(k: Kingdom) -> bool:
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p == null or p.population <= 0:
+			continue
+		var band: StringName = p.unrest_band()
+		if band == &"seething" or band == &"in revolt" or band == &"restless":
+			return true
+	return false
 
 
 func _emit_tax_change(k: Kingdom, from_level: int, to_level: int) -> void:
