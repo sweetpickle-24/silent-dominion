@@ -27,6 +27,8 @@ var _tax_shifts: int    = 0
 var _hosts_won: int     = 0
 var _action_wins: int   = 0
 var _action_losses: int = 0
+var _whispers_seeded: int = 0
+var _whispers_faded: int  = 0
 
 # Band transitions observed this month. Only the last one of each
 # matters for the letter body; earlier flickers are ignored.
@@ -43,6 +45,8 @@ func _ready() -> void:
 	EventBus.action_resolved.connect(_on_action_resolved)
 	Purse.band_changed.connect(_on_purse_band_changed)
 	Exposure.level_changed.connect(_on_exposure_level_changed)
+	Whispers.whisper_registered.connect(_on_whisper_registered)
+	Whispers.whisper_faded.connect(_on_whisper_faded)
 	GameClock.month_passed.connect(_on_month_passed)
 
 
@@ -74,6 +78,14 @@ func _on_purse_band_changed(band: StringName) -> void:
 
 func _on_exposure_level_changed(level: int) -> void:
 	_exposure_level_to = level
+
+
+func _on_whisper_registered(_target_id: StringName, _kind: StringName) -> void:
+	_whispers_seeded += 1
+
+
+func _on_whisper_faded(_target_id: StringName, _kind: StringName) -> void:
+	_whispers_faded += 1
 
 
 # --- Monthly dispatch --------------------------------------------------------
@@ -169,6 +181,18 @@ func _compose_body() -> String:
 		else:
 			lines.append("— Of your own instruments, %d miscarried. I await your next." % _action_losses)
 
+	var live: int = Whispers.live_count()
+	if live > 0 or _whispers_seeded > 0 or _whispers_faded > 0:
+		anything = true
+		var parts: Array[String] = []
+		if _whispers_seeded > 0:
+			parts.append("%d new line%s set running" % [_whispers_seeded, _plural(_whispers_seeded)])
+		if live > 0:
+			parts.append("%d still carried on the market ([url=codebook:whispers]whispers[/url])" % live)
+		if _whispers_faded > 0:
+			parts.append("%d quietly lost" % _whispers_faded)
+		lines.append("— " + _join_clauses(parts) + ".")
+
 	if _purse_band_to != &"":
 		anything = true
 		lines.append("— The [url=codebook:purse][i]purse[/i][/url] now sits at \"%s\"." % Purse.band_name())
@@ -190,6 +214,18 @@ func _plural(n: int) -> String:
 	return "" if n == 1 else "s"
 
 
+func _join_clauses(parts: Array[String]) -> String:
+	if parts.is_empty():
+		return ""
+	if parts.size() == 1:
+		return parts[0]
+	if parts.size() == 2:
+		return "%s, and %s" % [parts[0], parts[1]]
+	var last: String = parts[parts.size() - 1]
+	var head: Array[String] = parts.slice(0, parts.size() - 1)
+	return "%s, and %s" % [", ".join(head), last]
+
+
 func _reset_buffers() -> void:
 	_deaths = 0
 	_assassinations = 0
@@ -202,5 +238,7 @@ func _reset_buffers() -> void:
 	_hosts_won = 0
 	_action_wins = 0
 	_action_losses = 0
+	_whispers_seeded = 0
+	_whispers_faded = 0
 	_purse_band_to = &""
 	_exposure_level_to = -1
