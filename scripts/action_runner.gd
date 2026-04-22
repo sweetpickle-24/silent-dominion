@@ -698,6 +698,12 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_discredit_hunter(target_id, success, out)
 		&"false_flag_operation":
 			_apply_false_flag(target_id, success, out)
+		&"request_contact":
+			_apply_request_contact(target_id, success, out)
+		&"propose_truce":
+			_apply_propose_truce(target_id, success, out)
+		&"attempt_kill_immortal":
+			_apply_attempt_kill_immortal(target_id, success, out)
 		&"quiet_plot":
 			var plotter: Actor = WorldAI.top_plotter_in(target_id)
 			if plotter != null:
@@ -1208,6 +1214,151 @@ func _apply_false_flag(target_id: String, success: bool, out: Dictionary) -> voi
 	out["op_headline"] = String(op.get("headline", ""))
 
 
+## §5.5 request-contact. Attempts to open a back-channel letter
+## exchange with an immortal whose society the player has catalogued.
+## The most receptive known immortal in-region is chosen.
+func _apply_request_contact(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	var im: OtherImmortal = Immortals.best_contact_target(target_id)
+	if im == null:
+		out["verdict"] = &"no_peer"
+		return
+	out["peer_epithet"] = im.epithet
+	out["peer_id"] = String(im.id)
+	out["peer_current_state"] = String(im.relationship)
+
+	if im.relationship == &"in_contact" or im.relationship == &"truce":
+		out["verdict"] = &"already_open"
+		return
+	if im.relationship == &"escaped" or im.relationship == &"war":
+		out["verdict"] = &"already_hostile"
+		return
+
+	# Base chance modulated by their openness. Success also writes to
+	# the immortal's `relationship` so subsequent actions unlock.
+	var openness_bonus: float = float(im.openness - 50) / 100.0
+	var effective: bool = success and (_rng.randf() < 0.5 + openness_bonus)
+
+	if not effective:
+		# A rejection is quiet unless hostility is high. Hostile
+		# immortals treat the overture as a provocation and shift
+		# toward war.
+		if im.hostility >= 60:
+			Immortals.set_relationship(im.id, &"war")
+			Exposure.bump(10.0, "contact_refused_hostile")
+			out["verdict"] = &"hostile_rebuff"
+		else:
+			Exposure.bump(3.0, "contact_ignored")
+			out["verdict"] = &"ignored"
+		return
+
+	Immortals.set_relationship(im.id, &"in_contact")
+	out["verdict"] = &"contact_open"
+
+
+## §5.5 propose-truce. Requires an `in_contact` relationship and
+## rolls against the immortal's openness. On success, their society
+## quiets against player regions (modelled as a foothold haircut in
+## the target kingdom). On refusal the relationship cools.
+func _apply_propose_truce(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	var im: OtherImmortal = Immortals.best_contact_target(target_id)
+	if im == null:
+		out["verdict"] = &"no_peer"
+		return
+	out["peer_epithet"] = im.epithet
+	out["peer_id"] = String(im.id)
+
+	if im.relationship != &"in_contact" and im.relationship != &"truce":
+		out["verdict"] = &"no_channel"
+		return
+
+	var openness_bonus: float = float(im.openness - 40) / 100.0
+	var effective: bool = success and (_rng.randf() < 0.45 + openness_bonus)
+
+	if not effective:
+		# A truce refused cools the channel to neutral. Not hostile,
+		# not open. They do not write again.
+		Immortals.set_relationship(im.id, &"cold")
+		Exposure.bump(2.0, "truce_refused")
+		out["verdict"] = &"refused"
+		return
+
+	Immortals.set_relationship(im.id, &"truce")
+	# Immediate on-the-ground consequence: the truce is bought with
+	# their own foothold in the target region as a gesture.
+	var soc: RivalSociety = Rivals.get_society(im.society_id)
+	if soc != null:
+		var fh: int = soc.foothold_in(target_id)
+		if fh > 0:
+			var haircut: int = mini(fh, 25)
+			soc.footholds[target_id] = fh - haircut
+	out["verdict"] = &"accepted"
+
+
+## §5.5 attempt-kill-immortal. Lowest base success, highest stakes.
+## Success: the immortal is dead, their society becomes posthumous
+## and its tempo collapses next tick. Failure: the immortal escapes
+## and becomes the most dangerous threat in the campaign.
+func _apply_attempt_kill_immortal(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+
+	var im: OtherImmortal = Immortals.best_contact_target(target_id)
+	if im == null:
+		out["verdict"] = &"no_peer"
+		return
+	out["peer_epithet"] = im.epithet
+	out["peer_id"] = String(im.id)
+
+	if not im.is_alive():
+		out["verdict"] = &"already_dead"
+		return
+	if im.relationship == &"dead" or im.relationship == &"escaped":
+		out["verdict"] = &"already_resolved"
+		return
+
+	# The roll: already at 0.3 base chance from actions.json; we bias
+	# further by openness (contact means we know where they sleep) and
+	# by hostility (they are on guard if they expect war).
+	var prepared_bonus: float = 0.0
+	match im.relationship:
+		&"in_contact": prepared_bonus = 0.10   # they trust us a little, we know their habits
+		&"truce":      prepared_bonus = 0.15   # a truce-breaker moves with surprise
+		&"cold":       prepared_bonus = 0.0
+		_:              prepared_bonus = -0.05
+	var hostility_penalty: float = float(im.hostility) / 400.0
+	var rolled: bool = success and (_rng.randf() < 0.5 + prepared_bonus - hostility_penalty)
+
+	if not rolled:
+		Immortals.escape_immortal(im.id)
+		# Catastrophic exposure bump: they now have our shape.
+		Exposure.bump(25.0, "immortal_escaped")
+		Shadow.add_legend(15, "immortal_escaped")
+		# Every kingdom the target society has a foothold in gets a
+		# sharp awareness jump — they put every one of their local
+		# arms on looking for us.
+		var soc: RivalSociety = Rivals.get_society(im.society_id)
+		if soc != null:
+			for kid in soc.footholds.keys():
+				Shadow.bump_awareness(String(kid), 15, "immortal_escaped")
+		out["verdict"] = &"escaped"
+		return
+
+	Immortals.kill_immortal(im.id)
+	Shadow.add_legend(8, "immortal_killed")
+	# A kill is loud. The kingdom it happened in bumps awareness
+	# hard even if the body was never found — something major
+	# obviously just happened here.
+	Shadow.bump_awareness(target_id, 20, "immortal_killed")
+	Exposure.bump(10.0, "immortal_killed")
+	out["verdict"] = &"killed"
+
+
 ## A botched move leaves loose threads. The *player's* exposure meter
 ## only pays the tail if there was no coverage — otherwise §14.2
 ## compartmentalisation kicks in and the heat sticks to the cell that
@@ -1535,6 +1686,36 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"exposed":   subject = "The forgery in %s was spotted" % target_name
 			&"no_mark":   subject = "No mark to forge in %s" % target_name
 			_:            subject = "On the forgery cell's work in %s" % target_name
+	elif def.id == &"request_contact":
+		var cv: StringName = StringName(String(extras.get("verdict", "")))
+		var peer: String = String(extras.get("peer_epithet", "the peer"))
+		match cv:
+			&"contact_open":     subject = "A letter returned from %s" % peer
+			&"ignored":          subject = "%s has not answered" % peer
+			&"hostile_rebuff":   subject = "%s has answered with a threat" % peer
+			&"already_open":     subject = "The channel with %s is already open" % peer
+			&"already_hostile":  subject = "%s is past the point of letters" % peer
+			&"no_peer":          subject = "No peer confirmed in %s" % target_name
+			_:                   subject = "On the peer we wrote to"
+	elif def.id == &"propose_truce":
+		var tv: StringName = StringName(String(extras.get("verdict", "")))
+		var peer: String = String(extras.get("peer_epithet", "the peer"))
+		match tv:
+			&"accepted":     subject = "%s has accepted a truce" % peer
+			&"refused":      subject = "%s has refused a truce" % peer
+			&"no_channel":   subject = "No channel open to %s" % peer
+			&"no_peer":      subject = "No peer confirmed in %s" % target_name
+			_:               subject = "On the truce with %s" % peer
+	elif def.id == &"attempt_kill_immortal":
+		var av: StringName = StringName(String(extras.get("verdict", "")))
+		var peer: String = String(extras.get("peer_epithet", "the peer"))
+		match av:
+			&"killed":             subject = "%s is gone" % peer
+			&"escaped":            subject = "%s has escaped" % peer
+			&"already_dead":       subject = "%s was already gone" % peer
+			&"already_resolved":   subject = "The matter of %s is past" % peer
+			&"no_peer":            subject = "No peer to reach in %s" % target_name
+			_:                     subject = "On the attempt against %s" % peer
 
 	# Body uses the linked name so the reader can click through to the
 	# target's dossier from the letter.
@@ -1618,6 +1799,12 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _discredit_hunter_body(target, extras)
 		&"false_flag_operation":
 			return _false_flag_body(extras)
+		&"request_contact":
+			return _request_contact_body(extras)
+		&"propose_truce":
+			return _propose_truce_body(extras)
+		&"attempt_kill_immortal":
+			return _attempt_kill_immortal_body(extras)
 
 		&"host_sway_court":
 			if success:
@@ -2148,6 +2335,126 @@ func _false_flag_body(extras: Dictionary) -> String:
 				+ "confirmation back up, and the region's ear is now sharper than it was."
 				) % [region, soc, soc]
 	return "On the forgery work in %s, no clear report." % region
+
+
+## §5.5 peer-contact bodies. Tone is deliberately restrained: the
+## other immortal is not a caricature. Every letter reads as a
+## considered choice by someone who has lived three centuries and
+## does not need to posture.
+
+func _request_contact_body(extras: Dictionary) -> String:
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var peer: String = String(extras.get("peer_epithet", "the peer"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_peer":
+			return ("There is no catalogued peer in %s. Our library does not yet know any "
+				+ "immortal well enough to put a name on an envelope. The silver is returned."
+				) % region
+		&"already_open":
+			return ("A channel with %s is already open. Another letter in the same direction "
+				+ "will read as noise, or worse, as impatience. We held the silver."
+				) % peer
+		&"already_hostile":
+			return ("%s is past the point where letters do work. Whatever channel existed is "
+				+ "closed; whatever comes next is not correspondence."
+				) % peer
+		&"ignored":
+			return ("Our letter to %s was not answered. Our intermediary received no signal "
+				+ "back through any of the lines we had laid. They may have declined. They may "
+				+ "be deciding. We will not know until they choose to let us know."
+				) % peer
+		&"hostile_rebuff":
+			return ("%s read our letter as exactly what it was, and replied in kind. The "
+				+ "reply is not polite. The reply names us, within the scope of what they "
+				+ "believe they know about us, and informs us that correspondence is over. "
+				+ "Assume, from this point, that their society will act against ours where "
+				+ "it can. The exposure tail will run for some time."
+				) % peer
+		&"contact_open":
+			return ("[b]%s[/b] has replied. The letter is brief, careful, and written as if "
+				+ "by someone who has had this conversation before — because they have. They "
+				+ "acknowledge what we are. They acknowledge that they are the same. They "
+				+ "propose that we continue to exchange letters through the same intermediary, "
+				+ "at the usual pace, and that neither of us presume on the other until the "
+				+ "shape of what we want becomes clear.\n\n"
+				+ "We now have a channel to a peer. Use it carefully. They have centuries of "
+				+ "practice at reading what we really meant."
+				) % peer
+	return "On the letter to a peer, no clear report."
+
+
+func _propose_truce_body(extras: Dictionary) -> String:
+	var peer: String = String(extras.get("peer_epithet", "the peer"))
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_peer":
+			return ("No peer is catalogued in connection with %s. The proposal was not sent. "
+				+ "The silver is returned."
+				) % region
+		&"no_channel":
+			return ("We have no open letter-channel to %s. A truce cannot be proposed cold; "
+				+ "it has to be built on an exchange that already exists. First open the "
+				+ "contact, then write the terms."
+				) % peer
+		&"refused":
+			return ("%s has refused the truce. The refusal is brief. It is not hostile — "
+				+ "they did not accuse us of anything, did not threaten us, did not close "
+				+ "the channel. They simply named the reasons they do not enter such "
+				+ "arrangements, and those reasons were their own.\n\n"
+				+ "The channel is now cold. They will not write first."
+				) % peer
+		&"accepted":
+			return ("[b]%s[/b] has accepted the truce. The terms are what we proposed, "
+				+ "modified in two small places that they took the trouble to note. Neither "
+				+ "of us will act against the other's known regions. Neither of us will "
+				+ "speak the other's name. Either of us may end the agreement with a single "
+				+ "written letter, delivered through the same intermediary.\n\n"
+				+ "A peer has written their name on an agreement with ours. This is not a "
+				+ "thing that has happened before in this campaign. Do not squander it."
+				) % peer
+	return "On the proposal of a truce, no clear report."
+
+
+func _attempt_kill_immortal_body(extras: Dictionary) -> String:
+	var peer: String = String(extras.get("peer_epithet", "the peer"))
+	var region: String = String(extras.get("kingdom_name", "the region"))
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"no_peer":
+			return ("No peer is within reach in %s. The operation was called off before it "
+				+ "began. The silver is returned. Almost all of it."
+				) % region
+		&"already_dead":
+			return "%s is already gone. There was no one to move against." % peer
+		&"already_resolved":
+			return ("The matter of %s is past. We cannot attempt this twice — the outcome "
+				+ "the first attempt produced is the outcome we live with."
+				) % peer
+		&"killed":
+			return ("It is done. [b]%s[/b] is dead. The account I am writing here is the "
+				+ "only one that will ever be written, and you must burn it after reading.\n\n"
+				+ "The body was not seen by anyone outside our smallest cell. The society "
+				+ "they founded does not yet know — they will know within the season, and "
+				+ "the knowing will break them by degrees. Expect their tempo to collapse. "
+				+ "Expect their strongholds to contest their own succession. Expect all of "
+				+ "this to create opportunities we could not previously have written for ourselves.\n\n"
+				+ "It will also bring consequences. Another peer now knows what you are "
+				+ "willing to do. The arithmetic of every future letter changes, for every "
+				+ "peer you write to, from this day on."
+				) % peer
+		&"escaped":
+			return ("The attempt failed. [b]%s[/b] is alive, and they now know our shape "
+				+ "in a way no other living thing does.\n\n"
+				+ "This is, to the letter, the worst possible outcome of any attempted "
+				+ "action in this campaign. Their entire society has been instructed, as "
+				+ "of the moment they understood what had happened, to find us. Every "
+				+ "stronghold they hold will press for our regions. Our exposure has taken "
+				+ "the tail of years of work, all in one night. There is, from today, no "
+				+ "peer in the world more dangerous to us than the one we tried to kill."
+				) % peer
+	return "On the attempt against a peer, no clear report."
 
 
 func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> String:

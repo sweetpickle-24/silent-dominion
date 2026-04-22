@@ -188,6 +188,14 @@ func _render() -> void:
 	unknown_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_vbox.add_child(unknown_line)
 
+	# Known immortals (§5.5). Rendered only when at least one peer
+	# has surfaced in the correspondence — otherwise silence.
+	var peers: Array[OtherImmortal] = Immortals.known_immortals()
+	if not peers.is_empty():
+		_body_vbox.add_child(_make_peers_heading())
+		for im in peers:
+			_body_vbox.add_child(_build_peer_row(im))
+
 	_body_vbox.add_child(_make_close_button())
 
 
@@ -465,3 +473,103 @@ func _make_close_button() -> Control:
 func _clear_body() -> void:
 	for c in _body_vbox.get_children():
 		c.queue_free()
+
+
+func _make_peers_heading() -> Control:
+	var v: VBoxContainer = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	var hr: Label = Label.new()
+	hr.text = "PEERS"
+	hr.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	hr.add_theme_font_size_override("font_size", 11)
+	v.add_child(hr)
+	var blurb: Label = Label.new()
+	blurb.text = "Other immortals whose hand the library has confirmed. Relationships are state, not opinion."
+	blurb.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	blurb.add_theme_font_size_override("font_size", 11)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(blurb)
+	return v
+
+
+func _build_peer_row(im: OtherImmortal) -> Control:
+	var row: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.94, 0.88, 0.74, 0.8)
+	sb.border_color = Color(0.42, 0.28, 0.14, 0.45)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	row.add_theme_stylebox_override("panel", sb)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	row.add_child(vbox)
+
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	vbox.add_child(header)
+
+	var soc: RivalSociety = Rivals.get_society(im.society_id)
+	var title: Label = Label.new()
+	title.text = "%s — behind %s" % [im.epithet, soc.display_name if soc != null else "an unlisted society"]
+	title.add_theme_color_override("font_color", COLOR_INK)
+	title.add_theme_font_size_override("font_size", 14)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var chip: Label = Label.new()
+	chip.text = _relationship_label(im.relationship)
+	chip.add_theme_color_override("font_color", _relationship_color(im.relationship))
+	chip.add_theme_font_size_override("font_size", 11)
+	header.add_child(chip)
+
+	var disp: Label = Label.new()
+	disp.text = im.disposition
+	disp.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	disp.add_theme_font_size_override("font_size", 11)
+	disp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(disp)
+
+	if not im.is_alive() or im.relationship == &"dead":
+		var note: Label = Label.new()
+		note.text = "Founder posthumous. Their society runs on inheritance alone."
+		note.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		note.add_theme_font_size_override("font_size", 11)
+		vbox.add_child(note)
+
+	return row
+
+
+func _relationship_label(rel: StringName) -> String:
+	match rel:
+		&"unknown":    return "UNRECOGNISED"
+		&"aware":      return "KNOWN TO EACH OTHER"
+		&"in_contact": return "IN CONTACT"
+		&"truce":      return "TRUCE"
+		&"cold":       return "CHANNEL COLD"
+		&"war":        return "OPEN WAR"
+		&"dead":       return "DEAD BY OUR HAND"
+		&"escaped":    return "ESCAPED OUR HAND"
+	return ""
+
+
+func _relationship_color(rel: StringName) -> Color:
+	match rel:
+		&"truce":      return COLOR_TIER_CATALOGUED
+		&"in_contact": return COLOR_TIER_CONFIRMED
+		&"aware":      return COLOR_TIER_PROVISIONAL
+		&"cold":       return COLOR_INK_MUTED
+		&"war":        return COLOR_TIER_UNKNOWN
+		&"escaped":    return Color(0.55, 0.08, 0.08, 1.0)
+		&"dead":       return Color(0.24, 0.42, 0.22, 1.0)
+	return COLOR_INK_MUTED

@@ -462,6 +462,11 @@ func _tick_society(s: RivalSociety) -> void:
 		total += int(v)
 	if total > 200:
 		chance *= 1.25
+	# §5.5: a posthumous society (founder killed or never alive)
+	# runs on mortal inheritance only. Tempo halves and it cannot
+	# seed new operatives.
+	if _is_posthumous(s):
+		chance *= 0.5
 	if _rng.randf() > chance:
 		return
 
@@ -535,6 +540,10 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 
 func _maybe_seed_operative(s: RivalSociety, kingdom_id: String) -> void:
 	if s.foothold_in(kingdom_id) < 30:
+		return
+	# Posthumous societies cannot recruit new operatives: the founder
+	# carried the induction mystery, and that mystery is gone.
+	if _is_posthumous(s):
 		return
 	var already: int = 0
 	for e in operatives.values():
@@ -670,6 +679,16 @@ func _decay_inactive_footholds() -> void:
 func _kingdom_name(kid: String) -> String:
 	var k: Kingdom = WorldData.get_kingdom(kid)
 	return k.kingdom_name if k != null else kid
+
+
+## §5.5 gate: a society is posthumous when its founding immortal is
+## not alive (dead, escaped counts as alive for these purposes since
+## an escaped founder is still actively running the society).
+func _is_posthumous(s: RivalSociety) -> bool:
+	var im: OtherImmortal = Immortals.get_by_society(s.id)
+	if im == null:
+		return false
+	return im.kill_state == OtherImmortal.KillState.POSTHUMOUS
 
 
 # --- Seeding ---------------------------------------------------------------

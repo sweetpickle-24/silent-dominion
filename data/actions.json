@@ -380,6 +380,45 @@
       "max_days_to_resolve": 60,
       "base_success_chance": 0.5,
       "report_sender": "Your forgery cell"
+    },
+    {
+      "id": "request_contact",
+      "display_name": "Request contact with a peer",
+      "blurb": "We have catalogued a society deeply enough to know there is an immortal behind it. A discreet letter can be sent through intermediaries. They may answer. They may ignore us. They may take the letter as the provocation it, in some senses, is.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "KINGDOM",
+      "silver_cost": 180,
+      "exposure_cost": 3,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 90,
+      "base_success_chance": 0.6,
+      "report_sender": "Your intermediary"
+    },
+    {
+      "id": "propose_truce",
+      "display_name": "Propose a peer truce",
+      "blurb": "A truce between us and them. Their society stops acting against our regions; ours stops acting against theirs. Neither side can enforce it — but both understand what the alternative looks like, and both have lived long enough to prefer silence.",
+      "tier": "ACTIVE",
+      "target_kind": "KINGDOM",
+      "silver_cost": 260,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 45,
+      "max_days_to_resolve": 120,
+      "base_success_chance": 0.55,
+      "report_sender": "Your intermediary"
+    },
+    {
+      "id": "attempt_kill_immortal",
+      "display_name": "Attempt to kill a peer",
+      "blurb": "The most dangerous action in any campaign. If it works, their society goes posthumous and its tempo collapses. If it fails, a peer who now knows our shape is alive, angry, and has centuries of practice at what we do. Not to be ordered lightly.",
+      "tier": "HIGH",
+      "target_kind": "KINGDOM",
+      "silver_cost": 900,
+      "exposure_cost": 15,
+      "min_days_to_resolve": 60,
+      "max_days_to_resolve": 180,
+      "base_success_chance": 0.3,
+      "report_sender": "Your closest hand"
     }
   ]
 }
