@@ -459,6 +459,13 @@ func _apply_regional_weights(a: Actor, province_id: String) -> void:
 	elif k.tax_level == Kingdom.TaxLevel.INDULGENT:
 		a.ambition = clampi(a.ambition - 2, 10, 90)
 
+	# A province where a deep, popular faith holds sway breeds more
+	# pious people. The bias scales with both the dominant faith's
+	# popular_depth and how much of the province actually follows it.
+	var piety_bias: int = Religions.piety_bias_for(province_id)
+	if piety_bias != 0:
+		a.piety = clampi(a.piety + piety_bias, 10, 90)
+
 	# A province with a harbour and roads breeds worldlier, more curious
 	# people; less piety, more intellect.
 	if p.has_building(&"harbour"):

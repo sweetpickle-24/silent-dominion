@@ -1,0 +1,120 @@
+{
+  "_meta": {
+    "era": "500 BCE",
+    "notes": "Coarse seeding. Faiths spread by Religions._tick_presence over time. Province ids match world_500bce.json."
+  },
+  "religions": [
+    {
+      "id": "olympian",
+      "name": "Hellenic Pantheon",
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 25,
+      "institutional_strength": 35,
+      "popular_depth": 75,
+      "reform_potential": 10,
+      "ecumenical_openness": 70,
+      "founded_year": -1500,
+      "presence": {
+        "attica": 90, "boeotia": 85, "phocis": 80, "aetolia": 75,
+        "thessaly": 70, "macedon": 60, "epirus": 55, "achaea": 80,
+        "argolis": 85, "corinthia": 85, "arcadia": 75, "laconia": 80,
+        "messenia": 75, "euboea": 80, "crete": 70, "cyclades": 80,
+        "ionia": 70, "caria": 50, "magna_graecia": 80, "syracusa": 75,
+        "calabria": 55, "massalia": 50
+      }
+    },
+    {
+      "id": "mazdaism",
+      "name": "Persian Mazdaism",
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 70,
+      "institutional_strength": 75,
+      "popular_depth": 65,
+      "reform_potential": 5,
+      "ecumenical_openness": 25,
+      "founded_year": -1000,
+      "presence": {
+        "persis": 95, "media": 85, "elam": 70, "parthia": 80,
+        "hyrcania": 75, "armenia": 50, "babylonia": 35,
+        "assyria": 30, "cappadocia": 40, "phrygia": 25
+      }
+    },
+    {
+      "id": "egyptian_pantheon",
+      "name": "Egyptian Pantheon",
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 60,
+      "institutional_strength": 90,
+      "popular_depth": 85,
+      "reform_potential": 5,
+      "ecumenical_openness": 20,
+      "founded_year": -3000,
+      "presence": {
+        "lower_egypt": 95, "middle_egypt": 95, "upper_egypt": 95,
+        "nubia": 60, "cyrenaica": 25
+      }
+    },
+    {
+      "id": "roman_religio",
+      "name": "Roman Religio",
+      "phase": "CONSOLIDATION",
+      "doctrinal_rigidity": 35,
+      "institutional_strength": 45,
+      "popular_depth": 70,
+      "reform_potential": 15,
+      "ecumenical_openness": 65,
+      "founded_year": -750,
+      "presence": {
+        "latium": 90, "etruria": 60, "umbria": 60, "picenum": 50,
+        "samnium": 55, "campania": 55, "venetia": 30,
+        "gallia_cisalpina": 25
+      }
+    },
+    {
+      "id": "punic_pantheon",
+      "name": "Punic Pantheon",
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 55,
+      "institutional_strength": 55,
+      "popular_depth": 70,
+      "reform_potential": 10,
+      "ecumenical_openness": 35,
+      "founded_year": -800,
+      "presence": {
+        "africa_proconsularis": 90, "numidia": 55, "mauretania": 35,
+        "tripolitania": 70, "sardinia": 55, "corsica": 30,
+        "sicilia_poena": 75, "gaditania": 40, "baetica": 25
+      }
+    },
+    {
+      "id": "judaism",
+      "name": "Yahwism",
+      "phase": "CONSOLIDATION",
+      "doctrinal_rigidity": 85,
+      "institutional_strength": 50,
+      "popular_depth": 80,
+      "reform_potential": 20,
+      "ecumenical_openness": 10,
+      "founded_year": -1200,
+      "presence": {
+        "judea": 90, "phoenicia": 15, "syria": 8
+      }
+    },
+    {
+      "id": "celtic_pantheon",
+      "name": "Celtic Pantheon",
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 30,
+      "institutional_strength": 25,
+      "popular_depth": 80,
+      "reform_potential": 5,
+      "ecumenical_openness": 50,
+      "founded_year": -1500,
+      "presence": {
+        "gallia_aquitania": 85, "gallia_celtica": 90, "gallia_belgica": 85,
+        "narbonensis": 70, "germania_magna": 60, "noricum": 75,
+        "raetia": 70, "celtiberia": 70, "lusitania": 65
+      }
+    }
+  ]
+}

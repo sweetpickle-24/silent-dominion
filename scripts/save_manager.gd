@@ -164,6 +164,7 @@ func _collect_state() -> Dictionary:
 		"armies":    Armies.snapshot(),
 		"infrastructure": Infrastructure.snapshot(),
 		"fidelity":  Fidelity.snapshot(),
+		"religions": Religions.snapshot(),
 		"events":    RandomEvents.snapshot(),
 		"whispers":  Whispers.snapshot(),
 		"org":       Org.snapshot(),
@@ -206,6 +207,8 @@ func _apply_state(blob: Dictionary) -> void:
 		Infrastructure.restore(blob["infrastructure"])
 	if blob.has("fidelity"):
 		Fidelity.restore(blob["fidelity"])
+	if blob.has("religions"):
+		Religions.restore(blob["religions"])
 	if blob.has("events"):
 		RandomEvents.restore(blob["events"])
 	if blob.has("whispers"):

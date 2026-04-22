@@ -376,6 +376,19 @@ func _render_detail(p: Province) -> void:
 		_detail_vbox.add_child(_make_heading("ON THE GROUND"))
 		_detail_vbox.add_child(_make_line(infra))
 
+	var faiths: Array = Religions.all_in(p.id)
+	if not faiths.is_empty():
+		_detail_vbox.add_child(_make_heading("WHAT THEY HOLD SACRED"))
+		var top: int = mini(faiths.size(), 3)
+		for i in range(top):
+			var entry: Dictionary = faiths[i]
+			var rel: Religion = entry["religion"]
+			var share: int = int(entry["share"])
+			_detail_vbox.add_child(_make_line(
+				"•  %s — %s, %s"
+				% [rel.religion_name, _share_phrase(share), rel.phase_name().to_lower()]
+			))
+
 	if k != null:
 		_detail_vbox.add_child(_make_divider())
 		_detail_vbox.add_child(_make_heading("THE CROWN IT FEEDS"))
@@ -978,6 +991,14 @@ func _yield_band(v: float) -> String:
 	if v < 8.0:   return "a modest yield"
 	if v < 18.0:  return "a respectable harvest"
 	return "one of the region's great sources"
+
+
+func _share_phrase(share: int) -> String:
+	if share >= 80: return "near-universal"
+	if share >= 60: return "the great majority"
+	if share >= 40: return "a strong plurality"
+	if share >= 20: return "a sizeable minority"
+	return "a small foothold"
 
 
 func _make_heading(text: String) -> Label:
