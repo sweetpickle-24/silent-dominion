@@ -18,6 +18,36 @@ const SAVE_DIR: String       = "user://saves"
 const DEFAULT_SLOT: String   = "quicksave"
 const SAVE_VERSION: int      = 1
 
+## Slot used for silent autosaves (year rollover, window close).
+## Kept separate from the named slots so an autosave never overwrites
+## a player's deliberate fold.
+const AUTOSAVE_SLOT: String  = "autosave"
+
+
+func _ready() -> void:
+	GameClock.year_passed.connect(_on_year_passed)
+	# Intercept the window close so we can autosave before quitting.
+	get_tree().set_auto_accept_quit(false)
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_WM_GO_BACK_REQUEST:
+			_autosave_on_exit()
+			get_tree().quit()
+
+
+func _on_year_passed(_year: int) -> void:
+	if not Session.in_game:
+		return
+	save_to_slot(AUTOSAVE_SLOT)
+
+
+func _autosave_on_exit() -> void:
+	if not Session.in_game:
+		return
+	save_to_slot(AUTOSAVE_SLOT)
+
 
 # --- Public API --------------------------------------------------------------
 

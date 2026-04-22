@@ -99,6 +99,7 @@ func _ready() -> void:
 	# fully wired so signal handlers (inbox badge, time dial) are
 	# already listening.
 	_apply_pending_load()
+	Session.in_game = true
 
 
 func _apply_pending_load() -> void:

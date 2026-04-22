@@ -8,6 +8,11 @@ extends Node
 
 var pending_load_slot: String = ""
 
+## True once the table scene has finished its first wire-up. Flipped
+## back off on return to the title screen. Gates autosave-on-quit so
+## we don't churn the quicksave from the title screen.
+var in_game: bool = false
+
 
 func consume_pending_load() -> String:
 	var s: String = pending_load_slot
@@ -19,7 +24,7 @@ func consume_pending_load() -> String:
 ## by saved_at timestamp (ISO string sorts lexicographically for our
 ## purposes). Returns "" if none exist.
 func newest_slot() -> String:
-	var candidates: Array[String] = ["quicksave", "slot_1", "slot_2", "slot_3"]
+	var candidates: Array[String] = ["autosave", "quicksave", "slot_1", "slot_2", "slot_3"]
 	var best_slot: String = ""
 	var best_stamp: String = ""
 	for s in candidates:

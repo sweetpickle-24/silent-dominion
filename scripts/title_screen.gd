@@ -10,8 +10,9 @@ const TABLE_SCENE: String = "res://scenes/table/table.tscn"
 
 ## Keep in sync with SlotsView. The quicksave slot is listed first, then
 ## named slots in order, so the most-recently-used convention is obvious.
-const SLOT_IDS: Array[String] = ["quicksave", "slot_1", "slot_2", "slot_3"]
+const SLOT_IDS: Array[String] = ["autosave", "quicksave", "slot_1", "slot_2", "slot_3"]
 const SLOT_LABELS: Dictionary = {
+	"autosave":  "Last fold (auto)",
 	"quicksave": "Quick fold",
 	"slot_1":    "The first fold",
 	"slot_2":    "The second fold",

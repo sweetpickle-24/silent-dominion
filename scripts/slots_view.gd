@@ -9,8 +9,9 @@ extends Control
 
 signal closed
 
-const SLOT_IDS: Array[String] = ["quicksave", "slot_1", "slot_2", "slot_3"]
+const SLOT_IDS: Array[String] = ["autosave", "quicksave", "slot_1", "slot_2", "slot_3"]
 const SLOT_LABELS: Dictionary = {
+	"autosave":  "Autosave (on quit / on year)",
 	"quicksave": "Quicksave (F5 / F9)",
 	"slot_1":    "First archive",
 	"slot_2":    "Second archive",
