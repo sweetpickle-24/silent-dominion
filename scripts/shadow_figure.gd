@@ -150,6 +150,17 @@ func resolve_hunter(actor_id: String, loud: bool = false) -> bool:
 
 # --- Event hooks ----------------------------------------------------------
 
+## World-sim events that are not the player's fingerprint. Battles,
+## treasury swings, famines, and the like happen whether the player
+## exists or not; they must not raise the legend score.
+const SKIP_KINDS: Array[StringName] = [
+	&"battle", &"war_outcome", &"war_weariness", &"peace_declaration",
+	&"tax_change", &"fiscal_crisis", &"fiscal_recovery",
+	&"plague", &"famine", &"earthquake", &"portent", &"recovery",
+	&"army_shift", &"population_collapse", &"population_boom",
+]
+
+
 func _on_public_event(event: Dictionary) -> void:
 	# Ignore rival-authored events. Their signatures are someone
 	# else's legend, not the player's.
@@ -159,6 +170,8 @@ func _on_public_event(event: Dictionary) -> void:
 	if kid.is_empty():
 		return
 	var kind: StringName = StringName(String(event.get("kind", "")))
+	if SKIP_KINDS.has(kind):
+		return
 	var weight: int = 0
 	match kind:
 		&"rumour":        weight = 3

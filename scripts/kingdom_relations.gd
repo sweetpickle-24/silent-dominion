@@ -136,6 +136,12 @@ func ids_in_state(a_id: String, state: int) -> Array[String]:
 	return out
 
 
+## Months the pair has been at war since the most recent declaration.
+## Returns 0 if the pair is not presently at war.
+func war_months_between(a_id: String, b_id: String) -> int:
+	return int(_war_months.get(_key(a_id, b_id), 0))
+
+
 ## Every pair currently at war.
 func warring_pairs() -> Array:
 	var out: Array = []
