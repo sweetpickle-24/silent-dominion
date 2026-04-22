@@ -9,6 +9,7 @@ extends Control
 ## root. The view frees itself on close and emits `closed`.
 
 signal closed
+signal actor_link_clicked(actor_id: StringName)
 
 @onready var _dimmer: ColorRect         = $Dimmer
 @onready var _letter_root: Control      = $LetterRoot
@@ -42,6 +43,29 @@ var _is_closing: bool = false
 func _ready() -> void:
 	_dimmer.gui_input.connect(_on_dimmer_input)
 	_close_button.pressed.connect(close)
+	_body_label.meta_clicked.connect(_on_meta_clicked)
+	_body_label.meta_hover_started.connect(_on_meta_hover_started)
+	_body_label.meta_hover_ended.connect(_on_meta_hover_ended)
+
+
+func _on_meta_clicked(meta: Variant) -> void:
+	# Letter bodies use BBCode meta tags to cross-link to dossiers. Format:
+	#   [url=actor:<actor_id>]Display Name[/url]
+	# Any other meta kind is ignored here; extend as more link types
+	# arrive (province, kingdom, historical event, etc.).
+	var s: String = String(meta)
+	if s.begins_with("actor:"):
+		var id: StringName = StringName(s.substr(len("actor:")))
+		actor_link_clicked.emit(id)
+		close()
+
+
+func _on_meta_hover_started(_meta: Variant) -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
+
+
+func _on_meta_hover_ended(_meta: Variant) -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 
 # --- Public API ---------------------------------------------------------------

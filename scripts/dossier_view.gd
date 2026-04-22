@@ -40,6 +40,9 @@ var _current_kingdom_filter: String = ALL_KINGDOMS_KEY
 
 # --- Lifecycle ---------------------------------------------------------------
 
+var _pending_initial_actor: Actor = null
+
+
 func _ready() -> void:
 	anchor_right = 1.0
 	anchor_bottom = 1.0
@@ -47,10 +50,26 @@ func _ready() -> void:
 
 	_build_dimmer()
 	_build_sheet()
-	_render_list()
+
+	if _pending_initial_actor != null:
+		_show_detail(_pending_initial_actor)
+		_pending_initial_actor = null
+	else:
+		_render_list()
 
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+
+
+## Public: open the view directly on a specific actor's dossier. Safe to
+## call before or after the view has entered the tree.
+func show_actor(actor: Actor) -> void:
+	if actor == null:
+		return
+	if _body_vbox == null:
+		_pending_initial_actor = actor
+		return
+	_show_detail(actor)
 
 
 func _unhandled_input(event: InputEvent) -> void:

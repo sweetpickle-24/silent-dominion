@@ -139,6 +139,8 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool) -> L
 	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
 	var letter_id: StringName = StringName("report_%d" % Time.get_ticks_msec())
 
+	# Subject lines use the plain name (no bbcode — the inbox header label
+	# is not a RichTextLabel).
 	var subject: String = "Report on %s" % target_name
 	if def.id == &"observe":
 		subject = "Watcher's report on %s" % target_name
@@ -151,9 +153,21 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool) -> L
 	elif def.id == &"cultivate":
 		subject = "A season of small kindnesses, re: %s" % target_name
 
-	var body: String = _body_for(def, target_name, success)
+	# Body uses the linked name so the reader can click through to the
+	# target's dossier from the letter.
+	var linked_name: String = _linked_target(def.target_kind, target_id, target_name)
+	var body: String = _body_for(def, linked_name, success)
 
 	return Letter.create(letter_id, def.report_sender, date, subject, body)
+
+
+## Wrap an Actor target name in a BBCode url so the letter view can
+## open the dossier on click. Non-Actor targets return plain text.
+## The colour is a dark wine red that reads as "interactive" on parchment.
+func _linked_target(kind: ActionDefinition.TargetKind, id: String, display: String) -> String:
+	if kind == ActionDefinition.TargetKind.ACTOR and not id.is_empty():
+		return "[url=actor:%s][color=#702020][b]%s[/b][/color][/url]" % [id, display]
+	return display
 
 
 func _body_for(def: ActionDefinition, target: String, success: bool) -> String:

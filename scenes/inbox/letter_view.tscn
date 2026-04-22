@@ -190,7 +190,6 @@ autowrap_mode = 2
 [node name="Body" type="RichTextLabel" parent="LetterRoot/Paper/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
 bbcode_enabled = true
 fit_content = false
 scroll_active = true

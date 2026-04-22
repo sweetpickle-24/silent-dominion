@@ -249,7 +249,36 @@ func _open_letter_view(letter: Letter) -> void:
 	var view: Control = LetterViewScene.instantiate()
 	add_child(view)
 	view.closed.connect(_on_letter_view_closed)
+	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
 	view.display(letter)
+
+
+func _on_letter_actor_link_clicked(actor_id: StringName) -> void:
+	# Letter has emitted the click and is closing itself. We want to open
+	# the dossier view on that actor once the letter is gone so overlay
+	# state stays consistent.
+	var actor: Actor = Actors.get_actor(actor_id)
+	if actor == null:
+		return
+	# Defer one frame so the letter's close tween finishes and
+	# _on_letter_view_closed runs first, clearing _overlay_active.
+	call_deferred("_open_dossier_view_for_actor", actor)
+
+
+func _open_dossier_view_for_actor(actor: Actor) -> void:
+	if _overlay_active:
+		# Still mid-close; try again shortly.
+		call_deferred("_open_dossier_view_for_actor", actor)
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(DossierViewScript)
+	view.name = "DossierView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_dossier_view_closed)
+	view.show_actor(actor)
 
 
 func _on_letter_view_closed() -> void:
