@@ -22,6 +22,50 @@ var _by_actor: Dictionary = {}
 func _ready() -> void:
 	_seed_placeholder_letters()
 	EventBus.letter_delivered.connect(add_letter)
+	# §F2 — when a table object is unlocked by a milestone, drop a
+	# one-shot factotum letter that names the object and its hotkey.
+	if Unlocks != null and Unlocks.has_signal("surface_unlocked"):
+		Unlocks.surface_unlocked.connect(_on_surface_unlocked)
+
+
+const _UNLOCK_COPY: Dictionary = {
+	&"memoirs": {
+		"subject": "The drawer at your left hand",
+		"hotkey":  "M",
+		"body":    "The drawer you have not opened yet is the drawer where patterns live. Write one down and the Memoirs begin to compound. (M opens it.)",
+	},
+	&"vault":   {
+		"subject": "The ledger is open",
+		"hotkey":  "V",
+		"body":    "Silver is moving. From here on, every coin has a route and a cost and a latency — and someone you can ask about all three. The Vault is yours. (V opens it.)",
+	},
+	&"library": {
+		"subject": "The library, such as it is",
+		"hotkey":  "F",
+		"body":    "You have noticed a pattern repeat itself. A pattern noticed twice is a fingerprint. The Library will keep the count. (F opens it.)",
+	},
+	&"roster":  {
+		"subject": "The roster, such as it is",
+		"hotkey":  "O",
+		"body":    "You have more than one name working for you now. The Roster shows who, where, and under how much strain. (O opens it.)",
+	},
+}
+
+
+func _on_surface_unlocked(id: StringName) -> void:
+	var copy: Variant = _UNLOCK_COPY.get(id, null)
+	if copy == null:
+		return
+	var subject: String = String((copy as Dictionary).get("subject", ""))
+	var body: String = String((copy as Dictionary).get("body", ""))
+	add_letter(Letter.create(
+		StringName("unlock_%s" % String(id)),
+		OrgRoles.sender_line(OrgRoles.FACTOTUM),
+		GameDate.today(),
+		subject,
+		body,
+		&"intro"
+	))
 
 
 # --- Public API ---------------------------------------------------------------
@@ -116,50 +160,39 @@ func mark_read(id: StringName) -> void:
 # Three opening letters to set the tone. These will be replaced by the
 # simulation once it is producing events. Keep them short and flavourful.
 
+## §C3 — a single turn-1 letter from the starter coordinator. No
+## ghost-actor letters. The coordinator actually exists (seeded by
+## OrgRegistry on world_loaded); the name in the byline is a real
+## OrgMember display_name.
 func _seed_placeholder_letters() -> void:
-	add_letter(Letter.create(
-		&"letter_rome_consuls",
-		"A friend in Roma",
-		GameDate.make(501, 12, 28),
-		"The young Republic stumbles",
-		"The kings are nine winters gone and the consuls still "
-		+ "quarrel like boys over a broken wheel. Every patrician "
-		+ "house carries debts it cannot name aloud.\n\n"
-		+ "There is work for a patient hand here. The city does "
-		+ "not yet understand what it is becoming.\n\n"
-		+ "Burn this after reading.\n\n"
-		+ "— the usual",
-		&"intro"
-	))
+	if WorldData != null and not WorldData.is_loaded():
+		WorldData.world_loaded.connect(_emit_starter_letter, CONNECT_ONE_SHOT)
+		return
+	_emit_starter_letter()
 
-	add_letter(Letter.create(
-		&"letter_tyre_grain",
-		"Adherbal, harbourmaster of Tyrus",
-		GameDate.make(500, 2, 3),
-		"The grain from Kemet, and a worry",
-		"The shipment cleared the mouth of the Nile on the new "
-		+ "moon. Three holds of emmer, one of barley. I have "
-		+ "marked the jars as you asked.\n\n"
-		+ "A Persian factor asked after you by name. I told him "
-		+ "I knew no such man. He smiled as if that were the "
-		+ "answer he expected.\n\n"
-		+ "Send word before the equinox or I sail without you.\n\n"
-		+ "— A.",
-		&"intro"
-	))
 
+func _emit_starter_letter() -> void:
+	# Defer one frame so OrgRegistry has finished seeding the starter
+	# cell before we resolve the coordinator's name.
+	call_deferred("_emit_starter_letter_now")
+
+
+func _emit_starter_letter_now() -> void:
+	var sender: String = OrgRoles.sender_line(OrgRoles.COORDINATOR, "athens")
+	var body: String = (
+		"The predecessor's papers are in order. The Athens table is yours.\n\n"
+		+ "I have kept the quiet arrangements quiet through the interregnum. "
+		+ "The house in the Kerameikos has a merchant on retainer — a decent "
+		+ "man, cultivated into our orbit under the old hand — and a modest "
+		+ "banking arrangement carried over to your name. Nothing louder than "
+		+ "that. We will build at your pace, not mine.\n\n"
+		+ "Write when you are settled. Until then, I hold the city."
+	)
 	add_letter(Letter.create(
-		&"letter_miletos_unrest",
-		"Kallias, your man in Miletos",
-		GameDate.make(500, 3, 12),
-		"Unrest among the Ionian cities",
-		"The tyrants the Persian king set over us grow fat, and "
-		+ "the assemblies grow loud. Aristagoras whispers of "
-		+ "revolt in every wine-house on the agora.\n\n"
-		+ "If the Ionians rise, Sardis will burn, and the Great "
-		+ "King will not forget. We should decide, soon, which "
-		+ "side of the fire we intend to stand on.\n\n"
-		+ "Awaiting your sign.\n\n"
-		+ "— K.",
+		&"letter_starter_coord_welcome",
+		sender,
+		GameDate.today(),
+		"The Athens table is yours",
+		body,
 		&"intro"
 	))

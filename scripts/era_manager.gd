@@ -116,7 +116,7 @@ func _on_year_passed(_y: int) -> void:
 
 
 func _announce_transition(prev_id: StringName, new_era: Era) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var prev_era: Era = get_era(prev_id)
 	var prev_label: String = prev_era.display_name if prev_era != null else String(prev_id)
 	var body: String = (

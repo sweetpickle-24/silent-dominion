@@ -336,7 +336,7 @@ func sever_cell(coord_id: StringName) -> bool:
 	# merchant who vanished overnight.
 	Exposure.bump(3.0, "severed_cell")
 
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var body: String = (
 		"I have ordered the cell around %s dissolved. The operatives are out of the "
 		+ "city by the second watch; the ledgers have been burned; the rented rooms "
@@ -348,7 +348,7 @@ func sever_cell(coord_id: StringName) -> bool:
 	) % [region_name, coord_name, region_name]
 	var letter: Letter = Letter.create(
 		StringName("sever_%s_%d" % [coord_id, Time.get_ticks_msec()]),
-		"Your factotum",
+		OrgRoles.sender_line(OrgRoles.FACTOTUM, region_name),
 		date,
 		"The %s cell has been burned" % region_name,
 		body,
@@ -449,7 +449,7 @@ func _emit_dispatch_failure(descriptor: Dictionary, broken_stage: String) -> voi
 	var region: String = coord.region_id if coord != null else ""
 	var k: Kingdom = WorldData.get_kingdom(region)
 	var region_name: String = k.kingdom_name if k != null else region
-	var coord_name: String = coord.display_name if coord != null else "Your coordinator"
+	var coord_name: String = coord.display_name if coord != null else OrgRoles.neutral_title(OrgRoles.COORDINATOR)
 	var body: String
 	match broken_stage:
 		"coordinator":
@@ -464,10 +464,10 @@ func _emit_dispatch_failure(descriptor: Dictionary, broken_stage: String) -> voi
 	var subject: String = "Your %s in %s is gone; the order never reached its hand." % [
 		broken_stage, region_name if region_name != "" else "the target region",
 	]
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter: Letter = Letter.create(
 		StringName("dispatch_fail_%s_%d" % [String(action_id), Time.get_ticks_msec()]),
-		"Your factotum",
+		OrgRoles.sender_line(OrgRoles.FACTOTUM, region),
 		date,
 		subject,
 		body,
@@ -761,7 +761,7 @@ func _on_retainer_turned(retainer: Dictionary) -> void:
 		Actors.adjust_relationship(a.id, -25)
 	Exposure.bump(8.0, "retainer_turned")
 
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var body: String = (
 		"%s has not been paid in three months, and they have found a louder patron. "
 		+ "They are carrying what they know of your network into a room you are not in. "
@@ -770,7 +770,7 @@ func _on_retainer_turned(retainer: Dictionary) -> void:
 	) % display
 	var letter: Letter = Letter.create(
 		StringName("retainer_turned_%d" % Time.get_ticks_msec()),
-		"Your paymaster",
+		OrgRoles.sender_line(OrgRoles.PAYMASTER, (a.kingdom_id if a != null else "")),
 		date,
 		"A dependent has found another room",
 		body,
@@ -1861,7 +1861,7 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 	var target_name: String = _lookup_target_name(def.target_kind, target_id)
 	# GameClock stores years as negative (BCE arithmetic); GameDate stores
 	# them as positive (display). Flip here.
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("report_%d" % Time.get_ticks_msec())
 
 	# Subject lines use the plain name (no bbcode — the inbox header label
@@ -2064,7 +2064,77 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 	var linked_name: String = _linked_target(def.target_kind, target_id, target_name)
 	var body: String = _body_for(def, linked_name, success, extras)
 
-	return Letter.create(letter_id, def.report_sender, date, subject, body, &"action")
+	# §C4 — `def.report_sender` is a role_id token (`factotum`,
+	# `archivist`, ...). Resolve through OrgRoles at fire time so the
+	# byline is a real OrgMember when the player has one and a neutral
+	# fallback when they don't.
+	var sender: String = _resolve_report_sender(def, target_id)
+	return Letter.create(letter_id, sender, date, subject, body, &"action")
+
+
+func _resolve_report_sender(def: ActionDefinition, target_id: String) -> String:
+	if def == null:
+		return "A hand, unnamed"
+	var token: StringName = StringName(def.report_sender)
+	var region: String = _target_kingdom_of(def.target_kind, target_id)
+
+	# The `host` token resolves to the target actor's display name —
+	# the host IS a real actor, not a ghost, so we name them directly.
+	if token == OrgRoles.HOST:
+		if def.target_kind == ActionDefinition.TargetKind.ACTOR:
+			var a: Actor = Actors.get_actor(StringName(target_id))
+			if a != null:
+				return a.display_name()
+		return OrgRoles.neutral_title(OrgRoles.HOST)
+
+	# Anonymous tokens bypass Org lookup — the fiction is that these
+	# letters come from outside the player's cell (audit, unaffiliated).
+	if token == OrgRoles.ANONYMOUS_AUDIT or token == OrgRoles.UNAFFILIATED_WATCHER:
+		return OrgRoles.neutral_title(token)
+
+	# Known role tokens route through OrgRoles.
+	if token in [
+		OrgRoles.FACTOTUM, OrgRoles.ARCHIVIST, OrgRoles.PAYMASTER,
+		OrgRoles.GO_BETWEEN, OrgRoles.WATCHER, OrgRoles.WATCHER_ARCHIVES,
+		OrgRoles.SECRETARY, OrgRoles.TUTOR, OrgRoles.CHIEF_OF_MANDATES,
+		OrgRoles.COUNTER_INTEL, OrgRoles.COORDINATOR,
+		OrgRoles.COORDINATOR_AT_DEPARTURE, OrgRoles.PREDECESSOR,
+		OrgRoles.CORRESPONDENT_HARBOUR, OrgRoles.MAN_OF_AFFAIRS,
+		OrgRoles.BROKER, OrgRoles.HANDLER, OrgRoles.OWN_HAND,
+		OrgRoles.REVIEWER, OrgRoles.INVESTIGATOR, OrgRoles.COUNTER_RUMOUR,
+		OrgRoles.ARSON_CHIEF, OrgRoles.FORGERY_CELL, OrgRoles.INTERMEDIARY,
+		OrgRoles.CLOSEST_HAND,
+	]:
+		return OrgRoles.sender_line(token, region)
+	# Legacy freeform strings — return as-is. Phase C4 converts every
+	# known entry in actions.json to a token, so this path will
+	# shrink to zero; we keep it so modded actions still render.
+	return def.report_sender
+
+
+func _target_kingdom_of(kind: ActionDefinition.TargetKind, id: String) -> String:
+	match kind:
+		ActionDefinition.TargetKind.ACTOR:
+			var a: Actor = Actors.get_actor(StringName(id))
+			if a != null:
+				return a.kingdom_id
+		ActionDefinition.TargetKind.KINGDOM:
+			return id
+		ActionDefinition.TargetKind.PROVINCE:
+			var p: Province = WorldData.get_province(id)
+			if p != null:
+				return p.owning_kingdom
+		ActionDefinition.TargetKind.ORG_MEMBER:
+			var m: OrgMember = Org.get_member(StringName(id))
+			if m != null:
+				return m.region_id
+		ActionDefinition.TargetKind.ENTITY:
+			var e: OwnedEntity = Entities.get_entity(StringName(id))
+			if e != null:
+				return e.home_kingdom
+		_:
+			pass
+	return ""
 
 
 ## Stamp a letter with its per-report confidence band (§18 fog-of-intel).

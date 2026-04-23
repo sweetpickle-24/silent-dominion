@@ -191,6 +191,7 @@ func _render() -> void:
 
 	_render_standing_orders()
 	_render_known_profiles()
+	_render_system_reference()
 
 	if Inbox.letters.is_empty():
 		_content.add_child(_empty_state())
@@ -448,6 +449,198 @@ func _kingdoms_matching_culture(culture_tag: StringName) -> Array[String]:
 		if Languages.native_of(String(k.id)) == culture_tag:
 			out.append(String(k.id))
 	return out
+
+
+# --- System reference (§30.1) -------------------------------------------------
+#
+# What used to live in the Codebook. Bands, levels, and tiers the UI speaks
+# in. Each entry is sourced from the responsible system's live constants
+# (Purse.band_entries(), Exposure.level_entries(), etc.) so renaming a band
+# in code renames it here too.
+
+func _render_system_reference() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+	section.add_theme_constant_override("separation", 6)
+	_content.add_child(section)
+
+	var heading: Label = Label.new()
+	heading.text = "SYSTEM REFERENCE — §30.1"
+	heading.add_theme_color_override("font_color", COLOR_ACCENT)
+	heading.add_theme_font_size_override("font_size", 11)
+	section.add_child(heading)
+
+	var intro: Label = Label.new()
+	intro.text = "What every band on the table means. Drawn from the instruments themselves — if a word here looks wrong, the word on the table has changed and this page has been re-read."
+	intro.add_theme_color_override("font_color", COLOR_INK)
+	intro.add_theme_font_size_override("font_size", 12)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(intro)
+
+	_ref_group(section, "THE PURSE", "Silver on hand. Shown as a band, never as a figure.", Purse.band_entries())
+	_ref_group(section, "EXPOSURE", "How visible your hand has become. Each level bars louder instruments.", Exposure.level_entries())
+	_ref_group(section, "TREASURIES OF CROWNS",
+		"The fiscal state of each kingdom. Rulers shift tax posture in response.",
+		_treasury_entries())
+	_ref_group(section, "TAX BENCHES",
+		"How hard the crown squeezes. Strained treasuries push the dial up; ruinous settings cannot last a year.",
+		_tax_entries())
+	_ref_group(section, "RELATIONSHIP WITH A NAME",
+		"Where a specific person stands with you. The threshold into 'host' sits at about loyal.",
+		_relationship_entries())
+	_ref_group(section, "KINGDOMS, TO EACH OTHER",
+		"How crowns regard their neighbours. Shown on the Map detail panel.",
+		_relations_entries())
+	_ref_group(section, "PROVINCE MOOD",
+		"Every populated province carries a mood, shown only on the Map.",
+		_unrest_entries())
+	_ref_group(section, "THE TIME DIAL",
+		"Clock speeds, top-right. Pause, day, and month.",
+		[
+			{"id": &"pause", "label": "Pause",     "blurb": "Time freezes. Useful for reading or composing without pressure."},
+			{"id": &"day",   "label": "Day (I)",   "blurb": "One day per real second."},
+			{"id": &"month", "label": "Month (II)", "blurb": "One month per real second. Most of your life passes here."},
+		])
+	_ref_group(section, "WHISPERS",
+		"A rumour, once planted, lives on the tongues of others for a while, then fades.",
+		[
+			{"id": &"loud",    "label": "Loud",    "blurb": "Newly seeded. The market is talking. Expect follow-ups."},
+			{"id": &"carried", "label": "Carried", "blurb": "Past the first fire, but still passed around in the same rooms."},
+			{"id": &"fading",  "label": "Fading",  "blurb": "Half-remembered. A final dispatch may name its decline."},
+			{"id": &"dead",    "label": "Dead",    "blurb": "Dropped. The Public News will not return to it."},
+		])
+	_ref_group(section, "WHAT LANDS IN THE INBOX",
+		"Every letter that arrives is one of a few kinds.",
+		[
+			{"id": &"action", "label": "Report",         "blurb": "One of your instruments has resolved — success or failure."},
+			{"id": &"intel",  "label": "Intel",          "blurb": "An eyes-and-ears observation. Treat as the reporter's claim until corroborated."},
+			{"id": &"host",   "label": "From a host",    "blurb": "A loyal actor writes to you unprompted, about their city."},
+			{"id": &"digest", "label": "Monthly brief",  "blurb": "A coordinator's short summary of the month that just ended."},
+			{"id": &"news",   "label": "A forwarded public dispatch", "blurb": "Public news important enough to put in front of you."},
+			{"id": &"intro",  "label": "Onboarding",     "blurb": "Scripted beats while you learn the table."},
+		])
+	_ref_group(section, "COVER IDENTITIES",
+		"The faces you wear. Each identity has its own legend — how well-known and trusted the cover is in the rooms it moves through. See the Dossiers panel, 'This side of the table', for the live list.",
+		[
+			{"id": &"new",     "label": "A name no one knows yet", "blurb": "Just opened. The cover exists on paper; no one has seen it twice."},
+			{"id": &"seen",    "label": "A face seen once or twice", "blurb": "Recognised by a handful of locals, not remembered."},
+			{"id": &"circuit", "label": "A face on the circuit", "blurb": "Regular at the usual tables. Trusted enough to be admitted, not enough to be confided in."},
+			{"id": &"trusted", "label": "A trusted regular", "blurb": "Familiar to gatekeepers. Doors open without challenge."},
+			{"id": &"fixture", "label": "Part of the landscape", "blurb": "Everyone assumes this person has always been here."},
+			{"id": &"burned",  "label": "Burned", "blurb": "The cover is dead. No operation may route through it again."},
+		])
+
+	var sep: HSeparator = HSeparator.new()
+	sep.add_theme_color_override("color", COLOR_PARCHMENT_EDGE)
+	section.add_child(sep)
+
+
+func _ref_group(parent: VBoxContainer, title: String, blurb: String, entries: Array) -> void:
+	var spacer: Control = Control.new()
+	spacer.custom_minimum_size.y = 6.0
+	parent.add_child(spacer)
+
+	var h: Label = Label.new()
+	h.text = title
+	h.add_theme_color_override("font_color", COLOR_ACCENT)
+	h.add_theme_font_size_override("font_size", 11)
+	parent.add_child(h)
+
+	var b: Label = Label.new()
+	b.text = blurb
+	b.add_theme_color_override("font_color", COLOR_INK)
+	b.add_theme_font_size_override("font_size", 12)
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	parent.add_child(b)
+
+	for e in entries:
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		parent.add_child(row)
+
+		var name_l: Label = Label.new()
+		name_l.text = String(e.get("label", ""))
+		name_l.add_theme_color_override("font_color", COLOR_INK)
+		name_l.add_theme_font_size_override("font_size", 12)
+		name_l.custom_minimum_size.x = 140.0
+		row.add_child(name_l)
+
+		var def_l: Label = Label.new()
+		def_l.text = String(e.get("blurb", ""))
+		def_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		def_l.add_theme_font_size_override("font_size", 12)
+		def_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		def_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(def_l)
+
+
+func _treasury_entries() -> Array:
+	# Names are sourced from Kingdom.TreasuryCondition enum keys so the
+	# glossary never falls behind the code.
+	var keys: Array = Kingdom.TreasuryCondition.keys()
+	var blurbs: Dictionary = {
+		"FLUSH":    "Rich. Likely planning something costly.",
+		"STABLE":   "Neither rich nor struggling. The default.",
+		"STRAINED": "Months of runway are thin. Rulers begin to squeeze.",
+		"INDEBTED": "The crown is borrowing, often without discretion.",
+		"BROKE":    "The treasury is openly empty. Emergencies follow.",
+	}
+	var out: Array = []
+	for k in keys:
+		out.append({
+			"id":    StringName(String(k).to_lower()),
+			"label": String(k).capitalize(),
+			"blurb": String(blurbs.get(k, "")),
+		})
+	return out
+
+
+func _tax_entries() -> Array:
+	var keys: Array = Kingdom.TaxLevel.keys()
+	var blurbs: Dictionary = {
+		"INDULGENT": "Barely collected. Popular; hollow treasury.",
+		"MODEST":    "The traditional tithe. The default.",
+		"BURDENED":  "Noticeably heavy. Revenue up, patience down.",
+		"RUINOUS":   "Extraordinary levies, openly resented. Cannot last a year.",
+	}
+	var out: Array = []
+	for k in keys:
+		out.append({
+			"id":    StringName(String(k).to_lower()),
+			"label": String(k).capitalize(),
+			"blurb": String(blurbs.get(k, "")),
+		})
+	return out
+
+
+func _relationship_entries() -> Array:
+	return [
+		{"id": &"hostile", "label": "Hostile", "blurb": "They would harm you if they could. Any approach is costly."},
+		{"id": &"cold",    "label": "Cold",    "blurb": "They will not act for you and will forget nothing."},
+		{"id": &"neutral", "label": "Neutral", "blurb": "No particular feeling. Most names begin here."},
+		{"id": &"warm",    "label": "Warm",    "blurb": "Some goodwill. Your letters are read, not discarded."},
+		{"id": &"loyal",   "label": "Loyal",   "blurb": "A host. Will act on your behalf at the usual carefulness."},
+		{"id": &"devoted", "label": "Devoted", "blurb": "A host who volunteers. The scarcest and most dangerous asset."},
+	]
+
+
+func _relations_entries() -> Array:
+	return [
+		{"id": &"at_war",  "label": "At war",  "blurb": "Active conflict. Peace is months away at best."},
+		{"id": &"cold",    "label": "Cold",    "blurb": "Recent scars, or old grudges. Alliances are impossible."},
+		{"id": &"neutral", "label": "Neutral", "blurb": "No particular feeling. The default edge."},
+		{"id": &"warm",    "label": "Warm",    "blurb": "Trade passes easily; envoys are kept."},
+		{"id": &"sworn",   "label": "Sworn",   "blurb": "Formally allied. Will enter a war if the other is attacked."},
+	]
+
+
+func _unrest_entries() -> Array:
+	return [
+		{"id": &"quiet",    "label": "Quiet",     "blurb": "Nothing is stirring. Children at the fountain, elders at the gate."},
+		{"id": &"uneasy",   "label": "Uneasy",    "blurb": "A watchfulness in the markets. Nothing named, yet."},
+		{"id": &"restless", "label": "Restless",  "blurb": "Knots of men arguing. The guard looks tired on purpose."},
+		{"id": &"seething", "label": "Seething",  "blurb": "Broadsides at night. The crown's name is said wrong."},
+		{"id": &"revolt",   "label": "In revolt", "blurb": "Past orderly. Stones in the square, doors barred, names shouted."},
+	]
 
 
 func _empty_state() -> Control:

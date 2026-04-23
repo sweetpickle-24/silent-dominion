@@ -184,6 +184,9 @@ func _render_list() -> void:
 	_body_vbox.add_child(_make_title("Dossiers"))
 	_body_vbox.add_child(_make_subtitle("Every name on this table, and the shape the world ascribes to them."))
 
+	# §F4 — "This side of the table": the player's own cover identities.
+	_render_identities_section()
+
 	var filter_bar: HBoxContainer = HBoxContainer.new()
 	filter_bar.add_theme_constant_override("separation", 8)
 	filter_bar.custom_minimum_size.y = 28.0
@@ -272,7 +275,9 @@ func _on_search_text_changed(new_text: String) -> void:
 
 
 func _filtered_actors() -> Array[Actor]:
-	var all: Array[Actor] = Actors.all_actors()
+	# §E1 — roster is gated by Picture. If the player has no picture of
+	# a kingdom, its people don't exist in the dossier.
+	var all: Array[Actor] = Picture.known_actors() if Picture != null else Actors.all_actors()
 	var filtered: Array[Actor] = []
 	var needle: String = _current_search.strip_edges().to_lower()
 	for a in all:
@@ -293,7 +298,8 @@ func _filtered_actors() -> Array[Actor]:
 
 func _unique_kingdom_ids() -> Array:
 	var s: Dictionary = {}
-	for a in Actors.all_actors():
+	var pool: Array[Actor] = Picture.known_actors() if Picture != null else Actors.all_actors()
+	for a in pool:
 		if a.kingdom_id != "":
 			s[a.kingdom_id] = true
 	return s.keys()
@@ -1359,3 +1365,112 @@ func _on_child_codebook_link(anchor: StringName) -> void:
 	codebook_link_clicked.emit(anchor)
 	_child_letter_view = null
 	close()
+
+
+# --- §F4 Cover identities: "THIS SIDE OF THE TABLE" --------------------------
+
+func _render_identities_section() -> void:
+	if Identities == null:
+		return
+	var active: Array[CoverIdentity] = Identities.active_identities()
+	if active.is_empty():
+		return
+
+	var section: VBoxContainer = VBoxContainer.new()
+	section.add_theme_constant_override("separation", 6)
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_vbox.add_child(section)
+
+	var header: Label = Label.new()
+	header.text = "THIS SIDE OF THE TABLE"
+	header.add_theme_color_override("font_color", COLOR_INK)
+	header.add_theme_font_size_override("font_size", 12)
+	section.add_child(header)
+
+	var blurb: Label = Label.new()
+	blurb.text = "The faces you wear. Every action you route through one of these names writes a little more legend under it — and a little more risk."
+	blurb.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	blurb.add_theme_font_size_override("font_size", 11)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(blurb)
+
+	for ident in active:
+		section.add_child(_build_identity_card(ident))
+
+	var sep: HSeparator = HSeparator.new()
+	sep.add_theme_color_override("color", COLOR_PARCHMENT_EDGE)
+	section.add_child(sep)
+
+
+func _build_identity_card(ident: CoverIdentity) -> Control:
+	var card: PanelContainer = PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.94, 0.90, 0.78, 1.0)
+	sb.border_color = COLOR_PARCHMENT_EDGE
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	card.add_theme_stylebox_override("panel", sb)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	card.add_child(vbox)
+
+	var title: Label = Label.new()
+	title.text = ident.display_title()
+	title.add_theme_color_override("font_color", COLOR_INK)
+	title.add_theme_font_size_override("font_size", 14)
+	vbox.add_child(title)
+
+	var meta_parts: Array[String] = []
+	meta_parts.append("apparently %d years old" % ident.apparent_age)
+	if not ident.home_region_id.is_empty():
+		var k: Kingdom = WorldData.get_kingdom(ident.home_region_id) if WorldData != null else null
+		meta_parts.append("of %s" % (k.kingdom_name if k != null else ident.home_region_id.capitalize()))
+	meta_parts.append(ident.legend_band_phrase())
+	var meta: Label = Label.new()
+	meta.text = " · ".join(meta_parts)
+	meta.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	meta.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(meta)
+
+	if not ident.note.is_empty():
+		var note: Label = Label.new()
+		note.text = ident.note
+		note.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		note.add_theme_font_size_override("font_size", 11)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(note)
+
+	var anchors: Array[String] = []
+	for aid in ident.anchor_actor_ids:
+		var aname: String = ""
+		if Actors != null:
+			var a: Actor = Actors.get_actor(aid)
+			if a != null:
+				aname = a.display_name()
+		if aname.is_empty() and Org != null:
+			var m: OrgMember = Org.get_member(aid)
+			if m != null:
+				aname = m.display_name
+		if not aname.is_empty():
+			anchors.append(aname)
+	if not anchors.is_empty():
+		var anchor_l: Label = Label.new()
+		anchor_l.text = "Carried into rooms by: %s." % ", ".join(anchors)
+		anchor_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		anchor_l.add_theme_font_size_override("font_size", 11)
+		anchor_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(anchor_l)
+
+	return card

@@ -39,6 +39,7 @@ const ImmortalDialogueViewScript: Script = preload("res://scripts/immortal_dialo
 @onready var _dossiers: Control       = $Objects/Dossiers
 @onready var _roster: Control         = $Objects/Roster
 @onready var _vault: Control          = $Objects/Vault
+@onready var _library: Control        = $Objects/Library
 @onready var _compose: Control        = $Objects/Compose
 
 @onready var _inbox_seal: Panel       = $Objects/Inbox/Letter1/WaxSeal
@@ -88,6 +89,7 @@ func _ready() -> void:
 	_wire_object(_dossiers, _on_dossiers_clicked)
 	_wire_object(_roster, _on_roster_clicked)
 	_wire_object(_vault, _on_vault_clicked)
+	_wire_object(_library, _on_library_clicked)
 	_wire_object(_compose, _on_compose_clicked)
 
 	_dimmer.gui_input.connect(_on_dimmer_input)
@@ -650,7 +652,33 @@ func _on_codebook_view_closed() -> void:
 	_overlay_active = false
 
 
+## §B3 — copy surfaced when the player taps a locked object or hotkey.
+## Not a hard block; explains the milestone so the player knows how
+## to earn access.
+const _LOCKED_COPY: Dictionary = {
+	&"memoirs": "Memoirs — you haven't yet recognised a pattern worth archiving. Read the table, catch something that repeats, and the book opens.",
+	&"vault":   "The Vault — your first financial arrangement hasn't landed yet. Route a silver matter through a named hand and the pouch fills.",
+	&"roster":  "The Roster — no coordinator cultivated yet. Elevate a loyal hand into the shadow layer and the cards appear.",
+	&"library": "The Library — no rival fingerprint confirmed. Cross-reference a pattern at mechanism-level and the scrolls open to you.",
+}
+
+
+func _is_object_locked(unlock_id: StringName) -> bool:
+	if Unlocks == null:
+		return false
+	return not Unlocks.is_surfaced(unlock_id)
+
+
+func _show_locked_overlay(unlock_id: StringName) -> void:
+	var title: String = "Not yet."
+	var body: String = String(_LOCKED_COPY.get(unlock_id, "Not available on your table yet."))
+	open_panel(title, body)
+
+
 func _on_memoirs_clicked() -> void:
+	if _is_object_locked(Unlocks.ID_MEMOIRS):
+		_show_locked_overlay(Unlocks.ID_MEMOIRS)
+		return
 	_open_memoirs_view()
 
 
@@ -744,6 +772,9 @@ func _on_dossier_view_closed() -> void:
 
 
 func _on_roster_clicked() -> void:
+	if _is_object_locked(Unlocks.ID_ROSTER):
+		_show_locked_overlay(Unlocks.ID_ROSTER)
+		return
 	_open_roster_view()
 
 
@@ -765,6 +796,9 @@ func _on_roster_view_closed() -> void:
 
 
 func _on_vault_clicked() -> void:
+	if _is_object_locked(Unlocks.ID_VAULT):
+		_show_locked_overlay(Unlocks.ID_VAULT)
+		return
 	_open_vault_view()
 
 
@@ -786,6 +820,9 @@ func _on_vault_view_closed() -> void:
 
 
 func _on_library_clicked() -> void:
+	if _is_object_locked(Unlocks.ID_LIBRARY):
+		_show_locked_overlay(Unlocks.ID_LIBRARY)
+		return
 	_open_library_view()
 
 
@@ -905,7 +942,7 @@ func _on_letter_view_closed() -> void:
 
 func _all_objects() -> Array:
 	return [_map_scroll, _inbox, _codebook, _memoirs,
-			_public_news, _ledger, _dossiers, _roster, _vault, _compose]
+			_public_news, _ledger, _dossiers, _roster, _vault, _library, _compose]
 
 
 # --- Placeholder panel (map / codebook) ---------------------------------------
@@ -1243,10 +1280,9 @@ func _install_unlock_gating() -> void:
 	_unlock_objects[Unlocks.ID_MEMOIRS] = _memoirs
 	_unlock_objects[Unlocks.ID_VAULT]   = _vault
 	_unlock_objects[Unlocks.ID_ROSTER]  = _roster
-	# Library lives on the Dossiers object in this build (same panel
-	# surface). Dim Dossiers' "Library" affordance via its root; if
-	# this layout ever separates them, map the right node here.
-	_unlock_objects[Unlocks.ID_LIBRARY] = _dossiers
+	# §B4 the Library now owns its own Control on the table — Dossiers
+	# is never dimmed for a fingerprint-library unlock.
+	_unlock_objects[Unlocks.ID_LIBRARY] = _library
 
 	for id_any in _unlock_objects.keys():
 		var id: StringName = id_any

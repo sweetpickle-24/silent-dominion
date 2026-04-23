@@ -157,7 +157,7 @@ func _announce_engaged(r: Religion, was_refresh: bool) -> void:
 	else:
 		subject = "%s — now in the library" % r.name
 		body = "Having worked through %s by your own hand, you may now dispatch this kind of work against it without leaning over every step." % r.name
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter: Letter = Letter.create(
 		StringName("religion_engaged_%s_%d_%d" % [String(r.id), GameClock.year, Time.get_ticks_msec()]),
 		"Your own hand",

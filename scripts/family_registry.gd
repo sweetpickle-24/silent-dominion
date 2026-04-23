@@ -465,7 +465,7 @@ func _raise_need(f: Family) -> void:
 	var letter_id: StringName = StringName("family_need_%s_%d" % [String(f.id), Time.get_ticks_msec()])
 	f.need_letter_id = letter_id
 
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter: Letter = Letter.create(
 		letter_id,
 		"%s — %s" % [f.family_name, f.domain_label()],
@@ -556,7 +556,7 @@ func _need_copy_for(f: Family, kind: StringName) -> Array:
 # --- Letters / announcements -------------------------------------------------
 
 func _announce_succession(f: Family, deceased: Actor, heir: Actor) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var body: String = (
 		"%s is gone. The house does not. %s stands in the doorway now — %s, %s. The ledgers, the contacts, the quiet understandings carry over. They will write to you directly when they are ready."
 	) % [
@@ -568,7 +568,7 @@ func _announce_succession(f: Family, deceased: Actor, heir: Actor) -> void:
 	var letter_id: StringName = StringName("succession_%s_%d" % [String(f.id), Time.get_ticks_msec()])
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, f.home_kingdom),
 		date,
 		"The house continues: %s" % f.family_name,
 		body,
@@ -578,14 +578,14 @@ func _announce_succession(f: Family, deceased: Actor, heir: Actor) -> void:
 
 
 func _announce_decline(f: Family, line: String) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var body: String = (
 		"The %s of %s is not what it was. %s"
 	) % [f.domain_label(), f.family_name, line]
 	var letter_id: StringName = StringName("decline_%s_%d" % [String(f.id), Time.get_ticks_msec()])
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, f.home_kingdom),
 		date,
 		"A dynasty fades: %s" % f.family_name,
 		body,

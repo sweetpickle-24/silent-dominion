@@ -424,7 +424,7 @@ func _hunter_heat_tick() -> void:
 func _send_historian_letter(actor: Actor, kingdom_id: String) -> void:
 	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
 	var region: String = k.kingdom_name if k != null else kingdom_id
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var subject: String = "A historian is reading everything in %s" % region
 	var body: String = (
 		"In %s a different sort of pursuer has opened the door.\n\n"
@@ -438,7 +438,7 @@ func _send_historian_letter(actor: Actor, kingdom_id: String) -> void:
 	) % [region, actor.display_name()]
 	var letter: Letter = Letter.create(
 		"historian_%s" % String(actor.id),
-		"Your watcher in the archives",
+		OrgRoles.sender_line(OrgRoles.WATCHER_ARCHIVES, kingdom_id),
 		date, subject, body, &"intel", &"high",
 	)
 	EventBus.letter_delivered.emit(letter)
@@ -447,7 +447,7 @@ func _send_historian_letter(actor: Actor, kingdom_id: String) -> void:
 func _send_hunter_letter(actor: Actor, kingdom_id: String) -> void:
 	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
 	var region: String = k.kingdom_name if k != null else kingdom_id
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var subject: String = "Someone is looking for you in %s" % region
 	var body: String = (
 		"In %s a figure has surfaced who is no longer asking the ordinary questions.\n\n"
@@ -460,7 +460,7 @@ func _send_hunter_letter(actor: Actor, kingdom_id: String) -> void:
 	) % [region, actor.display_name()]
 	var letter: Letter = Letter.create(
 		"hunter_%s" % String(actor.id),
-		"Your watcher in the quarter",
+		OrgRoles.sender_line(OrgRoles.WATCHER, kingdom_id),
 		date, subject, body, &"intel", &"high",
 	)
 	EventBus.letter_delivered.emit(letter)

@@ -1,10 +1,10 @@
 {
-  "_comment": "Phase 0 action palette. Matches docs/03-core-mechanics/action-palette.md. Times are in game-days. Costs are not enforced yet.",
+  "_comment": "Phase 0 action palette. Matches docs/03-core-mechanics/action-palette.md. Times are in game-days. Costs are not enforced yet. §C4 — report_sender is a role_id token resolved through OrgRoles at fire time.",
   "actions": [
     {
       "id": "observe",
       "display_name": "Observe",
-      "blurb": "Task a discreet operative to gather intelligence on a single figure. Low risk, weeks of waiting.",
+      "blurb": "Have your coordinator walk past the target's door, read the visitors, and write it down. No silver reaches the target; only coin reaches the coordinator's shoes. Weeks of waiting; almost no trace.",
       "tier": "DEEP_SHADOW",
       "target_kind": "ACTOR",
       "silver_cost": 5,
@@ -12,12 +12,12 @@
       "min_days_to_resolve": 5,
       "max_days_to_resolve": 14,
       "base_success_chance": 0.92,
-      "report_sender": "Your watcher in the quarter"
+      "report_sender": "watcher"
     },
     {
       "id": "cultivate",
       "display_name": "Cultivate",
-      "blurb": "Invest quietly in a minor figure over many months, building the foundation of a future relationship.",
+      "blurb": "Invest quietly in a minor figure over many months, building the foundation of a future relationship. Your coordinator arranges the introductions and carries the gifts.",
       "tier": "DEEP_SHADOW",
       "target_kind": "ACTOR",
       "silver_cost": 40,
@@ -25,7 +25,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 90,
       "base_success_chance": 0.7,
-      "report_sender": "Your go-between"
+      "report_sender": "go_between"
     },
     {
       "id": "plant_idea",
@@ -38,12 +38,12 @@
       "min_days_to_resolve": 20,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.6,
-      "report_sender": "The broker"
+      "report_sender": "broker"
     },
     {
       "id": "seed_rumour",
       "display_name": "Seed a rumour",
-      "blurb": "Release controlled misinformation into market-square gossip through a proxy network.",
+      "blurb": "Pay a trader on your coordinator's retainer to repeat something at the right wineshops until it sounds like common knowledge. No operatives needed yet; one patient voice is enough.",
       "tier": "DEEP_SHADOW",
       "target_kind": "ACTOR",
       "silver_cost": 10,
@@ -51,7 +51,7 @@
       "min_days_to_resolve": 7,
       "max_days_to_resolve": 21,
       "base_success_chance": 0.75,
-      "report_sender": "A trader at the harbour"
+      "report_sender": "correspondent_harbour"
     },
     {
       "id": "quiet_plot",
@@ -64,7 +64,7 @@
       "min_days_to_resolve": 10,
       "max_days_to_resolve": 30,
       "base_success_chance": 0.6,
-      "report_sender": "Your go-between"
+      "report_sender": "go_between"
     },
     {
       "id": "fan_border",
@@ -77,7 +77,7 @@
       "min_days_to_resolve": 20,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.55,
-      "report_sender": "Your broker on the frontier"
+      "report_sender": "broker"
     },
     {
       "id": "bribe_direct",
@@ -90,7 +90,7 @@
       "min_days_to_resolve": 3,
       "max_days_to_resolve": 14,
       "base_success_chance": 0.55,
-      "report_sender": "Your paymaster"
+      "report_sender": "paymaster"
     },
     {
       "id": "bribe_retainer",
@@ -103,7 +103,7 @@
       "min_days_to_resolve": 10,
       "max_days_to_resolve": 30,
       "base_success_chance": 0.55,
-      "report_sender": "Your paymaster"
+      "report_sender": "paymaster"
     },
     {
       "id": "bribe_career",
@@ -116,7 +116,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 90,
       "base_success_chance": 0.5,
-      "report_sender": "Your broker at court"
+      "report_sender": "broker"
     },
     {
       "id": "bribe_info",
@@ -129,7 +129,7 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 45,
       "base_success_chance": 0.5,
-      "report_sender": "Your go-between"
+      "report_sender": "go_between"
     },
     {
       "id": "bribe_gift",
@@ -142,7 +142,7 @@
       "min_days_to_resolve": 60,
       "max_days_to_resolve": 150,
       "base_success_chance": 0.55,
-      "report_sender": "Your man of affairs"
+      "report_sender": "man_of_affairs"
     },
     {
       "id": "host_sway_court",
@@ -155,7 +155,7 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 45,
       "base_success_chance": 0.55,
-      "report_sender": "Your host",
+      "report_sender": "host",
       "requires_host_target": true
     },
     {
@@ -169,7 +169,7 @@
       "min_days_to_resolve": 20,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.5,
-      "report_sender": "Your host",
+      "report_sender": "host",
       "requires_host_target": true
     },
     {
@@ -183,7 +183,7 @@
       "min_days_to_resolve": 60,
       "max_days_to_resolve": 120,
       "base_success_chance": 0.7,
-      "report_sender": "A private letter",
+      "report_sender": "factotum",
       "requires_host_target": true
     },
     {
@@ -191,18 +191,19 @@
       "display_name": "Elevate to lieutenant",
       "blurb": "Raise a seasoned coordinator to the second-highest rank in your organisation. They will know the shape of what you are, though not what you are. Years of seasoning inside the cell are the only test that matters — do not rush it.",
       "tier": "HIGH",
-      "target_kind": "ACTOR",
+      "target_kind": "ORG_MEMBER",
+      "requires_host_target": false,
       "silver_cost": 2500,
       "exposure_cost": 30,
       "min_days_to_resolve": 120,
       "max_days_to_resolve": 240,
       "base_success_chance": 0.65,
-      "report_sender": "A private letter"
+      "report_sender": "factotum"
     },
     {
       "id": "intel_cross_reference",
       "display_name": "Cross-reference a source",
-      "blurb": "Hold one operative's reports against every other thread you have on the same ground. Fast, quiet, and tells you less than you would like — but the contradictions it finds are almost never wrong.",
+      "blurb": "Have your coordinator sit with everything one source has sent in and compare it, line by line, against every other thread on the same ground. Fast, quiet, and tells you less than you would like — but the contradictions it finds are almost never wrong.",
       "tier": "DEEP_SHADOW",
       "target_kind": "ORG_MEMBER",
       "silver_cost": 30,
@@ -210,7 +211,7 @@
       "min_days_to_resolve": 3,
       "max_days_to_resolve": 10,
       "base_success_chance": 0.85,
-      "report_sender": "Your archivist"
+      "report_sender": "archivist"
     },
     {
       "id": "intel_source_audit",
@@ -223,12 +224,12 @@
       "min_days_to_resolve": 21,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.7,
-      "report_sender": "A second pair of eyes"
+      "report_sender": "anonymous_audit"
     },
     {
       "id": "intel_reinvestigate",
       "display_name": "Re-investigate independently",
-      "blurb": "Send a fresh operative over the same ground with no connection to the original source. Slow and expensive, but the only method that tells you what is actually true, not merely what your existing sources agree on.",
+      "blurb": "Send your coordinator over the same ground a second time, without telling the original source. Slow and expensive, but the only method that tells you what is actually true, not merely what your existing thread agrees on.",
       "tier": "DEEP_SHADOW",
       "target_kind": "KINGDOM",
       "silver_cost": 150,
@@ -236,7 +237,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 90,
       "base_success_chance": 0.8,
-      "report_sender": "An unaffiliated watcher"
+      "report_sender": "unaffiliated_watcher"
     },
     {
       "id": "audit_cell",
@@ -249,7 +250,7 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 45,
       "base_success_chance": 0.8,
-      "report_sender": "Your internal reviewer"
+      "report_sender": "reviewer"
     },
     {
       "id": "rotate_roles",
@@ -262,7 +263,7 @@
       "min_days_to_resolve": 40,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.9,
-      "report_sender": "Your internal reviewer"
+      "report_sender": "reviewer"
     },
     {
       "id": "audit_entity",
@@ -275,7 +276,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 50,
       "base_success_chance": 0.92,
-      "report_sender": "Your internal reviewer"
+      "report_sender": "reviewer"
     },
     {
       "id": "run_double_agent",
@@ -288,7 +289,7 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 40,
       "base_success_chance": 0.65,
-      "report_sender": "Your handler"
+      "report_sender": "handler"
     },
     {
       "id": "investigate_anomaly",
@@ -301,7 +302,7 @@
       "min_days_to_resolve": 10,
       "max_days_to_resolve": 30,
       "base_success_chance": 0.75,
-      "report_sender": "Your investigator"
+      "report_sender": "investigator"
     },
     {
       "id": "cross_reference_pattern",
@@ -314,7 +315,7 @@
       "min_days_to_resolve": 20,
       "max_days_to_resolve": 55,
       "base_success_chance": 0.65,
-      "report_sender": "Your archivist"
+      "report_sender": "archivist"
     },
     {
       "id": "match_fingerprint",
@@ -327,12 +328,12 @@
       "min_days_to_resolve": 28,
       "max_days_to_resolve": 70,
       "base_success_chance": 0.6,
-      "report_sender": "Your archivist"
+      "report_sender": "archivist"
     },
     {
       "id": "sweep_for_rivals",
       "display_name": "Sweep for strangers",
-      "blurb": "Put our own operatives to the quiet work of looking for theirs. Watch the wrong gates, trace the unusual payments, sit at the tables the locals do not sit at. Sooner or later a face that does not belong to this region will sit at the wrong table twice.",
+      "blurb": "Have your coordinator spend a season at the wrong tables — watching wrong gates, tracing unusual payments, sitting where locals do not. Sooner or later a face that does not belong to this region will show itself twice.",
       "tier": "DEEP_SHADOW",
       "target_kind": "KINGDOM",
       "silver_cost": 80,
@@ -340,12 +341,12 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 45,
       "base_success_chance": 0.65,
-      "report_sender": "Your counter-intelligence chief"
+      "report_sender": "counter_intel"
     },
     {
       "id": "neutralize_rival_operative",
       "display_name": "Neutralise a rival operative",
-      "blurb": "We have a name now. Take it off the board — burn them publicly, hand them to the crown, make sure the next one sent here knows what this city does to them. Loud, expensive, unambiguous.",
+      "blurb": "We have a name now. Take it off the board — burn them publicly, hand them to the crown, make sure the next one sent here knows what this city does to them. Loud, expensive, unambiguous. Your coordinator runs point until you have hands to delegate this to.",
       "tier": "HIGH",
       "target_kind": "KINGDOM",
       "silver_cost": 220,
@@ -353,7 +354,7 @@
       "min_days_to_resolve": 14,
       "max_days_to_resolve": 40,
       "base_success_chance": 0.7,
-      "report_sender": "Your counter-intelligence chief"
+      "report_sender": "counter_intel"
     },
     {
       "id": "turn_rival_operative",
@@ -366,7 +367,7 @@
       "min_days_to_resolve": 21,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.55,
-      "report_sender": "Your counter-intelligence chief"
+      "report_sender": "counter_intel"
     },
     {
       "id": "quiet_the_legend",
@@ -379,7 +380,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 75,
       "base_success_chance": 0.7,
-      "report_sender": "Your counter-rumour chief"
+      "report_sender": "counter_rumour"
     },
     {
       "id": "discredit_hunter",
@@ -392,7 +393,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 75,
       "base_success_chance": 0.55,
-      "report_sender": "Your counter-rumour chief"
+      "report_sender": "counter_rumour"
     },
     {
       "id": "destroy_archive",
@@ -405,7 +406,7 @@
       "min_days_to_resolve": 45,
       "max_days_to_resolve": 90,
       "base_success_chance": 0.55,
-      "report_sender": "Your arson chief"
+      "report_sender": "arson_chief"
     },
     {
       "id": "false_flag_operation",
@@ -418,7 +419,7 @@
       "min_days_to_resolve": 21,
       "max_days_to_resolve": 60,
       "base_success_chance": 0.5,
-      "report_sender": "Your forgery cell"
+      "report_sender": "forgery_cell"
     },
     {
       "id": "request_contact",
@@ -431,7 +432,7 @@
       "min_days_to_resolve": 30,
       "max_days_to_resolve": 90,
       "base_success_chance": 0.6,
-      "report_sender": "Your intermediary"
+      "report_sender": "intermediary"
     },
     {
       "id": "propose_truce",
@@ -444,7 +445,7 @@
       "min_days_to_resolve": 45,
       "max_days_to_resolve": 120,
       "base_success_chance": 0.55,
-      "report_sender": "Your intermediary"
+      "report_sender": "intermediary"
     },
     {
       "id": "attempt_kill_immortal",
@@ -457,7 +458,7 @@
       "min_days_to_resolve": 60,
       "max_days_to_resolve": 180,
       "base_success_chance": 0.3,
-      "report_sender": "Your closest hand"
+      "report_sender": "closest_hand"
     }
   ]
 }

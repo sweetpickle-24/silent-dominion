@@ -35,7 +35,7 @@ func _on_month_passed(_y: int, _m: int) -> void:
 func _send_flavor_letter(host: Actor) -> void:
 	var body: String = _compose_body(host)
 	var subject: String = _compose_subject(host)
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("hostflavor_%s_%d" % [
 		String(host.id), GameClock.absolute_day(),
 	])

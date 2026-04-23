@@ -43,6 +43,25 @@ func _ready() -> void:
 	GameClock.month_passed.connect(_on_month_passed)
 	GameClock.year_passed.connect(_on_year_passed)
 	EventBus.action_resolved.connect(_on_action_resolved)
+	# §28.1 — the player starts with a full picture of their home
+	# kingdom. All others stay at 0 (cold) until coverage is grown.
+	# Deferred so Base has a chance to resolve its kingdom first.
+	if WorldData.is_loaded():
+		call_deferred("_seed_home_kingdom")
+	else:
+		WorldData.world_loaded.connect(_seed_home_kingdom, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
+
+
+func _seed_home_kingdom() -> void:
+	var kid: String = ""
+	if Base != null:
+		kid = Base.kingdom_id
+	if kid.is_empty():
+		kid = "athens"
+	# Never clobber a richer existing score (e.g. from save-load).
+	if score_for(kid) < 100:
+		set_visibility(kid, 100)
+	snapshot_kingdom(kid)
 
 
 ## Long-run compression (§6.5). Once a year, throw out snapshots for
@@ -78,6 +97,38 @@ func state_for(kingdom_id: String) -> StringName:
 
 func is_cold(kingdom_id: String) -> bool:
 	return score_for(kingdom_id) < COLD_THRESHOLD
+
+
+## §E1 — two-reality gate: the player "knows" an actor only when we
+## have either a non-cold kingdom picture for them or a cached
+## snapshot. This is what the dossier roster and the compose target
+## picker should filter by, never Actors.all_actors() directly.
+func knows_actor(actor_id: StringName) -> bool:
+	if actor_snapshots.has(String(actor_id)):
+		return true
+	var a: Actor = Actors.get_actor(actor_id) if Actors != null else null
+	if a == null:
+		return false
+	if a.kingdom_id.is_empty():
+		return false
+	return not is_cold(a.kingdom_id)
+
+
+## Ordered list of actors the player currently has a picture of.
+## Dead actors are still included when we carry a cached snapshot
+## (the player's memory of them doesn't die when they do).
+func known_actors() -> Array[Actor]:
+	var out: Array[Actor] = []
+	if Actors == null:
+		return out
+	for a in Actors.all_actors():
+		if a == null:
+			continue
+		if not a.is_alive() and not actor_snapshots.has(String(a.id)):
+			continue
+		if knows_actor(a.id):
+			out.append(a)
+	return out
 
 
 func is_stale(kingdom_id: String) -> bool:

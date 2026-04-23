@@ -70,7 +70,11 @@ func band_name() -> String:
 
 
 func band_blurb() -> String:
-	match _current_band:
+	return band_blurb_for(_current_band)
+
+
+static func band_blurb_for(band_id: StringName) -> String:
+	match band_id:
 		&"bone_dry":    return "The purse is empty. No silver leaves it until silver enters it."
 		&"thin":        return "There is silver, but not much. A single expensive move will strip the bottom."
 		&"lean":        return "Enough for careful work. Not enough for noise."
@@ -78,6 +82,21 @@ func band_blurb() -> String:
 		&"deep":        return "You could fund a small war, quietly."
 		&"bottomless":  return "Silver is no longer the constraint."
 		_:              return ""
+
+
+## Ordered list of all bands for the §30.1 system reference.
+## Each entry is { id, label, blurb }. Drawn live from BANDS so the
+## glossary never goes out of step with the indicator.
+static func band_entries() -> Array:
+	var order: Array = [&"bone_dry", &"thin", &"lean", &"comfortable", &"deep", &"bottomless"]
+	var out: Array = []
+	for id in order:
+		out.append({
+			"id":    id,
+			"label": String(BANDS.get(id, String(id))),
+			"blurb": band_blurb_for(id),
+		})
+	return out
 
 
 # --- Monthly tick ------------------------------------------------------------

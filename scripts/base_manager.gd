@@ -35,8 +35,10 @@ const K_COURIER: StringName       = &"courier"
 const K_COORDINATOR: StringName   = &"coordinator"
 const K_OLD_BASE: StringName      = &"old_base"
 
-# Default starting base. 500 BCE Athens is the canonical opening.
-const DEFAULT_PROVINCE_ID: String = "athens"
+# Default starting base. 500 BCE Athens is the canonical opening —
+# the province id in `data/world_500bce.json` is "attica" (Athens
+# is the owning kingdom).
+const DEFAULT_PROVINCE_ID: String = "attica"
 
 # Travel tuning. Ancient-world baseline; era multiplier is applied
 # on top via Eras.communication_multiplier().
@@ -124,7 +126,7 @@ func travel_progress() -> float:
 func headline() -> String:
 	match String(state):
 		"idle":
-			return "At your table in %s." % _province_name(province_id)
+			return "At your table in %s.%s" % [_province_name(province_id), _cell_suffix()]
 		"prepared":
 			return "Preparations complete for %s. Awaiting the order to move." % _province_name(destination_province_id)
 		"traveling":
@@ -132,6 +134,31 @@ func headline() -> String:
 		"transition":
 			return "Settling into %s — %d days before the table runs true." % [_province_name(province_id), transition_days_remaining]
 	return ""
+
+
+## §28.1 — the time-dial tooltip on day one should read:
+## "Athens — one host cultivated, one coordinator holding the city".
+## Counts hosts and coordinators in the local kingdom so the line
+## stays true as the player grows or loses the cell.
+func _cell_suffix() -> String:
+	if Actors == null or Org == null or kingdom_id.is_empty():
+		return ""
+	var hosts: int = Actors.hosts_in(kingdom_id).size()
+	var coords: int = 0
+	for m in Org.all_members():
+		if not m.burned and m.layer == OrgMember.Layer.COORDINATOR and m.region_id == kingdom_id:
+			coords += 1
+	if hosts == 0 and coords == 0:
+		return ""
+	var host_part: String = ("%d hosts cultivated" % hosts) if hosts != 1 else "One host cultivated"
+	var coord_part: String
+	if coords == 0:
+		coord_part = "no coordinator"
+	elif coords == 1:
+		coord_part = "one coordinator holding the city"
+	else:
+		coord_part = "%d coordinators holding the city" % coords
+	return " %s, %s." % [host_part, coord_part]
 
 
 # --- Pre-move checklist (§22.2) ---------------------------------------------
@@ -334,7 +361,7 @@ func _announce_departure(days: int) -> void:
 	) % [_province_name(province_id), _province_name(destination_province_id), days]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your coordinator at departure",
+		OrgRoles.sender_line(OrgRoles.COORDINATOR_AT_DEPARTURE, kingdom_id),
 		date,
 		"On the road to %s" % _province_name(destination_province_id),
 		body,
@@ -346,16 +373,21 @@ func _announce_departure(days: int) -> void:
 func _announce_arrival(_old_kingdom: String) -> void:
 	var date: GameDate = _today()
 	var letter_id: StringName = StringName("base_arrive_%s_%d" % [province_id, -GameClock.year])
+	var local_coord = _coordinator_in(kingdom_id)
+	var hand_name: String = (
+		local_coord.display_name if local_coord != null
+		else OrgRoles.neutral_title(OrgRoles.COORDINATOR)
+	)
 	var body: String = (
 		"You sit down in %s. The rooms are clean, the neighbours unbothered. %s has left a brief on the desk — what has happened here in the months you were on the road. A transition window of perhaps %d days applies before the table runs at full reliability."
 	) % [
 		_province_name(province_id),
-		(_coordinator_in(kingdom_id).display_name if _coordinator_in(kingdom_id) != null else "Your local hand"),
+		hand_name,
 		transition_days_remaining,
 	]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your local coordinator",
+		OrgRoles.sender_line(OrgRoles.COORDINATOR, kingdom_id),
 		date,
 		"Arrived in %s" % _province_name(province_id),
 		body,
@@ -372,7 +404,7 @@ func _announce_transition_ended() -> void:
 	) % _province_name(province_id)
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your local coordinator",
+		OrgRoles.sender_line(OrgRoles.COORDINATOR, kingdom_id),
 		date,
 		"%s runs true" % _province_name(province_id),
 		body,
@@ -384,7 +416,7 @@ func _announce_transition_ended() -> void:
 # --- Internals --------------------------------------------------------------
 
 func _today() -> GameDate:
-	return GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	return GameDate.today()
 
 
 func _province_name(pid: String) -> String:

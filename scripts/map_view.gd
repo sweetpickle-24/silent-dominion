@@ -415,6 +415,24 @@ func _render_detail(p: Province) -> void:
 	owner_l.add_theme_font_size_override("font_size", 12)
 	_detail_vbox.add_child(owner_l)
 
+	# §D4 — gate map detail by Picture. Cold kingdoms show only the
+	# silhouette; stale ones carry a freshness stamp so the player sees
+	# when the intel was last refreshed. Current kingdoms render the
+	# full panel as before.
+	var kid: String = p.owning_kingdom
+	var gate_kid: String = kid if not kid.is_empty() else Base.kingdom_id if Base != null else ""
+	if Picture != null and not gate_kid.is_empty() and Picture.is_cold(gate_kid):
+		_render_cold_detail(p)
+		return
+
+	if Picture != null and not gate_kid.is_empty() and Picture.is_stale(gate_kid):
+		var stale_tag: Label = Label.new()
+		stale_tag.text = "— intelligence %s. Treat what follows as of its date, not of today." % Picture.freshness_phrase(gate_kid)
+		stale_tag.add_theme_color_override("font_color", Color(0.58, 0.38, 0.16, 1.0))
+		stale_tag.add_theme_font_size_override("font_size", 11)
+		stale_tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_detail_vbox.add_child(stale_tag)
+
 	_detail_vbox.add_child(_make_divider())
 	_detail_vbox.add_child(_make_heading("LAND AND WEATHER"))
 	_detail_vbox.add_child(_make_line("%s — %s" % [p.terrain_name(), p.climate_name()]))
@@ -497,13 +515,35 @@ func _render_detail(p: Province) -> void:
 	# province is a plausible destination.
 	_render_base_block(p)
 
-	# §D2 Zoom level past province: if this province hosts a city
+	# §D4 Zoom level past province: if this province hosts a city
 	# (Athens, Sparta, …), render its districts with per-quarter fog
 	# descriptions. Only a non-burned coordinator in the holding
 	# kingdom lifts the fog — outside coverage the city stays as
 	# "a name on the map, nothing more".
 	if p.city != null:
 		_render_city_block(p)
+
+
+## §D4 — minimal detail pane for kingdoms the player has no useful
+## picture of. Intentionally tells the player that knowledge of this
+## land is cold, and names what would lift the fog.
+func _render_cold_detail(p: Province) -> void:
+	_detail_vbox.add_child(_make_divider())
+	_detail_vbox.add_child(_make_heading("THE LAND"))
+	_detail_vbox.add_child(_make_line("%s — %s." % [p.terrain_name(), p.climate_name()]))
+	_detail_vbox.add_child(_make_divider())
+	var msg: Label = Label.new()
+	msg.text = (
+		"No reports of consequence from this land in months. "
+		+ "What walks through the markets, who sits on the tax-bench, "
+		+ "what the priests are preaching — unknown. Send a coordinator "
+		+ "or a long season of observation to lift the fog."
+	)
+	msg.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	msg.add_theme_font_size_override("font_size", 12)
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_vbox.add_child(msg)
+	_render_base_block(p)
 
 
 func _render_city_block(p: Province) -> void:

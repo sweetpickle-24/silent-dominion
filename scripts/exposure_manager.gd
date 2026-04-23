@@ -61,6 +61,21 @@ func level_blurb() -> String:
 	return String(LEVEL_BLURBS[level])
 
 
+## Ordered list of all exposure levels for the §30.1 system reference.
+## Each entry is { id, label, blurb }. Drawn live from LEVEL_NAMES /
+## LEVEL_BLURBS so the glossary never drifts from the indicator.
+static func level_entries() -> Array:
+	var order: Array = [Level.DEEP_SHADOW, Level.WHISPERED, Level.KNOWN, Level.HUNTED, Level.EXPOSED]
+	var out: Array = []
+	for lv in order:
+		out.append({
+			"id":    int(lv),
+			"label": String(LEVEL_NAMES[lv]),
+			"blurb": String(LEVEL_BLURBS[lv]),
+		})
+	return out
+
+
 ## Returns true if an action of the given tier is currently permitted.
 ## Rules per §3.2:
 ##   Tier 3 (HIGH)   blocked once Known-quantity or worse.

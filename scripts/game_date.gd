@@ -26,6 +26,14 @@ static func make(p_year: int, p_month: int, p_day: int) -> GameDate:
 	return d
 
 
+## The current in-world date, ready for letter stamps. Handles the
+## sign-flip between GameClock (negative BCE, positive CE) and GameDate
+## (positive BCE, negative CE) so every caller stops recreating the
+## bug. Always use this instead of `GameDate.make(GameClock.year, ...)`.
+static func today() -> GameDate:
+	return GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+
+
 func format_long() -> String:
 	var idx: int = clampi(month, 1, 12) - 1
 	# `year` is stored as positive-BCE (opposite convention from

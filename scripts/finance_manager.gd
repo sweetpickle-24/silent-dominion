@@ -564,39 +564,37 @@ func _maybe_seed() -> void:
 	_seeded = true
 
 
-## Two starter houses. Chosen in the most plausible classical
-## commercial centres for 500 BCE: a merchant consortium in Athens
-## and a Phoenician-facing house in Carthage. If those kingdoms
-## don't exist in the current world file, fall back to the first
-## two kingdoms we find. This is not a campaign hook — it's the
-## minimum viable financial network at genesis.
+## §28.1 one starter house. Anchored to the player's starting
+## coordinator in Athens. §14.3 says the financial layer takes
+## generations — two seeded houses was too rich. A single Athens
+## consortium is the minimum viable network at genesis; additional
+## houses come from `cultivate_financier` and the F3 beats.
 func _seed_starter_houses() -> void:
-	var preferred: Array[String] = ["athens", "carthage", "corinth", "syracuse"]
-	var chosen: Array[String] = []
-	for kid in preferred:
-		if WorldData.get_kingdom(kid) != null and chosen.size() < 2:
-			chosen.append(kid)
-	if chosen.size() < 2:
-		for k in WorldData.kingdoms.keys():
-			if chosen.has(String(k)):
-				continue
-			chosen.append(String(k))
-			if chosen.size() >= 2:
+	if WorldData.get_kingdom("athens") == null:
+		return
+	# Find the starter coordinator OrgMember (seeded by Org._seed_starter_cell).
+	var coord: OrgMember = null
+	if Org != null:
+		for m in Org.all_members():
+			if m.source_actor_id == &"starter_coordinator_athens":
+				coord = m
 				break
+	var coord_name: String = coord.display_name if coord != null else "your predecessor's hand"
+	var display: String = "The House of %s" % _house_surname(coord)
+	_spawn_starter_house(
+		"athens",
+		display,
+		"merchant consortium",
+		[],
+		(coord.id if coord != null else &""),
+		"Inherited from your predecessor, carried into your hand by %s." % coord_name,
+	)
 
-	if chosen.size() >= 1:
-		var extra_a: Array[String] = []
-		if chosen.size() >= 2:
-			extra_a.append(chosen[1])
-		_spawn_starter_house(chosen[0], "The House of %s" % _house_surname(chosen[0]),
-			"merchant consortium", extra_a)
-	if chosen.size() >= 2:
-		var extra_b: Array[String] = [chosen[0]]
-		_spawn_starter_house(chosen[1], "The Brothers of %s" % _house_surname(chosen[1]),
-			"silver-weighers' guild", extra_b)
 
-
-func _spawn_starter_house(kid: String, display: String, kind: String, extra_reach: Array[String] = []) -> void:
+func _spawn_starter_house(kid: String, display: String, kind: String,
+		extra_reach: Array[String] = [],
+		founded_by_id: StringName = &"",
+		narrative: String = "") -> void:
 	var h: BankingHouse = BankingHouse.new()
 	h.id = StringName("house_%s_%d" % [kid, Time.get_ticks_msec() + _rng.randi_range(0, 999)])
 	h.display_name = display
@@ -613,26 +611,26 @@ func _spawn_starter_house(kid: String, display: String, kind: String, extra_reac
 		h.gold_max_capacity = 12
 		h.gold_capacity = 10
 	h.reach = [kid]
-	# Every commercial house of standing has a partner across the sea.
-	# Give the starter pair mutual coverage so the player can fund work
-	# in either home from day one.
 	for other in extra_reach:
 		if other != kid and not h.reach.has(other):
 			h.reach.append(other)
 	h.maturity_months = 0
 	h.curiosity = 0
+	h.founded_by_id = founded_by_id
+	h.narrative = narrative
 	houses[h.id] = h
 	house_added.emit(h)
 
 
-func _house_surname(kid: String) -> String:
-	match kid:
-		"athens":    return "Kallistratos"
-		"carthage":  return "Gisco"
-		"corinth":   return "Timoleon"
-		"syracuse":  return "Dionysios"
-	var k: Kingdom = WorldData.get_kingdom(kid)
-	return k.kingdom_name if k != null else kid.capitalize()
+func _house_surname(coord) -> String:
+	# Prefer the coordinator's real surname / cover for provenance.
+	if coord != null and coord is OrgMember and not coord.display_name.is_empty():
+		# Pull a short tag from the coordinator's display name ("Theron,
+		# the scribe at the Kerameikos" → "Theron").
+		var tag: String = coord.display_name.split(",", false, 1)[0]
+		return tag
+	# Fallback for corrupted saves.
+	return "Kallistratos"
 
 
 func _has_merchant_host() -> bool:

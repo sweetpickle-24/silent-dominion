@@ -258,13 +258,12 @@ func _build_action_card(def: ActionDefinition) -> Control:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(blurb)
 
-	# Meta line: resolution window + costs
+	# §D3 — qualitative meta line. No raw days, no raw silver, no raw exposure.
 	var meta: Label = Label.new()
-	meta.text = "resolves in %d–%d days    ·    silver %d    ·    exposure +%d" % [
-		def.min_days_to_resolve,
-		def.max_days_to_resolve,
-		def.silver_cost,
-		def.exposure_cost,
+	meta.text = "%s    ·    %s    ·    %s" % [
+		_time_phrase(def.min_days_to_resolve, def.max_days_to_resolve),
+		_cost_phrase(def.silver_cost),
+		_exposure_phrase(def.exposure_cost),
 	]
 	meta.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	meta.add_theme_font_size_override("font_size", 10)
@@ -300,6 +299,40 @@ func _build_action_card(def: ActionDefinition) -> Control:
 
 	card.pressed.connect(func() -> void: _on_action_chosen(def))
 	return card
+
+
+func _time_phrase(min_days: int, max_days: int) -> String:
+	var avg: int = int(round((float(min_days) + float(max_days)) / 2.0))
+	if max_days <= 3:
+		return "resolves within days"
+	if max_days <= 7:
+		return "a week or so"
+	if max_days <= 21:
+		return "within a few weeks"
+	if max_days <= 45:
+		return "across the season"
+	if max_days <= 90:
+		return "a quarter of the year"
+	if avg <= 180:
+		return "half a year"
+	return "most of a year"
+
+
+func _cost_phrase(silver: int) -> String:
+	if silver <= 0:   return "costs no silver"
+	if silver < 20:   return "a handful of silver"
+	if silver < 60:   return "a small purse of silver"
+	if silver < 150:  return "a full purse of silver"
+	if silver < 400:  return "a heavy bag of silver"
+	return "a chest of silver"
+
+
+func _exposure_phrase(cost: int) -> String:
+	if cost <= 0:   return "leaves no trace"
+	if cost == 1:   return "barely a trace"
+	if cost <= 3:   return "a small trace"
+	if cost <= 6:   return "a noticeable trace"
+	return "a loud trace"
 
 
 func _on_action_chosen(def: ActionDefinition) -> void:
@@ -368,7 +401,9 @@ func _render_actor_target_list() -> void:
 	dropdown.set_item_metadata(0, ALL_KINGDOMS_KEY)
 	var seen: Dictionary = {}
 	var uniq: Array = []
-	for a in Actors.all_actors():
+	# §E1 — compose only offers names the player has a picture of.
+	var pool: Array[Actor] = Picture.known_actors() if Picture != null else Actors.all_actors()
+	for a in pool:
 		if a.kingdom_id != "" and not seen.has(a.kingdom_id):
 			seen[a.kingdom_id] = true
 			uniq.append(a.kingdom_id)
@@ -401,7 +436,8 @@ func _render_actor_target_list() -> void:
 
 	var candidates: Array[Actor] = []
 	var host_only: bool = _selected_action != null and _selected_action.requires_host_target
-	for a in Actors.all_actors():
+	var source_pool: Array[Actor] = Picture.known_actors() if Picture != null else Actors.all_actors()
+	for a in source_pool:
 		if not a.is_alive():
 			continue
 		if host_only and not a.is_host():
@@ -420,7 +456,11 @@ func _render_actor_target_list() -> void:
 				"No host is yet loyal enough to act for you. Cultivate one past the threshold, and return."
 			))
 		else:
-			list.add_child(_make_body_line("No names fit that description on the table just now."))
+			# §E1 — if Picture says every kingdom outside the home is
+			# cold, be honest about why the list is empty.
+			list.add_child(_make_body_line(
+				"No names on file outside this region. Lift the fog on another land first — send a coordinator, or walk a season of observation."
+			))
 		return
 
 	for a in candidates:
@@ -607,6 +647,9 @@ func _render_org_member_target_list() -> void:
 			continue
 		# audit_cell applies to coordinator+. Operatives don't hold ledgers.
 		if id == &"audit_cell" and m.layer == OrgMember.Layer.OPERATIVE:
+			continue
+		# promote_lieutenant lifts a coordinator, nothing else.
+		if id == &"promote_lieutenant" and m.layer != OrgMember.Layer.COORDINATOR:
 			continue
 		rendered += 1
 		var row: Button = Button.new()

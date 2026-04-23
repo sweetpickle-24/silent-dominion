@@ -140,6 +140,12 @@ func is_host() -> bool:
 		return false
 	if role == Role.RULER:
 		return false
+	# §28.1 — actors already promoted into the Org are not counted as
+	# hosts. Their service runs through the OrgMember layer; a double-
+	# count would inflate `Actors.hosts()` and break the exit criterion
+	# "one host cultivated" when the player also has a coordinator.
+	if role == Role.AGENT:
+		return false
 	return relationship >= HOST_THRESHOLD
 
 

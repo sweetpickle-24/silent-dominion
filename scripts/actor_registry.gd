@@ -233,7 +233,7 @@ func adjust_relationship(id: StringName, delta: int) -> int:
 
 
 func _announce_host_won(a: Actor) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("host_won_%s_%d" % [String(a.id), Time.get_ticks_msec()])
 	var body: String = (
 		"I write this once, and not again. What passed between us these last months was not business; it was a choice, and I have made it. When you send word, I will act. Do not make me regret it.\n\nYours in the work,\n%s"
@@ -259,14 +259,14 @@ func _announce_host_won(a: Actor) -> void:
 
 
 func _announce_host_lost_by_death(a: Actor) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("host_dead_%s_%d" % [String(a.id), Time.get_ticks_msec()])
 	var body: String = (
 		"%s is gone. Whatever %s was arranging for you goes with them. I have quietly taken the ledger page on that name out of our working papers. The arrangement is at its end; not by a falling out, but by a falling. Treat it as such." 
 	) % [a.display_name(), "they"]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, a.kingdom_id),
 		date,
 		"A name falls from the list",
 		body,
@@ -277,14 +277,14 @@ func _announce_host_lost_by_death(a: Actor) -> void:
 
 
 func _announce_host_lost(a: Actor) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("host_lost_%s_%d" % [String(a.id), Time.get_ticks_msec()])
 	var body: String = (
 		"%s can no longer be counted among your hands. They have cooled, or been cooled, and what was arranged with them is arranged no longer. Treat them as any other name on the table now — not an enemy, but not yours." 
 	) % a.display_name()
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, a.kingdom_id),
 		date,
 		"A name falls from the list",
 		body,

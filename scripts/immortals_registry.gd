@@ -163,7 +163,7 @@ func _on_society_identified(society_id: StringName, confirmation: int) -> void:
 func _send_reveal_letter(im: OtherImmortal) -> void:
 	var soc: RivalSociety = Rivals.get_society(im.society_id)
 	var soc_name: String = soc.display_name if soc != null else "the society in question"
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var subject: String = "You are not the only one"
 	var body: String = (
 		"Friend,\n\n"

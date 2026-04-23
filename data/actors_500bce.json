@@ -345,6 +345,44 @@
         "intellect": 95, "greed": 15, "ruthlessness": 30,
         "curiosity": 95, "resilience": 65, "charisma": 40
       }
+    },
+    {
+      "_comment": "§28.1 starter host — a cultivated merchant in Athens. Relationship seeded at HOST_THRESHOLD so they count as a host on day one.",
+      "id": "starter_host_athens",
+      "starter": true,
+      "given_name": "Pheidon",
+      "epithet": "of the Piraeus moorings",
+      "birth_year": -543,
+      "death_year": 0,
+      "role": "MERCHANT",
+      "kingdom_id": "athens",
+      "province_id": "attica",
+      "traits": {
+        "ambition": 58, "paranoia": 48, "loyalty": 68, "piety": 45,
+        "intellect": 62, "greed": 55, "ruthlessness": 40,
+        "curiosity": 60, "resilience": 65, "charisma": 66
+      },
+      "relationship": 60,
+      "ever_host": true
+    },
+    {
+      "_comment": "§28.1 starter coordinator — anchors the one-cell Athens network the player inherits at campaign start. Promoted to OrgMember.Layer.COORDINATOR by OrgRegistry._seed_starter_cell().",
+      "id": "starter_coordinator_athens",
+      "starter": true,
+      "given_name": "Theron",
+      "epithet": "the scribe at the Kerameikos",
+      "birth_year": -547,
+      "death_year": 0,
+      "role": "AGENT",
+      "kingdom_id": "athens",
+      "province_id": "attica",
+      "traits": {
+        "ambition": 52, "paranoia": 64, "loyalty": 78, "piety": 50,
+        "intellect": 74, "greed": 36, "ruthlessness": 50,
+        "curiosity": 66, "resilience": 70, "charisma": 58
+      },
+      "relationship": 0,
+      "ever_host": false
     }
   ]
 }

@@ -130,11 +130,48 @@ func _seed_placeholder_events() -> void:
 		"origin_day": today,
 		"read":      false,
 	})
+	# §C3 — do not seed a ghost ruler (Athens has no actor-ruler in the
+	# current data). Pull a real ruler from one of the kingdoms that
+	# actually has one, deterministically. If none is loaded yet we
+	# defer; if none exists at all, skip the decree entirely.
+	if WorldData != null and not WorldData.is_loaded():
+		WorldData.world_loaded.connect(_seed_placeholder_decree, CONNECT_ONE_SHOT)
+	else:
+		_seed_placeholder_decree()
+	news_changed.emit()
+
+
+func _seed_placeholder_decree() -> void:
+	if Actors == null:
+		return
+	var picks: Array = ["sparta", "persia", "athens", "rome", "carthage"]
+	var ruler: Actor = null
+	var ruler_kid: String = ""
+	for kid in picks:
+		ruler = Actors.ruler_of(kid)
+		if ruler != null:
+			ruler_kid = kid
+			break
+	if ruler == null:
+		# Any living ruler in any kingdom.
+		for a in Actors.actors_by_role(Actor.Role.RULER):
+			if a != null and a.is_alive():
+				ruler = a
+				ruler_kid = a.kingdom_id
+				break
+	if ruler == null:
+		return
+	var k: Kingdom = WorldData.get_kingdom(ruler_kid)
+	var kname: String = k.kingdom_name if k != null else ruler_kid.capitalize()
+	var today: int = GameClock.absolute_day()
 	events.append({
 		"kind":      &"ruler_decree",
 		"channel":   "official",
-		"headline":  "The tyrant's fast",
-		"body":      "From Athens, word: Hippias has decreed three days of fast in the city before the festival of Theseus. The notables obey. The markets are sparse. No one admits to being glad when it ends.",
+		"headline":  "A decree out of %s" % kname,
+		"body":      ("From %s, word: %s has issued a new decree, touching grain, "
+					+ "tax, and the shape of the coming season. The notables repeat "
+					+ "it; the markets adjust; no one in earshot admits to being surprised."
+					) % [kname, ruler.display_name()],
 		"abs_day":   today,
 		"origin_day": today,
 		"read":      false,

@@ -177,7 +177,7 @@ func _apply_split(split: Dictionary) -> String:
 	# Migrate fluency on existing actors in the affected kingdoms.
 	# Institutional roles retain their parent fluency; others have
 	# their parent-language slot converted to the daughter.
-	var migrated: int = 0
+	var _migrated: int = 0
 	if Actors != null:
 		for a in Actors.all_actors():
 			if a == null or not a.is_alive():
@@ -198,7 +198,7 @@ func _apply_split(split: Dictionary) -> String:
 				# daughter at the level they had in the parent.
 				a.languages[daughter] = parent_level
 				a.languages[parent] = min(int(a.languages.get(parent, 0)), Actor.LANG_BASIC)
-			migrated += 1
+			_migrated += 1
 
 	var region_list: String = ""
 	for k in kingdoms:
@@ -236,7 +236,7 @@ func _role_is_institutional(a: Actor, role_names: Array) -> bool:
 func _announce_evolution(era_id: StringName, summaries: Array[String]) -> void:
 	if summaries.is_empty():
 		return
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var era_label: String = ""
 	if Eras != null:
 		var e: Era = Eras.get_era(era_id)
@@ -252,7 +252,7 @@ func _announce_evolution(era_id: StringName, summaries: Array[String]) -> void:
 	body += "\nOperatives whose working languages have drifted will lose edge in street-level work until they retrain. Scholarly and liturgical fluency remains intact."
 	var letter: Letter = Letter.create(
 		StringName("lang_evolution_%s" % String(era_id)),
-		"Your secretary",
+		OrgRoles.sender_line(OrgRoles.SECRETARY),
 		date,
 		"The working tongues have shifted — %s" % era_label,
 		body,
@@ -455,7 +455,7 @@ func _announce_acquisition(m: OrgMember, src: Actor, lang: StringName, level: in
 	match level:
 		Actor.LANG_FUNCTIONAL: phrase = "conducts business in"
 		Actor.LANG_FLUENT:     phrase = "now thinks in"
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("lang_acquire_%s_%d" % [String(m.id), Time.get_ticks_msec()])
 	var body: String = (
 		"After enough winters in %s to lose count, %s %s %s. A small advantage that will show up in every conversation from here forward."
@@ -467,7 +467,7 @@ func _announce_acquisition(m: OrgMember, src: Actor, lang: StringName, level: in
 	]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your roster",
+		OrgRoles.sender_line(OrgRoles.HANDLER, (src.kingdom_id if src != null else "")),
 		date,
 		"%s has picked up %s" % [src.display_name(), display_name(lang)],
 		body,
@@ -489,7 +489,7 @@ func train_actor(actor_id: StringName, lang: StringName) -> bool:
 	if have >= Actor.LANG_FLUENT:
 		return false
 	a.languages[lang] = have + 1
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("lang_train_%s_%d" % [String(actor_id), Time.get_ticks_msec()])
 	var body: String = (
 		"The tutor reports %s now reads %s at %s. Whether any of it stays in their head depends on what they do with it."
@@ -500,7 +500,7 @@ func train_actor(actor_id: StringName, lang: StringName) -> bool:
 	]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your tutor",
+		OrgRoles.sender_line(OrgRoles.TUTOR, (a.kingdom_id if a != null else "")),
 		date,
 		"Tuition paid for %s" % a.display_name(),
 		body,

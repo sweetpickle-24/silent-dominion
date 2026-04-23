@@ -84,7 +84,18 @@ func display(letter: Letter) -> void:
 	_sender_label.text = letter.sender
 	_date_label.text   = letter.date.format_long() if letter.date else ""
 	_subject_label.text = letter.subject
-	_body_label.text    = letter.body
+	# §D1 — sealed letters the player cannot read render as illegible.
+	if letter.is_illegible():
+		_sender_label.text  = "Unknown hand"
+		_subject_label.text = "Sealed under an unknown cipher"
+		_body_label.text    = (
+			"The letter is stamped with a cipher-mark you do not yet hold. "
+			+ "Rows of substituted letters, a few proper names in the clear, "
+			+ "but nothing you can read through without the matching key. "
+			+ "Set it aside and come back to it when you have opened this cipher."
+		)
+	else:
+		_body_label.text    = letter.body
 
 	# Worn paper tint for already-read letters.
 	_paper.self_modulate = UNREAD_MODULATE if _was_unread else READ_MODULATE

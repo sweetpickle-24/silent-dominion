@@ -280,7 +280,7 @@ func _maybe_deliver_host_plot_warning(plotter: Actor, ruler: Actor, kname: Strin
 		+ "I will send more as I have it. If you mean to act, act before the court finds out that the court knows."
 	) % [kname, plotter_link]
 
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName(
 		"host_plot_warning_%s_%d" % [String(plotter.id), Time.get_ticks_msec()]
 	)
@@ -356,7 +356,7 @@ func _emit_host_defection(a: Actor) -> void:
 	})
 
 	# Letter to the player — the go-between explains what just happened.
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("host_turned_%s_%d" % [String(a.id), Time.get_ticks_msec()])
 	var body: String = (
 		"It is %s. They went to the court themselves — not dragged, not pressed. "
@@ -368,7 +368,7 @@ func _emit_host_defection(a: Actor) -> void:
 	) % a.display_name()
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, a.kingdom_id),
 		date,
 		"A hand turned",
 		body,

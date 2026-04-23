@@ -459,14 +459,14 @@ func _announce_disruption(e: OwnedEntity, reason: StringName) -> void:
 		"proxy_died":              why = "the death of their proxy"
 		_:                         if String(reason).begins_with("regime_change_"):
 			why = "a change at the top of %s" % _kingdom_name_of(e.home_kingdom)
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("entity_disrupt_%s_%d" % [String(e.id), Time.get_ticks_msec()])
 	var body: String = (
 		"%s has not stopped trading, teaching, or praying. But the old arrangements no longer hold — %s has knocked the chain of proxies loose. The books will not find your purse until a new proxy is seated. The archives are intact."
 	) % [e.display_name, why]
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, e.home_kingdom),
 		date,
 		"The house is still there, but not ours: %s" % e.display_name,
 		body,
@@ -476,14 +476,14 @@ func _announce_disruption(e: OwnedEntity, reason: StringName) -> void:
 
 
 func _announce_reestablished(e: OwnedEntity) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter_id: StringName = StringName("entity_reclaim_%s_%d" % [String(e.id), Time.get_ticks_msec()])
 	var body: String = (
 		"A new proxy has been seated in %s. The books will close under our direction again by the next quarter. A portion of the corruption that accumulated during the interregnum has been swept out with the previous hand."
 	) % e.display_name
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, e.home_kingdom),
 		date,
 		"The house answers again: %s" % e.display_name,
 		body,

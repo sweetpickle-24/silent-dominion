@@ -51,6 +51,26 @@ extends Resource
 # Empty string when the letter is not a source-driven report.
 @export var reporter_id: StringName = &""
 
+# §D1 — cipher channel. Default empty = plaintext. A non-empty id means
+# the letter is sealed under that cipher; the recipient can only read it
+# if `Codebook.known_ciphers` contains the id. The Inbox renders sealed
+# letters as "illegible" until the cipher is known.
+@export var cipher_id: StringName = &""
+
+
+## True if this letter is sealed under a cipher the player has not
+## yet broken.
+func is_illegible() -> bool:
+	if cipher_id == &"":
+		return false
+	var tree = Engine.get_main_loop()
+	if tree is SceneTree:
+		var root = (tree as SceneTree).root
+		var cb = root.get_node_or_null("Codebook")
+		if cb != null and cb.has_method("knows_cipher"):
+			return not bool(cb.call("knows_cipher", cipher_id))
+	return true
+
 
 func is_high_priority() -> bool:
 	return priority == &"high"

@@ -876,7 +876,7 @@ func _epicentre_kingdom_of(r: Religion) -> String:
 	if best_pid == "":
 		return ""
 	var p: Province = WorldData.get_province(best_pid)
-	return p.kingdom_id if p != null else ""
+	return p.owning_kingdom if p != null else ""
 
 
 func _avg_unrest(kid: String) -> float:
@@ -1058,8 +1058,8 @@ func _send_letter(subject: String, body: String, kind: StringName) -> void:
 		return
 	var letter: Letter = Letter.create(
 		StringName("mandate_%d_%d" % [GameClock.absolute_day(), Inbox.letters.size()]),
-		"Your chief of mandates",
-		GameDate.make(GameClock.year, GameClock.month, GameClock.day),
+		OrgRoles.sender_line(OrgRoles.CHIEF_OF_MANDATES),
+		GameDate.today(),
 		subject,
 		body,
 		kind,

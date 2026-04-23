@@ -23,6 +23,8 @@ Scheduler="*res://scripts/scheduler.gd"
 WorldData="*res://scripts/world_data.gd"
 Actors="*res://scripts/actor_registry.gd"
 Org="*res://scripts/org_registry.gd"
+OrgRoles="*res://scripts/org_roles.gd"
+Codebook="*res://scripts/codebook.gd"
 Inbox="*res://scripts/inbox_manager.gd"
 Actions="*res://scripts/action_runner.gd"
 Exposure="*res://scripts/exposure_manager.gd"
@@ -73,6 +75,7 @@ Unlocks="*res://scripts/unlocks.gd"
 EraTheme="*res://scripts/era_theme.gd"
 AudioDirector="*res://scripts/audio_director.gd"
 WorldProfile="*res://scripts/world_profile.gd"
+Identities="*res://scripts/identity_registry.gd"
 
 [display]
 

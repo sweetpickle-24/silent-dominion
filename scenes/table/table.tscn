@@ -1204,6 +1204,60 @@ text = "Roster"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+; ---- Library (small stack of scroll-tubes, unlocks post first fingerprint) -----
+
+[node name="Library" type="Control" parent="Objects"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -92.0
+offset_right = -42.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 0
+rotation = -0.04
+
+[node name="ScrollA" type="Panel" parent="Objects/Library"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 0.0
+offset_top = -14.0
+offset_right = 120.0
+offset_bottom = 14.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_book_cover")
+
+[node name="ScrollB" type="Panel" parent="Objects/Library"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 130.0
+offset_bottom = 38.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_book_spine")
+
+[node name="Label" type="Label" parent="Objects/Library"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.92, 0.82, 0.55, 1)
+theme_override_font_sizes/font_size = 14
+text = "Library"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 ; ---- Vault (right edge, leather coin pouch tied shut, stacked coins) -------
 
 [node name="Vault" type="Control" parent="Objects"]

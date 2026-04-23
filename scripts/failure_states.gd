@@ -356,7 +356,7 @@ func _recover(s: int) -> void:
 
 
 func _announce_state(s: int, _ctx: Dictionary) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var title: String = state_name(s)
 	var body: String = state_blurb(s)
 	var letter_id: StringName = StringName("failure_%d_%d" % [s, Time.get_ticks_msec()])
@@ -373,7 +373,7 @@ func _announce_state(s: int, _ctx: Dictionary) -> void:
 
 
 func _announce_recovery(s: int) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var title: String = state_name(s)
 	var body: String = (
 		"The worst has passed. %s is no longer the shape of your playthrough. Do not assume you are clean — only that you are no longer on fire."

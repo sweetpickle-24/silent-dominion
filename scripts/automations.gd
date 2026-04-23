@@ -294,7 +294,7 @@ func _pause_with_reason(r: AutomationRule, reason: StringName, body: String) -> 
 
 
 func _announce_adopted(r: AutomationRule, target: Actor) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var body: String = (
 		"You have entered this into the library as a standing order: "
 		+ "%s against %s, every %d months. Your hands will pick it up and run it without your voice from now on — "
@@ -306,7 +306,7 @@ func _announce_adopted(r: AutomationRule, target: Actor) -> void:
 	]
 	var letter: Letter = Letter.create(
 		StringName("automation_adopted_%s" % String(r.id)),
-		"Your factotum",
+		OrgRoles.sender_line(OrgRoles.FACTOTUM, target.kingdom_id),
 		date,
 		"A standing order on %s" % target.display_name(),
 		body,
@@ -316,11 +316,11 @@ func _announce_adopted(r: AutomationRule, target: Actor) -> void:
 
 
 func _announce_paused(r: AutomationRule, body: String) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var label: String = _pretty_action(r.action_id)
 	var letter: Letter = Letter.create(
 		StringName("automation_paused_%s_%d" % [String(r.id), Time.get_ticks_msec()]),
-		"Your factotum",
+		OrgRoles.sender_line(OrgRoles.FACTOTUM),
 		date,
 		"Standing order stood down — %s" % label,
 		body,

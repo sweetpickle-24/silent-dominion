@@ -112,7 +112,7 @@ func _on_month_passed(y: int, m: int) -> void:
 	var subject: String = "The month past, in brief"
 	var letter: Letter = Letter.create(
 		letter_id,
-		"Your factotum",
+		OrgRoles.sender_line(OrgRoles.FACTOTUM),
 		date,
 		subject,
 		body,

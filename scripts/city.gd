@@ -60,14 +60,14 @@ func district_kind_name(k: int) -> String:
 ## Returns true if any district's fog actually moved (UI can render a
 ## subtle highlight on the districts whose fog lifted).
 func lift_fog(amount: int, floor_value: int = 10) -> bool:
-	var changed: bool = false
+	var any_moved: bool = false
 	for d in districts:
 		var prev: int = int(d.get("fog", 100))
 		var next_v: int = maxi(floor_value, prev - amount)
 		if next_v != prev:
 			d["fog"] = next_v
-			changed = true
-	return changed
+			any_moved = true
+	return any_moved
 
 
 func to_dict() -> Dictionary:

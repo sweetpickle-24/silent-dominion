@@ -194,6 +194,8 @@ func _collect_state() -> Dictionary:
 		"chronicle":    Chronicle.snapshot(),
 		"unlocks":      Unlocks.snapshot(),
 		"world_profile": WorldProfile.snapshot(),
+		"codebook":     Codebook.snapshot(),
+		"identities":   Identities.snapshot(),
 	}
 
 
@@ -276,6 +278,10 @@ func _apply_state(blob: Dictionary) -> void:
 		Unlocks.restore(blob["unlocks"])
 	if blob.has("world_profile"):
 		WorldProfile.restore(blob["world_profile"])
+	if blob.has("codebook"):
+		Codebook.restore(blob["codebook"])
+	if blob.has("identities"):
+		Identities.restore(blob["identities"])
 
 
 # --- Long-run sim health report (§6.5) --------------------------------------

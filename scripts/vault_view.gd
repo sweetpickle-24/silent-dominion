@@ -339,6 +339,16 @@ func _build_house_row(h: BankingHouse) -> Control:
 	reach_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(reach_label)
 
+	# Line 2b: provenance — who opened this house and why. Empty for
+	# houses cultivated without a named hand on the ledger.
+	if not h.narrative.is_empty():
+		var prov: Label = Label.new()
+		prov.text = "Provenance: %s" % h.narrative
+		prov.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		prov.add_theme_font_size_override("font_size", 12)
+		prov.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(prov)
+
 	# Line 3: curiosity warning, if any
 	if h.is_suspicious():
 		var warn: Label = Label.new()

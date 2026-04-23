@@ -185,11 +185,7 @@ func _seed_rumour_letter() -> bool:
 	var text: String = String(pick.get("text", "")).strip_edges()
 	if text == "":
 		return false
-	var date: GameDate = GameDate.make(
-		GameClock.year if GameClock != null else 500,
-		GameClock.month if GameClock != null else 1,
-		GameClock.day if GameClock != null else 1
-	)
+	var date: GameDate = GameDate.today()
 	var body: String = "Old heads in the wine shops still whisper of it:\n\n\"%s\"\n\nWhether the figure behind it ever drew breath is a matter for tavern wagers." % text
 	var l: Letter = Letter.create(
 		StringName("rumour_of_legacy_%d" % Time.get_unix_time_from_system()),

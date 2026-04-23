@@ -120,7 +120,7 @@ func save_to_markdown(path: String = "") -> String:
 	file.close()
 
 	if Inbox != null:
-		var date: GameDate = GameDate.make(GameClock.year, GameClock.month, GameClock.day)
+		var date: GameDate = GameDate.today()
 		var letter: Letter = Letter.create(
 			&"chronicle_saved",
 			"The scribe",

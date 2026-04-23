@@ -6,6 +6,27 @@ See `docs/` for the full design specification. This file is about what to build,
 
 ---
 
+## Alignment status — verified against code on 2026-04-23
+
+Legend: `[x]` shipped · `[~]` partially shipped (data and UI exist, deeper wiring still pending) · `[ ]` not started.
+
+After the six-phase Alignment pass (A–F) the following items are accurate against the current source tree:
+
+| Area | ROADMAP claim | Reality | Status |
+| --- | --- | --- | --- |
+| §4.6 Two-reality | All UI reads from `PlayerPicture` only | Dossier/Compose/Map detail now route through `Picture.known_actors()` / `is_cold()` / `is_stale()`. A grep self-test (`scripts/dev/grep_self_test.gd`) guards against regressions. | `[x]` |
+| §4.7 Scripted beats | Full §28.1 beat arc | Seven-beat arc is scripted and refers only to real actors/members via `OrgRoles.sender_line()`. Predecessor → coordinator → watcher → go-between → man-of-affairs → archivist chain is live. | `[x]` |
+| §7.1 Encrypted correspondence | Codebook is encrypted comms, not a glossary | `Codebook` autoload + `Letter.cipher_id` + `CodebookView` compose/decrypt sections shipped in Phase D. | `[x]` |
+| §7.2 Onboarding by unlock | System-unlock sequence driven by milestones | Four canonical objects (Memoirs, Vault, Library, Roster) fire `surface_unlocked` and a factotum-voice welcome letter. Full §28.2 milestone coverage (eight rungs) is Phase-G work. | `[~]` |
+| §1.4 Cover identities | Cover identity system | Data model + registry + one starter identity + Dossier "This side of the table" panel + Memoirs reference shipped. Actions do not yet consume identity legend. | `[~]` |
+| §28.2 Unlock ordering | Eight-milestone unlock arc | Memoirs / Vault / Library / Roster implemented; "first contradiction", "first Lieutenant", "first entity", "first base move" not yet rung. | `[~]` |
+| Ghost narrators | "Your X" senders are real | All 20+ narrator sites route through `OrgRoles`. `rg "\"Your (factotum\|archivist\|...)"` returns no matches outside `org_roles.gd` and the self-test itself. | `[x]` |
+| Raw-number leaks | Legend/Compose/Map show bands only | Legend indicator, action costs, resolution times, and map detail now render qualitative bands; raw integers are gone from the HUD. | `[x]` |
+
+Any `- [x]` below that contradicts this table should be treated as aspirational until the matching row here is also `[x]`.
+
+---
+
 ## 0. Guiding principles for the build
 
 | Principle | What it means for the schedule |
@@ -129,7 +150,7 @@ Player can open the table, click "perform action on dummy actor", and see a dumm
 
 #### 4.6 Minimal two-reality system (§7.6)
 - [x] `GroundTruth` (simulation) and `PlayerPicture` (what reports have conveyed) are distinct data structures.
-- [x] All UI reads from `PlayerPicture` only.
+- [x] All UI reads from `PlayerPicture` only (re-verified Phase E: Dossier/Compose/Map detail route through `Picture.known_actors`/`is_cold`/`is_stale`; `scripts/dev/grep_self_test.gd` guards against ghost-narrator regressions).
 - [x] Reports are the only channel that mutates `PlayerPicture`.
 - [x] Stale data stays stale until a new report arrives.
 
@@ -442,9 +463,9 @@ A dedicated player can begin a new game in 500 BCE, play through to 1500 CE acro
 - [x] Optional extra difficulty modifiers — more aggressive rival societies, smaller starting resources (`scripts/difficulty_profile.gd` wraps `Prefs` toggles: `aggressive_rivals` → `scripts/rival_registry.gd` tick frequency + pre-seeded lieutenant, `lean_start` → `scenes/table/table.gd` `_apply_new_game_difficulty` purse multiplier, `hostile_hosts` → `scripts/action_runner.gd` host resist bias, `fast_hunters` → `scripts/shadow_figure.gd` hunter thresholds, `brittle_cover` → `scripts/exposure_manager.gd` cover decay; UI in `scripts/preferences_view.gd`).
 
 #### 10.7 Onboarding by situation (§28)
-- [x] Fully scripted first session (§28.1).
-- [x] System-unlock sequence driven by organisational milestones (§28.2).
-- [x] Memoirs panel as living help system (§28.3).
+- [x] Fully scripted first session (§28.1) — seven beats, all senders routed through real OrgMembers via `OrgRoles`.
+- [~] System-unlock sequence driven by organisational milestones (§28.2). Four canonical objects (Memoirs, Vault, Library, Roster) are milestone-gated and drop a factotum welcome letter; the remaining four §28.2 rungs (first contradiction, first Lieutenant, first entity, first base move) are Phase-G.
+- [x] Memoirs panel as living help system (§28.3) — System reference section §30.1 now lives in Memoirs and is wired to live constants.
 
 #### 10.8 Save architecture (§29)
 - [x] Continuous autosave.

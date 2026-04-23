@@ -59,11 +59,60 @@ const STRAIN_MONTHLY_HEAT_BUMP: int = 1
 const OP_COVER_BANK: Array[String] = OperativeOps.OP_COVER_BANK
 
 
+## §28.1 canonical starting cell: one named coordinator in Athens.
+## Actor `starter_coordinator_athens` is preloaded by Actors; we turn
+## them into an OrgMember here so turn-1 code that asks "does the
+## player have coverage in athens?" answers truthfully.
+const STARTER_COORDINATOR_ACTOR_ID: StringName = &"starter_coordinator_athens"
+const STARTER_HOST_ACTOR_ID: StringName = &"starter_host_athens"
+var _starter_seeded: bool = false
+
+
 func _ready() -> void:
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	GameClock.day_passed.connect(_on_day_passed)
+	# Seed the starter cell once the world + actor registries are up.
+	if WorldData.is_loaded():
+		_seed_starter_cell()
+	else:
+		WorldData.world_loaded.connect(_seed_starter_cell, CONNECT_ONE_SHOT)
 	print("[Org] Registry ready. %d members." % members.size())
+
+
+## §28.1. Promote the preloaded starter coordinator actor into a
+## real OrgMember, COORDINATOR layer, region = athens. No operatives
+## are spawned — §14.3 "generations 2–3 build operative layer".
+## Idempotent: safe to re-run.
+func _seed_starter_cell() -> void:
+	if _starter_seeded:
+		return
+	_starter_seeded = true
+	# Respect save-load: if the roster already holds the starter
+	# coordinator, do nothing. `restore()` ran before us.
+	if is_actor_member(STARTER_COORDINATOR_ACTOR_ID):
+		return
+	var a: Actor = Actors.get_actor(STARTER_COORDINATOR_ACTOR_ID)
+	if a == null:
+		push_warning("[Org] starter coordinator actor missing; cell not seeded.")
+		return
+	var m: OrgMember = OrgMember.new()
+	m.id              = StringName("org_coord_starter_athens")
+	m.source_actor_id = a.id
+	m.display_name    = a.display_name()
+	m.layer           = OrgMember.Layer.COORDINATOR
+	m.region_id       = a.kingdom_id
+	m.superior_id     = &""
+	m.trust           = 70
+	m.skill           = 55
+	m.heat            = 0
+	m.tenure_days     = 0
+	m.cover           = "scribe at the Kerameikos"
+	m.origin_blurb    = "Inherited from your predecessor. Held the Athens cell through the quiet years."
+	_add(m)
+	# Ensure the source actor is flagged AGENT so the dossier view
+	# does not offer "promote" on someone already serving.
+	a.role = Actor.Role.AGENT
 
 
 # --- Public: queries ---------------------------------------------------------

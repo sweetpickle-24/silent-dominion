@@ -128,7 +128,7 @@ func _beat_intro_letter() -> void:
 	) % [region_name, prospect]
 
 	_send(
-		"Your predecessor, through a third hand",
+		OrgRoles.sender_line(OrgRoles.PREDECESSOR),
 		"A beginning",
 		body,
 		&"intro"
@@ -150,7 +150,7 @@ func _beat_week_courtship() -> void:
 		+ "If we intend %s to be ours, we should not be the second hand they learn the weight of."
 	) % [who, who, who]
 	_send(
-		"Your watcher in the quarter",
+		OrgRoles.sender_line(OrgRoles.WATCHER, anchor.kingdom_id),
 		"Someone else is asking after %s" % who,
 		body,
 		&"intel"
@@ -172,7 +172,7 @@ func _beat_month_surprise() -> void:
 		+ "we are bargaining with them. We are not giving orders."
 	) % who
 	_send(
-		"Your go-between",
+		OrgRoles.sender_line(OrgRoles.GO_BETWEEN, anchor.kingdom_id),
 		"%s has chosen their own course" % who,
 		body,
 		&"intel"
@@ -202,7 +202,7 @@ func _beat_month3_neighbour() -> void:
 		+ "A network built on two begins to look like a network."
 	) % [nname, anchor.display_name()]
 	_send(
-		"Your correspondent at the harbour",
+		OrgRoles.sender_line(OrgRoles.CORRESPONDENT_HARBOUR, neighbour),
 		"An opportunity in %s" % nname,
 		body,
 		&"intel"
@@ -227,7 +227,7 @@ func _beat_year1_money() -> void:
 		+ "Choose accordingly."
 	) % via
 	_send(
-		"Your man of affairs",
+		OrgRoles.sender_line(OrgRoles.MAN_OF_AFFAIRS),
 		"Two hundred silver, for the east port",
 		body,
 		&"action"
@@ -257,7 +257,7 @@ func _beat_year3_contradiction() -> void:
 		+ "Do not act on either account until you know which one is lying."
 	) % who
 	_send(
-		"Your archivist",
+		OrgRoles.sender_line(OrgRoles.ARCHIVIST),
 		"Two reports that cannot both stand",
 		body,
 		&"intel"
@@ -278,7 +278,7 @@ func _beat_year5_mortality() -> void:
 		+ "you have a single point of failure that smiles."
 	)
 	_send(
-		"Your predecessor, through a third hand",
+		OrgRoles.sender_line(OrgRoles.PREDECESSOR),
 		"On the matter of who succeeds whom",
 		body,
 		&"intro"
@@ -312,7 +312,7 @@ func _beat_day14_rival_courts_host() -> void:
 		+ "will be a fingerprint you cannot lift for a generation."
 	) % [who, _home_establishment_for(anchor), rival_label, who]
 	_send(
-		"Your watcher in the quarter",
+		OrgRoles.sender_line(OrgRoles.WATCHER, anchor.kingdom_id),
 		"The Corinthian is not alone",
 		body,
 		&"intel"
@@ -337,7 +337,7 @@ func _beat_day21_second_host_opportunity() -> void:
 		+ "risks are independent. A table with two legs does not fall from one kick."
 	) % [second.display_name(), second_kingdom]
 	_send(
-		"Your correspondent at the harbour",
+		OrgRoles.sender_line(OrgRoles.CORRESPONDENT_HARBOUR, second.kingdom_id),
 		"%s, in %s" % [second.display_name(), second_kingdom],
 		body,
 		&"intel"
@@ -374,7 +374,7 @@ func _beat_month2_first_corruption_whisper() -> void:
 		+ "same room he walks."
 	) % [via, handler]
 	_send(
-		"Your archivist",
+		OrgRoles.sender_line(OrgRoles.ARCHIVIST),
 		"A tally that will not sit right",
 		body,
 		&"intel"
@@ -398,7 +398,7 @@ func _beat_month4_hunter_precursor() -> void:
 		+ "indictment."
 	)
 	_send(
-		"Your correspondent at the harbour",
+		OrgRoles.sender_line(OrgRoles.CORRESPONDENT_HARBOUR),
 		"A clerk at Rhodes has been drawing connections",
 		body,
 		&"intel"
@@ -421,7 +421,7 @@ func _beat_month6_memoirs_invitation() -> void:
 		+ "notes of an older one."
 	)
 	_send(
-		"Your predecessor, through a third hand",
+		OrgRoles.sender_line(OrgRoles.PREDECESSOR),
 		"Write it down while it is warm",
 		body,
 		&"intro"
@@ -457,7 +457,7 @@ func _home_establishment_for(_a: Actor) -> String:
 # --- Helpers --------------------------------------------------------------
 
 func _send(sender: String, subject: String, body: String, kind: StringName) -> void:
-	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var date: GameDate = GameDate.today()
 	var letter: Letter = Letter.create(
 		StringName("beat_%d" % Time.get_ticks_msec()),
 		sender,

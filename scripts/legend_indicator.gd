@@ -144,9 +144,10 @@ func _refresh_hunter_line() -> void:
 
 
 func _refresh_tooltip() -> void:
+	# §D3 — no raw numbers. Surface a qualitative band instead of "Legend: N/100".
 	var lg: int = Shadow.legend
 	var parts: Array[String] = []
-	parts.append("Legend: %d / 100" % lg)
+	parts.append("Legend: %s" % _legend_band(lg))
 	var named: int = 0
 	for kid in Shadow.awareness_heat.keys():
 		var tier: int = Shadow.awareness_tier_in(String(kid))
@@ -154,10 +155,20 @@ func _refresh_tooltip() -> void:
 			continue
 		named += 1
 	if named > 0:
-		parts.append("%d region%s with active awareness" % [named, "" if named == 1 else "s"])
+		parts.append("%s with active awareness" % (
+			"One region" if named == 1 else "A handful of regions" if named <= 3 else "Many regions"
+		))
 	if Shadow.hunters.size() > 0:
 		parts.append("Hunters do not sleep while this tag is up.")
 	_panel.tooltip_text = "\n".join(parts)
+
+
+func _legend_band(lg: int) -> String:
+	if lg < 15:  return "nothing yet"
+	if lg < 35:  return "faintly whispered"
+	if lg < 60:  return "spoken of"
+	if lg < 85:  return "widely named"
+	return "a story on every road"
 
 
 # --- Signals ---------------------------------------------------------------

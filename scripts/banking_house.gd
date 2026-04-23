@@ -78,6 +78,16 @@ extends Resource
 @export var dissolved: bool = false
 @export var dissolved_reason: StringName = &""
 
+## §28.1 provenance. For starter and coordinator-opened houses, points
+## at the OrgMember whose name the ledger carries. Empty string for
+## houses cultivated via the finance actions that do not route through
+## a named coordinator.
+@export var founded_by_id: StringName = &""
+
+## Short narrative line surfaced in the Vault's "Provenance" row. Not
+## procedural — authored once when the house enters the registry.
+@export var narrative: String = ""
+
 
 const CURIOSITY_SUSPICION_THRESHOLD: int = 60
 
@@ -220,6 +230,8 @@ static func from_dict(d: Dictionary) -> BankingHouse:
 	h.compromised       = bool(d.get("compromised", false))
 	h.dissolved         = bool(d.get("dissolved", false))
 	h.dissolved_reason  = StringName(String(d.get("dissolved_reason", "")))
+	h.founded_by_id     = StringName(String(d.get("founded_by_id", "")))
+	h.narrative         = String(d.get("narrative", ""))
 	return h
 
 
@@ -242,4 +254,6 @@ func to_dict() -> Dictionary:
 		"compromised":       compromised,
 		"dissolved":         dissolved,
 		"dissolved_reason":  String(dissolved_reason),
+		"founded_by_id":     String(founded_by_id),
+		"narrative":         narrative,
 	}

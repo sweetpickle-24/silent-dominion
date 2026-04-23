@@ -222,7 +222,7 @@ func _profile_for_actor(a: Actor) -> Dictionary:
 		&"paranoia_band":   _band(a.paranoia),
 		&"ambition_band":   _band(a.ambition),
 		&"piety_band":      _band(a.piety),
-		&"competence_band": _band(a.competence),
+		&"competence_band": _band(a.intellect),
 	}
 	return profile
 
