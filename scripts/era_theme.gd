@@ -25,6 +25,7 @@ var _registered: Array[Control] = []
 
 
 func _ready() -> void:
+	DevLogger.write("EraTheme: ready")
 	_load_data()
 	if Eras != null and Eras.has_signal("era_changed"):
 		Eras.era_changed.connect(_on_era_changed)

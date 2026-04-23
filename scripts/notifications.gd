@@ -23,6 +23,7 @@ var _counts: Dictionary = {
 
 
 func _ready() -> void:
+	DevLogger.write("Notifications: ready")
 	KingdomEconomy.tick.connect(_on_economy_tick)
 	# News bumps are sourced off PublicNews, not off EventBus directly,
 	# so an event arriving through a slow intelligence channel (§34.4)

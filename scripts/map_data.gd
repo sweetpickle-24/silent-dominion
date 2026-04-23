@@ -40,6 +40,7 @@ var _ready_flag: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("MapData: ready")
 	if not _everything_exists():
 		if OS.has_feature("editor"):
 			print("[MapData] bitmaps missing. Running inline bake (editor only)...")

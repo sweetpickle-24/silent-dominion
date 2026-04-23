@@ -43,6 +43,7 @@ var _history: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Fidelity: ready")
 	EventBus.public_event.connect(_on_public_event)
 	Picture.visibility_changed.connect(_on_visibility_changed)
 
@@ -142,7 +143,11 @@ func snapshot() -> Dictionary:
 
 func restore(d: Dictionary) -> void:
 	_history.clear()
-	var hist: Dictionary = d.get("history", {})
-	for kid in hist.keys():
-		_history[String(kid)] = (hist[kid] as Array).duplicate(true)
-	_was_cold = (d.get("was_cold", {}) as Dictionary).duplicate(true)
+	var hist_raw: Variant = d.get("history", {})
+	if hist_raw is Dictionary:
+		for kid in (hist_raw as Dictionary).keys():
+			var arr_raw: Variant = hist_raw[kid]
+			if arr_raw is Array:
+				_history[String(kid)] = (arr_raw as Array).duplicate(true)
+	var wc_raw: Variant = d.get("was_cold", {})
+	_was_cold = (wc_raw as Dictionary).duplicate(true) if wc_raw is Dictionary else {}

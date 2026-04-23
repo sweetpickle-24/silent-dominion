@@ -32,6 +32,7 @@ var _seeded: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("Immortals: ready")
 	_rng.randomize()
 	if WorldData.is_loaded():
 		_maybe_seed()

@@ -36,6 +36,7 @@ var society_confirmation: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Fingerprints: ready")
 	pass
 
 

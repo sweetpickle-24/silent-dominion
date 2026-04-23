@@ -45,6 +45,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Infrastructure: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	Scheduler.task_due.connect(_on_task_due)
@@ -322,12 +323,15 @@ func restore(d: Dictionary) -> void:
 				continue
 			for b in entry.get("buildings", []):
 				p.buildings.append(StringName(String(b)))
-	var pending: Dictionary = d.get("pending", {})
-	for pid in pending.keys():
-		var arr: Array = []
-		for b in pending[pid]:
-			arr.append(StringName(String(b)))
-		_in_progress[String(pid)] = arr
+	var pending_raw: Variant = d.get("pending", {})
+	if pending_raw is Dictionary:
+		for pid in (pending_raw as Dictionary).keys():
+			var arr: Array = []
+			var lst: Variant = pending_raw[pid]
+			if lst is Array:
+				for b in lst:
+					arr.append(StringName(String(b)))
+			_in_progress[String(pid)] = arr
 
 
 func _array_to_strings(arr: Array) -> Array:

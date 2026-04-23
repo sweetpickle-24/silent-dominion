@@ -227,6 +227,7 @@ var _seeded: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("Rivals: ready")
 	_rng.randomize()
 	# Societies seed only after the world is on disk — we need the
 	# kingdom ids to resolve strongholds.
@@ -1145,4 +1146,6 @@ func restore(d: Dictionary) -> void:
 	var ops_v: Variant = d.get("operatives", {})
 	if ops_v is Dictionary:
 		for k in ops_v:
-			operatives[String(k)] = (ops_v[k] as Dictionary).duplicate(true)
+			var sub: Variant = ops_v[k]
+			if sub is Dictionary:
+				operatives[String(k)] = (sub as Dictionary).duplicate(true)

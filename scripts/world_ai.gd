@@ -77,6 +77,7 @@ var _regency_months: Dictionary = {}   # kingdom_id -> months since regency bega
 
 
 func _ready() -> void:
+	DevLogger.write("WorldAI: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 

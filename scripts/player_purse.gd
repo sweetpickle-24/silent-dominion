@@ -36,6 +36,7 @@ var _current_band: StringName = &""
 
 
 func _ready() -> void:
+	DevLogger.write("Purse: ready")
 	_current_band = _band_for(silver)
 	GameClock.month_passed.connect(_on_month_passed)
 

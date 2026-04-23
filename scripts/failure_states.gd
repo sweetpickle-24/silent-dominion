@@ -63,6 +63,7 @@ var _burn_log: Array = []        # absolute days of recent host burns
 
 
 func _ready() -> void:
+	DevLogger.write("Failures: ready")
 	Org.member_burned.connect(_on_member_burned)
 	Exposure.level_changed.connect(_on_exposure_level_changed)
 	GameClock.month_passed.connect(_on_month_passed)
@@ -404,9 +405,12 @@ func snapshot() -> Dictionary:
 
 func restore(d: Dictionary) -> void:
 	_active.clear()
-	var src_active: Dictionary = d.get("active", {})
-	for k in src_active.keys():
-		_active[int(k)] = src_active[k]
+	var src_raw: Variant = d.get("active", {})
+	if src_raw is Dictionary:
+		for k in (src_raw as Dictionary).keys():
+			_active[int(k)] = src_raw[k]
 	_burn_log = []
-	for v in d.get("burn_log", []):
-		_burn_log.append(int(v))
+	var bl_raw: Variant = d.get("burn_log", [])
+	if bl_raw is Array:
+		for v in bl_raw:
+			_burn_log.append(int(v))

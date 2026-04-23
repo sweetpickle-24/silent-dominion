@@ -39,6 +39,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Shadow: ready")
 	_rng.randomize()
 	EventBus.public_event.connect(_on_public_event)
 	EventBus.action_resolved.connect(_on_action_resolved)
@@ -490,5 +491,7 @@ func restore(d: Dictionary) -> void:
 	var hh: Variant = d.get("hunters", {})
 	if hh is Dictionary:
 		for k in hh:
-			hunters[String(k)] = (hh[k] as Dictionary).duplicate(true)
+			var sub: Variant = hh[k]
+			if sub is Dictionary:
+				hunters[String(k)] = (sub as Dictionary).duplicate(true)
 	legend_changed.emit(legend)

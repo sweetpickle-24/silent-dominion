@@ -61,6 +61,7 @@ var brittle_cover: bool = false
 const DEFAULT_FONT_SIZE: int = 14
 
 func _ready() -> void:
+	DevLogger.write("Prefs: ready")
 	_load_from_disk()
 	_apply_font_scale()
 	preferences_changed.connect(_apply_font_scale)

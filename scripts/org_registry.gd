@@ -69,6 +69,7 @@ var _starter_seeded: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("Org: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	GameClock.day_passed.connect(_on_day_passed)

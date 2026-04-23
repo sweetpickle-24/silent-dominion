@@ -74,6 +74,7 @@ var checklist: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Base: ready")
 	if WorldData.is_loaded():
 		_resolve_initial_base()
 	else:

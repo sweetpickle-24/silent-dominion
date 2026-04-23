@@ -41,6 +41,7 @@ var _drift: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("PopWeights: ready")
 	if WorldData.is_loaded():
 		_initialise()
 	else:
@@ -239,14 +240,16 @@ func snapshot() -> Dictionary:
 
 
 func restore(d: Dictionary) -> void:
-	var raw: Dictionary = d.get("drift", {})
+	var raw_v: Variant = d.get("drift", {})
 	_drift.clear()
-	for kid in raw.keys():
-		var block: Dictionary = {}
-		var src: Dictionary = raw[kid]
-		for t in TRAITS:
-			block[t] = int(src.get(String(t), 0))
-		_drift[String(kid)] = block
+	if raw_v is Dictionary:
+		for kid in (raw_v as Dictionary).keys():
+			var block: Dictionary = {}
+			var src_v: Variant = raw_v[kid]
+			var src: Dictionary = src_v if src_v is Dictionary else {}
+			for t in TRAITS:
+				block[t] = int(src.get(String(t), 0))
+			_drift[String(kid)] = block
 	# Fill any missing kingdoms with zero blocks.
 	if WorldData.is_loaded():
 		for kid in WorldData.kingdoms.keys():

@@ -28,10 +28,16 @@ enum TargetKind {
 @export var tier: Tier = Tier.DEEP_SHADOW
 @export var target_kind: TargetKind = TargetKind.ACTOR
 
-# Cost fields. Phase 0 does not yet enforce these; recorded for future
-# resource / exposure systems.
+# Cost fields. Phase 0 does not yet fully enforce all of them;
+# recorded for future resource / exposure systems. The four cost
+# axes are displayed qualitatively on every Compose card.
 @export var silver_cost: int = 0
 @export var exposure_cost: int = 0
+## Coordinator-days this op burns while in flight. A measure of how
+## much of your cell's attention it eats — separate from silver and
+## exposure. Currently advisory (surfaced on Compose cards) so the
+## player can weigh it before committing.
+@export var bandwidth_cost: int = 0
 
 # Resolution timing. Randomised on issue as [min, max] inclusive.
 @export var min_days_to_resolve: int = 3
@@ -60,6 +66,7 @@ static func from_dict(d: Dictionary) -> ActionDefinition:
 	a.target_kind          = _target_from_string(String(d.get("target_kind", "ACTOR")))
 	a.silver_cost          = int(d.get("silver_cost", 0))
 	a.exposure_cost        = int(d.get("exposure_cost", 0))
+	a.bandwidth_cost       = int(d.get("bandwidth_cost", 0))
 	a.min_days_to_resolve  = int(d.get("min_days_to_resolve", 3))
 	a.max_days_to_resolve  = int(d.get("max_days_to_resolve", 10))
 	a.base_success_chance  = float(d.get("base_success_chance", 0.75))

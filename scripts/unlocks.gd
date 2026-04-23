@@ -41,6 +41,7 @@ var _welcome_shown: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Unlocks: ready")
 	_wire_memoirs()
 	_wire_vault()
 	_wire_library()

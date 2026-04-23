@@ -108,6 +108,7 @@ var _region_centroid_cache: Dictionary = {}   # region_id -> Vector2 uv centroid
 
 
 func _ready() -> void:
+	DevLogger.write("PublicNews: ready")
 	_rng.randomize()
 	EventBus.public_event.connect(_on_public_event)
 	Scheduler.task_due.connect(_on_task_due)

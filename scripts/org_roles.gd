@@ -146,6 +146,7 @@ const _ROLE_TITLE: Dictionary = {
 
 
 func _ready() -> void:
+	DevLogger.write("OrgRoles: ready")
 	# Pure resolver. No state to seed.
 	pass
 

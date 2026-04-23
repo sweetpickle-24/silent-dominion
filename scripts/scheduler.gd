@@ -31,6 +31,7 @@ var _tasks: Array = []
 
 
 func _ready() -> void:
+	DevLogger.write("Scheduler: ready")
 	GameClock.day_passed.connect(_on_day_passed)
 
 
@@ -90,7 +91,8 @@ func restore(snap: Array) -> void:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var fire_day: int = int(entry.get("fire_day", GameClock.absolute_day()))
-		var desc: Dictionary = (entry.get("descriptor", {}) as Dictionary).duplicate(true)
+		var desc_raw: Variant = entry.get("descriptor", {})
+		var desc: Dictionary = (desc_raw as Dictionary).duplicate(true) if desc_raw is Dictionary else {}
 		_schedule(fire_day, desc, Callable())
 
 

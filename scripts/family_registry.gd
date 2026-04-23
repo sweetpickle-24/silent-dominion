@@ -79,6 +79,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Dynasties: ready")
 	_rng.randomize()
 	EventBus.actor_died.connect(_on_actor_died)
 	EventBus.action_resolved.connect(_on_action_resolved)
@@ -621,7 +622,12 @@ func snapshot() -> Dictionary:
 
 func restore(d: Dictionary) -> void:
 	families.clear()
-	for fd in d.get("families", []):
+	var fs_raw: Variant = d.get("families", [])
+	if not (fs_raw is Array):
+		return
+	for fd in fs_raw:
+		if typeof(fd) != TYPE_DICTIONARY:
+			continue
 		var f: Family = Family.from_dict(fd)
 		if f.id == &"":
 			continue

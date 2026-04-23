@@ -58,6 +58,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Whispers: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	EventBus.actor_died.connect(_on_actor_died)

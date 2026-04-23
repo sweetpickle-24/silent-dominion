@@ -51,6 +51,10 @@ var _state_inst: Dictionary = {}   # "kingdom|inst" -> Dictionary
 var _inst_inst: Dictionary = {}    # "a|b" sorted  -> Dictionary
 
 
+func _ready() -> void:
+	DevLogger.write("InstRelations: ready")
+
+
 # --- Public: kingdom ↔ institution ------------------------------------------
 
 func _si_key(kingdom_id: String, institution_id: String) -> String:
@@ -285,24 +289,29 @@ func snapshot() -> Dictionary:
 func restore(d: Dictionary) -> void:
 	_state_inst.clear()
 	_inst_inst.clear()
-	var si: Dictionary = d.get("state_inst", {})
-	for k in si.keys():
-		var raw: Dictionary = si[k]
-		_state_inst[String(k)] = {
-			"dependency":     int(raw.get("dependency", 0)),
-			"trust":          int(raw.get("trust", 50)),
-			"debt":           int(raw.get("debt", 0)),
-			"alignment":      int(raw.get("alignment", int(Alignment.NEUTRAL))),
-			"last_veto_year": int(raw.get("last_veto_year", -1)),
-		}
-	var ii: Dictionary = d.get("inst_inst", {})
-	for k in ii.keys():
-		var raw2: Dictionary = ii[k]
-		var blocks_raw: Dictionary = raw2.get("blocks", {})
-		var blocks_norm: Dictionary = {}
-		for pid in blocks_raw.keys():
-			blocks_norm[String(pid)] = int(blocks_raw[pid])
-		_inst_inst[String(k)] = {
-			"state":  int(raw2.get("state", int(InstState.NEUTRAL))),
-			"blocks": blocks_norm,
-		}
+	var si_raw: Variant = d.get("state_inst", {})
+	if si_raw is Dictionary:
+		for k in (si_raw as Dictionary).keys():
+			var raw_v: Variant = si_raw[k]
+			var raw: Dictionary = raw_v if raw_v is Dictionary else {}
+			_state_inst[String(k)] = {
+				"dependency":     int(raw.get("dependency", 0)),
+				"trust":          int(raw.get("trust", 50)),
+				"debt":           int(raw.get("debt", 0)),
+				"alignment":      int(raw.get("alignment", int(Alignment.NEUTRAL))),
+				"last_veto_year": int(raw.get("last_veto_year", -1)),
+			}
+	var ii_raw: Variant = d.get("inst_inst", {})
+	if ii_raw is Dictionary:
+		for k in (ii_raw as Dictionary).keys():
+			var raw2_v: Variant = ii_raw[k]
+			var raw2: Dictionary = raw2_v if raw2_v is Dictionary else {}
+			var blocks_v: Variant = raw2.get("blocks", {})
+			var blocks_raw: Dictionary = blocks_v if blocks_v is Dictionary else {}
+			var blocks_norm: Dictionary = {}
+			for pid in blocks_raw.keys():
+				blocks_norm[String(pid)] = int(blocks_raw[pid])
+			_inst_inst[String(k)] = {
+				"state":  int(raw2.get("state", int(InstState.NEUTRAL))),
+				"blocks": blocks_norm,
+			}

@@ -66,16 +66,23 @@ var _body_vbox: VBoxContainer
 # --- Lifecycle ---------------------------------------------------------------
 
 func _ready() -> void:
+	DevLogger.write("ComposeView._ready ENTER — preset_action=%s preset_target=%s k_filter=%s p_filter=%s"
+		% [String(_preset_action_id), _preset_target_id, _kingdom_filter, _province_filter])
 	anchor_right = 1.0
 	anchor_bottom = 1.0
 	mouse_filter = MOUSE_FILTER_STOP
 
+	DevLogger.write("ComposeView._ready — building dimmer")
 	_build_dimmer()
+	DevLogger.write("ComposeView._ready — building sheet")
 	_build_sheet()
+	DevLogger.write("ComposeView._ready — applying preset or rendering")
 	_apply_preset_or_render()
+	DevLogger.write("ComposeView._ready — tweening in")
 
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+	DevLogger.write("ComposeView._ready EXIT")
 
 
 ## Public API. Call BEFORE adding the view to the scene tree (or at
@@ -94,6 +101,8 @@ func configure(
 	preset_action_id: StringName = &"",
 	preset_target_id: String = "",
 ) -> void:
+	DevLogger.write("ComposeView.configure — k=%s p=%s action=%s tgt=%s"
+		% [kingdom_id, province_id, String(preset_action_id), preset_target_id])
 	if not kingdom_id.is_empty():
 		_kingdom_filter = kingdom_id
 	if not province_id.is_empty():
@@ -105,24 +114,30 @@ func configure(
 ## If a preset was supplied via `configure()`, honour it; otherwise
 ## fall through to the regular action picker.
 func _apply_preset_or_render() -> void:
+	DevLogger.write("ComposeView._apply_preset_or_render — action=%s tgt=%s"
+		% [String(_preset_action_id), _preset_target_id])
 	if _preset_action_id == &"":
+		DevLogger.write("ComposeView — no preset action, rendering action picker")
 		_render_action_picker()
 		return
 	var def: ActionDefinition = null
 	if Actions != null and Actions.has_method("get_definition"):
 		def = Actions.get_definition(_preset_action_id)
 	if def == null:
+		DevLogger.warn("ComposeView — preset action '%s' not found, falling back to picker"
+			% String(_preset_action_id))
 		_render_action_picker()
 		return
 	_selected_action = def
-	# A fully-resolved preset (action + target) skips every picker.
 	if not _preset_target_id.is_empty():
+		DevLogger.write("ComposeView — preset target '%s', issuing immediately" % _preset_target_id)
 		_issue_action(_preset_target_id)
 		return
-	# NONE-target actions fire immediately when preset.
 	if def.target_kind == ActionDefinition.TargetKind.NONE:
+		DevLogger.write("ComposeView — NONE-target preset, issuing")
 		_issue_action("")
 		return
+	DevLogger.write("ComposeView — rendering target picker")
 	_render_target_picker()
 
 
@@ -318,15 +333,26 @@ func _build_action_card(def: ActionDefinition) -> Control:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(blurb)
 
-	# §D3 — qualitative meta line. No raw days, no raw silver, no raw exposure.
+	# §D3 — qualitative meta line. Four axes, all qualitative:
+	# time-to-resolve, silver draw, exposure trace, and the coordinator
+	# bandwidth the op consumes while in flight.
 	var meta: Label = Label.new()
-	meta.text = "%s    ·    %s    ·    %s" % [
+	meta.text = "%s    ·    %s    ·    %s    ·    %s" % [
 		_time_phrase(def.min_days_to_resolve, def.max_days_to_resolve),
 		_cost_phrase(def.silver_cost),
 		_exposure_phrase(def.exposure_cost),
+		_bandwidth_phrase(def.bandwidth_cost),
 	]
+	meta.tooltip_text = (
+		"Time: %d–%d days. Silver: %d. Exposure: %d. Bandwidth: %d coordinator-days."
+			% [
+				def.min_days_to_resolve, def.max_days_to_resolve,
+				def.silver_cost, def.exposure_cost, def.bandwidth_cost,
+			]
+	)
 	meta.add_theme_color_override("font_color", COLOR_INK_MUTED)
 	meta.add_theme_font_size_override("font_size", 10)
+	meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(meta)
 
 	# If exposure currently bars this tier, surface the reason inline
@@ -393,6 +419,20 @@ func _exposure_phrase(cost: int) -> String:
 	if cost <= 3:   return "a small trace"
 	if cost <= 6:   return "a noticeable trace"
 	return "a loud trace"
+
+
+## Coordinator bandwidth qualitative band. Measures how much of a
+## cell's standing attention the op consumes while in flight — a
+## separate axis from silver (which is spent) and exposure (which
+## is leaked). Values come from action_definition.bandwidth_cost
+## expressed in coordinator-days.
+func _bandwidth_phrase(cost: int) -> String:
+	if cost <= 0:   return "no coordinator hands"
+	if cost <= 3:   return "a brush of coordinator time"
+	if cost <= 7:   return "a handful of coordinator-days"
+	if cost <= 14:  return "a fortnight of coordinator attention"
+	if cost <= 24:  return "most of a moon of coordinator work"
+	return "months of a coordinator's hands"
 
 
 func _on_action_chosen(def: ActionDefinition) -> void:

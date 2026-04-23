@@ -50,6 +50,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Actions: ready")
 	_rng.randomize()
 	_load_from_json(ACTION_DATA_PATH)
 	Scheduler.task_due.connect(_on_task_due)

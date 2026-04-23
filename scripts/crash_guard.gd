@@ -28,6 +28,7 @@ var _start_ts: String = ""
 
 
 func _ready() -> void:
+	DevLogger.write("CrashGuard: ready")
 	_start_ts = Time.get_datetime_string_from_system()
 	_open_log()
 	_info("CrashGuard online. Session started at %s" % _start_ts)

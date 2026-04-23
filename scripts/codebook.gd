@@ -25,6 +25,7 @@ const STARTER_CONTACT: StringName   = &"starter_coordinator_athens"
 
 
 func _ready() -> void:
+	DevLogger.write("Codebook: ready")
 	if WorldData != null and not WorldData.is_loaded():
 		WorldData.world_loaded.connect(_seed_starter_cipher, CONNECT_ONE_SHOT)
 	else:
@@ -110,11 +111,13 @@ func snapshot() -> Dictionary:
 func restore(data: Dictionary) -> void:
 	ciphers = {}
 	contact_cipher = {}
-	var raw_c: Dictionary = data.get("ciphers", {})
-	for k in raw_c.keys():
-		ciphers[StringName(String(k))] = raw_c[k]
-	var raw_cc: Dictionary = data.get("contact_cipher", {})
-	for k in raw_cc.keys():
-		contact_cipher[StringName(String(k))] = StringName(String(raw_cc[k]))
+	var raw_c: Variant = data.get("ciphers", {})
+	if raw_c is Dictionary:
+		for k in (raw_c as Dictionary).keys():
+			ciphers[StringName(String(k))] = raw_c[k]
+	var raw_cc: Variant = data.get("contact_cipher", {})
+	if raw_cc is Dictionary:
+		for k in (raw_cc as Dictionary).keys():
+			contact_cipher[StringName(String(k))] = StringName(String(raw_cc[k]))
 	ciphers_changed.emit()
 	contacts_changed.emit()

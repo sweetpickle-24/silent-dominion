@@ -17,6 +17,7 @@ var _loaded: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("WorldData: ready")
 	load_world(WORLD_FILE)
 	# §D2 Lift city fog every month for any city that sits in a kingdom
 	# where the player has a non-burned coordinator. The work lives here

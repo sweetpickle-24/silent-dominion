@@ -48,6 +48,7 @@ var _loss_streaks: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Automations: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 	EventBus.action_resolved.connect(_on_action_resolved)
 
@@ -357,4 +358,5 @@ func restore(d: Dictionary) -> void:
 		if r.id == &"":
 			continue
 		rules[r.id] = r
-	_loss_streaks = (d.get("_loss_streaks", {}) as Dictionary).duplicate(true)
+	var ls_raw: Variant = d.get("_loss_streaks", {})
+	_loss_streaks = (ls_raw as Dictionary).duplicate(true) if ls_raw is Dictionary else {}

@@ -33,6 +33,7 @@ const PROLONGED_REVOLT_MONTHS: int = 6
 
 
 func _ready() -> void:
+	DevLogger.write("Unrest: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 	EventBus.action_resolved.connect(_on_action_resolved)
 
@@ -71,6 +72,8 @@ func snapshot() -> Array:
 func restore(arr: Array) -> void:
 	_revolt_streak.clear()
 	for d in arr:
+		if typeof(d) != TYPE_DICTIONARY:
+			continue
 		var p: Province = WorldData.get_province(String(d.get("id", "")))
 		if p == null:
 			continue

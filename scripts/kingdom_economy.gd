@@ -85,6 +85,7 @@ var _history: Dictionary = {}  # kingdom_id -> Array[int]
 
 
 func _ready() -> void:
+	DevLogger.write("KingdomEconomy: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 
 
@@ -517,6 +518,8 @@ func restore(arr: Array) -> void:
 		_burden_streak[id]   = int(d.get("burden_streak", 0))
 		_war_streak[id]      = int(d.get("war_streak", 0))
 		var hist: Array = []
-		for v in d.get("history", []):
-			hist.append(int(v))
+		var hist_raw: Variant = d.get("history", [])
+		if hist_raw is Array:
+			for v in hist_raw:
+				hist.append(int(v))
 		_history[id] = hist

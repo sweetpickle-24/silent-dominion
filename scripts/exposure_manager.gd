@@ -47,6 +47,7 @@ var level: Level = Level.DEEP_SHADOW
 
 
 func _ready() -> void:
+	DevLogger.write("Exposure: ready")
 	EventBus.action_issued.connect(_on_action_issued)
 	GameClock.day_passed.connect(_on_day_passed)
 

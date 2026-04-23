@@ -16,6 +16,15 @@ extends Control
 ## moves forward.
 
 signal closed
+## Emitted when the player hits "Offer loan" on a kingdom row or in
+## the detail view. `table.gd` handles the actual Purse.spend +
+## Finance.open_iou call and posts a confirmation letter — the
+## ledger itself stays a read-only surface for that mechanic.
+signal offer_loan_requested(kingdom_id: String)
+## Emitted when the player hits "Economic pressure" on a kingdom row
+## or in the detail view. `table.gd` opens ComposeView pre-filtered
+## to that kingdom with a regional kingdom-target action preselected.
+signal economic_pressure_requested(kingdom_id: String)
 
 enum Mode { LIST, DETAIL }
 
@@ -330,6 +339,14 @@ func _build_kingdom_row(k: Kingdom) -> Control:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left_vbox.add_child(blurb)
 
+	# §15 — coverage-gated coffers figure. Players with a coordinator
+	# on site read the number; distant crowns show "?" or a wide band.
+	var coffers_line: Label = Label.new()
+	coffers_line.text = "Coffers: %s" % _treasury_display(k)
+	coffers_line.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	coffers_line.add_theme_font_size_override("font_size", 11)
+	left_vbox.add_child(coffers_line)
+
 	var strip: Control = _build_trajectory_strip(k.id, 6, 10, false)
 	if strip != null:
 		left_vbox.add_child(strip)
@@ -342,8 +359,61 @@ func _build_kingdom_row(k: Kingdom) -> Control:
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(tag)
 
+	# Inline direct-action chips. Mouse-filter STOP so they eat their
+	# own clicks without falling through to the row-level "open detail".
+	var actions_col: VBoxContainer = VBoxContainer.new()
+	actions_col.add_theme_constant_override("separation", 3)
+	actions_col.custom_minimum_size.x = 120.0
+	actions_col.mouse_filter = MOUSE_FILTER_IGNORE
+	hbox.add_child(actions_col)
+
+	var kid: String = k.id
+	actions_col.add_child(_make_row_action_chip(
+		"Offer loan",
+		"Lend silver to this crown in return for an IOU.",
+		func() -> void: offer_loan_requested.emit(kid),
+	))
+	actions_col.add_child(_make_row_action_chip(
+		"Pressure",
+		"Open Compose pre-selected to a regional kingdom-target action against this crown.",
+		func() -> void: economic_pressure_requested.emit(kid),
+	))
+
 	row.pressed.connect(func() -> void: _render_detail(k.id))
 	return row
+
+
+func _make_row_action_chip(label: String, tooltip: String, on_press: Callable) -> Button:
+	var b: Button = Button.new()
+	b.text = label
+	b.tooltip_text = tooltip
+	b.custom_minimum_size = Vector2(120.0, 22.0)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_color_override("font_color", COLOR_INK)
+	b.add_theme_font_size_override("font_size", 10)
+	b.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.88, 0.82, 0.68, 0.80)
+	sb.border_color = COLOR_PARCHMENT_EDGE
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	var hover: StyleBoxFlat = sb.duplicate()
+	hover.bg_color = Color(0.75, 0.62, 0.40, 0.95)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", hover)
+	b.pressed.connect(on_press)
+	return b
 
 
 # --- Detail ------------------------------------------------------------------
@@ -395,6 +465,22 @@ func _render_detail(kingdom_id: String) -> void:
 	tag_row.add_child(sub_l)
 
 	_body_vbox.add_child(_make_divider())
+	_body_vbox.add_child(_make_section_heading("THE COFFERS"))
+	_body_vbox.add_child(_make_body_line(
+		"Silver on hand — %s." % IntelNumbers.amount_display(k.treasury_silver, _coverage_for(k.id), "silver")
+	))
+	if k.treasury_gold > 0.0 or _coverage_for(k.id) >= 50:
+		_body_vbox.add_child(_make_body_line(
+			"Gold reserves — %s." % IntelNumbers.amount_display(k.treasury_gold, _coverage_for(k.id), "gold")
+		))
+	var cov_note: String = _coverage_note(k.id)
+	if cov_note != "":
+		var nl: Label = _make_body_line(cov_note)
+		nl.add_theme_color_override("font_color", COLOR_INK_MUTED)
+		nl.add_theme_font_size_override("font_size", 11)
+		_body_vbox.add_child(nl)
+
+	_body_vbox.add_child(_make_divider())
 	_body_vbox.add_child(_make_section_heading("THE LAST MONTHS"))
 
 	var strip: Control = _build_trajectory_strip(k.id, 12, 16, true)
@@ -422,26 +508,71 @@ func _render_detail(kingdom_id: String) -> void:
 	_body_vbox.add_child(_make_divider())
 	_body_vbox.add_child(_make_section_heading("THIS MONTH'S FLOW"))
 
-	# We surface the *direction* of this month's net flow, not the amount.
-	# "a surplus", "roughly in balance", "a deficit".
+	# We surface the *direction* of this month's net flow in prose and
+	# the absolute figures gated by coverage. Cold kingdoms show "?";
+	# a coordinator-on-site reads the exact coin.
 	var prev: Dictionary = KingdomEconomy.preview(k)
 	var income: float = float(prev.get("income", 0.0))
 	var expend: float = float(prev.get("expenditure", 0.0))
 	var war_cost: float = float(prev.get("war_cost", 0.0))
 	var net: float = income - expend
+	var cov: int = _coverage_for(k.id)
 	_body_vbox.add_child(_make_body_line(_flow_phrase(net, expend)))
+	_body_vbox.add_child(_make_body_line(
+		"Monthly income — %s. Outlay — %s." % [
+			IntelNumbers.amount_display(income, cov, "silver"),
+			IntelNumbers.amount_display(expend, cov, "silver"),
+		]
+	))
 	if war_cost > 0.0:
 		_body_vbox.add_child(_make_body_line(_war_burden_phrase(war_cost, expend)))
+		_body_vbox.add_child(_make_body_line(
+			"The armies draw — %s each month." % IntelNumbers.amount_display(war_cost, cov, "silver")
+		))
 
 	var army: Army = Armies.get_army(k.id)
 	if army != null:
 		_body_vbox.add_child(_make_divider())
 		_body_vbox.add_child(_make_section_heading("THE ARMY UNDER THE STANDARD"))
 		_body_vbox.add_child(_make_body_line(army.size_phrase().capitalize() + "."))
+		_body_vbox.add_child(_make_body_line(
+			"Under the standard: %s." % IntelNumbers.thousands_display(army.size, cov, "men")
+		))
+		if army.size_ceiling > army.size:
+			_body_vbox.add_child(_make_body_line(
+				"At full strength they could raise %s." % IntelNumbers.thousands_display(army.size_ceiling, cov, "men")
+			))
 		_body_vbox.add_child(_make_body_line("Quality: %s." % army.quality_phrase()))
 		_body_vbox.add_child(_make_body_line("Spirit: %s." % army.morale_phrase()))
 		_body_vbox.add_child(_make_body_line("Supply: %s." % army.supply_phrase()))
 		_body_vbox.add_child(_make_body_line("Loyalty: %s." % army.loyalty_phrase()))
+
+	# Direct actions — mirror the row chips at a larger size so the
+	# detail panel is never information-only. Treasury is the gateway
+	# to money-and-leverage mechanics; these two buttons are the
+	# fastest path into them.
+	_body_vbox.add_child(_make_divider())
+	_body_vbox.add_child(_make_section_heading("WHAT YOU CAN SEND AGAINST THIS CROWN"))
+	var detail_kid: String = k.id
+	var loan_btn: Button = Button.new()
+	loan_btn.text = "Offer a loan to %s…" % k.kingdom_name
+	loan_btn.tooltip_text = "Lend silver from your purse in exchange for an IOU the crown will owe you."
+	loan_btn.custom_minimum_size.y = 30.0
+	loan_btn.focus_mode = Control.FOCUS_NONE
+	loan_btn.add_theme_color_override("font_color", COLOR_INK)
+	loan_btn.add_theme_font_size_override("font_size", 13)
+	loan_btn.pressed.connect(func() -> void: offer_loan_requested.emit(detail_kid))
+	_body_vbox.add_child(loan_btn)
+
+	var pressure_btn: Button = Button.new()
+	pressure_btn.text = "Apply economic pressure on %s…" % k.kingdom_name
+	pressure_btn.tooltip_text = "Open Compose pre-selected to a regional kingdom-scope action against this crown."
+	pressure_btn.custom_minimum_size.y = 30.0
+	pressure_btn.focus_mode = Control.FOCUS_NONE
+	pressure_btn.add_theme_color_override("font_color", COLOR_INK)
+	pressure_btn.add_theme_font_size_override("font_size", 13)
+	pressure_btn.pressed.connect(func() -> void: economic_pressure_requested.emit(detail_kid))
+	_body_vbox.add_child(pressure_btn)
 
 	_body_vbox.add_child(_make_close_button("Set aside", func() -> void: close()))
 
@@ -476,11 +607,46 @@ static func _province_income(p: Province) -> float:
 
 func _province_contribution_phrase(p: Province) -> String:
 	var v: float = _province_income(p)
-	if v <= 0.0:    return "yields almost nothing of consequence"
-	if v < 6.0:     return "yields a meagre dribble"
-	if v < 14.0:    return "a modest tithe"
-	if v < 28.0:    return "a handsome share"
-	return "the backbone of the treasury"
+	var qualitative: String
+	if v <= 0.0:      qualitative = "yields almost nothing of consequence"
+	elif v < 6.0:     qualitative = "yields a meagre dribble"
+	elif v < 14.0:    qualitative = "a modest tithe"
+	elif v < 28.0:    qualitative = "a handsome share"
+	else:             qualitative = "the backbone of the treasury"
+	if v <= 0.0:
+		return qualitative
+	var cov: int = _coverage_for(p.owning_kingdom)
+	return "%s · %s silver/mo" % [qualitative, IntelNumbers.amount_display(v, cov)]
+
+
+# --- Coverage helpers --------------------------------------------------------
+
+func _coverage_for(kingdom_id: String) -> int:
+	if Picture == null or kingdom_id.is_empty():
+		return 0
+	return Picture.score_for(kingdom_id)
+
+
+## Player-facing hint about how reliable the figures above are. Returns
+## empty when coverage is exact — no need to explain a clean number.
+func _coverage_note(kingdom_id: String) -> String:
+	var t: int = IntelNumbers.tier_for(_coverage_for(kingdom_id))
+	match t:
+		IntelNumbers.Tier.UNKNOWN:
+			return "No coin counted here. Lift a coordinator onto the treasury and the bench will start to show."
+		IntelNumbers.Tier.WIDE:
+			return "Figures inferred from market gossip — treat the range as the outer walls of what could be true."
+		IntelNumbers.Tier.ROUGH:
+			return "A rough count, from operatives close enough to the books."
+		IntelNumbers.Tier.NARROW:
+			return "A workable count, corroborated by more than one voice."
+		IntelNumbers.Tier.TIGHT:
+			return "Near-current figures, sourced from the treasurer's own clerks."
+	return ""
+
+
+func _treasury_display(k: Kingdom) -> String:
+	return IntelNumbers.amount_display(k.treasury_silver, _coverage_for(k.id), "silver")
 
 
 ## A line explaining how much of the crown's monthly cost is war —

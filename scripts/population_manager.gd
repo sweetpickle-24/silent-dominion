@@ -44,6 +44,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Population: ready")
 	_rng.randomize()
 	if WorldData.is_loaded():
 		_snapshot_seed()
@@ -137,13 +138,15 @@ func restore(d: Dictionary) -> void:
 		p.population = int(entry.get("population", p.population))
 		p.manpower_fraction = clampf(float(entry.get("manpower_fraction", 1.0)), 0.0, 1.0)
 	_seed_population.clear()
-	var seeded: Dictionary = d.get("seed", {})
-	for k in seeded.keys():
-		_seed_population[String(k)] = int(seeded[k])
+	var seeded_raw: Variant = d.get("seed", {})
+	if seeded_raw is Dictionary:
+		for k in (seeded_raw as Dictionary).keys():
+			_seed_population[String(k)] = int(seeded_raw[k])
 	_last_band.clear()
-	var last: Dictionary = d.get("last_band", {})
-	for k in last.keys():
-		_last_band[String(k)] = StringName(String(last[k]))
+	var last_raw: Variant = d.get("last_band", {})
+	if last_raw is Dictionary:
+		for k in (last_raw as Dictionary).keys():
+			_last_band[String(k)] = StringName(String(last_raw[k]))
 
 
 # --- Internal ----------------------------------------------------------------

@@ -33,6 +33,7 @@ var _started_ingame_date: String = ""
 
 
 func _ready() -> void:
+	DevLogger.write("Chronicle: ready")
 	if not DirAccess.dir_exists_absolute(DIR):
 		DirAccess.make_dir_recursive_absolute(DIR)
 
@@ -268,12 +269,15 @@ func snapshot() -> Dictionary:
 
 
 func restore(d: Dictionary) -> void:
-	var raw: Array = d.get("entries", []) as Array
+	var raw_v: Variant = d.get("entries", [])
+	var raw: Array = raw_v if raw_v is Array else []
 	_entries.clear()
 	for e_any in raw:
 		if e_any is Dictionary:
 			_entries.append((e_any as Dictionary).duplicate(true))
-	_seen_religions = (d.get("seen_religions", {}) as Dictionary).duplicate(true)
-	_seen_societies = (d.get("seen_societies", {}) as Dictionary).duplicate(true)
+	var sr_raw: Variant = d.get("seen_religions", {})
+	_seen_religions = (sr_raw as Dictionary).duplicate(true) if sr_raw is Dictionary else {}
+	var ss_raw: Variant = d.get("seen_societies", {})
+	_seen_societies = (ss_raw as Dictionary).duplicate(true) if ss_raw is Dictionary else {}
 	_started_year = int(d.get("started_year", 0))
 	_started_ingame_date = String(d.get("started_ingame_date", ""))

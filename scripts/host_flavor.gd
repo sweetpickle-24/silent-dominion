@@ -18,6 +18,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("HostFlavor: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 

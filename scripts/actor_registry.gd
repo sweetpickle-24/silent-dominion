@@ -62,6 +62,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Actors: ready")
 	_rng.randomize()
 	_load_from_json(ACTOR_DATA_PATH)
 	_rebuild_indices()

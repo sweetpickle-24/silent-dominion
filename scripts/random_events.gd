@@ -43,6 +43,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("RandomEvents: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	Scheduler.task_due.connect(_on_task_due)
@@ -244,13 +245,16 @@ func restore(arr: Array) -> void:
 		var p: Province = WorldData.get_province(String(entry.get("province_id", "")))
 		if p == null:
 			continue
-		var current: Dictionary = entry.get("current", {})
+		var cur_raw: Variant = entry.get("current", {})
+		var current: Dictionary = cur_raw if cur_raw is Dictionary else {}
 		p.grain_production  = float(current.get("grain",  p.grain_production))
 		p.silver_production = float(current.get("silver", p.silver_production))
 		p.iron_production   = float(current.get("iron",   p.iron_production))
 		p.timber_production = float(current.get("timber", p.timber_production))
+		var orig_raw: Variant = entry.get("originals", {})
+		var originals: Dictionary = (orig_raw as Dictionary).duplicate() if orig_raw is Dictionary else {}
 		p.set_meta("prod_modifier", {
-			"originals": (entry.get("originals", {}) as Dictionary).duplicate(),
+			"originals": originals,
 			"cause":     String(entry.get("cause", "plague")),
 		})
 

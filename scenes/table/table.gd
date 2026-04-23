@@ -75,6 +75,12 @@ var _badge_tween: Tween
 # True while a LetterView overlay is open. Used to suppress hover feedback.
 var _overlay_active: bool = false
 
+# Re-entrancy guards. close_panel() and _open_compose_view_prefiltered are
+# coroutines — double-clicks or stacked inputs could otherwise start two
+# tweens / two add_childs on the same object.
+var _panel_closing: bool = false
+var _compose_opening: bool = false
+
 # ------------------------------------------------------------------------------
 
 func _ready() -> void:
@@ -584,6 +590,10 @@ func _open_map_view() -> void:
 	# state is preserved.
 	if view.has_signal("compose_here_requested"):
 		view.compose_here_requested.connect(_on_map_compose_here_requested)
+	if view.has_signal("assign_coverage_requested"):
+		view.assign_coverage_requested.connect(_on_map_assign_coverage_requested)
+	if view.has_signal("regional_dispatch_requested"):
+		view.regional_dispatch_requested.connect(_on_map_regional_dispatch_requested)
 	if view.has_signal("settlement_zoom_requested"):
 		view.settlement_zoom_requested.connect(_on_map_settlement_zoom_requested)
 
@@ -596,6 +606,24 @@ func _on_map_compose_here_requested(kingdom_id: String, province_id: String) -> 
 	# Deferred so the button-press signal finishes unwinding before we
 	# add a second overlay on top of the map.
 	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, StringName(""), "")
+
+
+func _on_map_assign_coverage_requested(kingdom_id: String, province_id: String) -> void:
+	DevLogger.write("assign_coverage: kingdom=%s province=%s" % [kingdom_id, province_id])
+	# Assign coverage pre-wires Compose with `observe` (DEEP_SHADOW,
+	# ACTOR target). The player then picks which host to watch from
+	# the kingdom/province-filtered roster.
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, StringName("observe"), "")
+	DevLogger.write("assign_coverage: complete")
+
+
+func _on_map_regional_dispatch_requested(kingdom_id: String, province_id: String) -> void:
+	DevLogger.write("regional_dispatch: kingdom=%s province=%s" % [kingdom_id, province_id])
+	# Regional dispatch pre-wires Compose with `quiet_plot` (DEEP_SHADOW,
+	# KINGDOM target). With the target already known, Compose fires
+	# immediately.
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, StringName("quiet_plot"), kingdom_id)
+	DevLogger.write("regional_dispatch: complete")
 
 
 func _on_map_settlement_zoom_requested(city_id: String) -> void:
@@ -760,10 +788,124 @@ func _open_ledger_view() -> void:
 	view.anchor_bottom = 1.0
 	add_child(view)
 	view.closed.connect(_on_ledger_view_closed)
+	if view.has_signal("offer_loan_requested"):
+		view.offer_loan_requested.connect(_on_ledger_offer_loan_requested)
+	if view.has_signal("economic_pressure_requested"):
+		view.economic_pressure_requested.connect(_on_ledger_economic_pressure_requested)
 
 
 func _on_ledger_view_closed() -> void:
 	_overlay_active = false
+
+
+## Offer-loan is resolved directly against Finance — the ledger is the
+## natural place to spawn IOUs, so we don't bounce through Compose.
+## Player's purse funds the principal; Finance books the receivable
+## against the debtor kingdom; a short confirmation letter lands in
+## the Inbox so the action has a felt consequence on the table.
+const _LEDGER_LOAN_PRINCIPAL: int = 400
+const _LEDGER_LOAN_MONTHS: int = 12
+
+
+func _on_ledger_offer_loan_requested(kid: String) -> void:
+	DevLogger.write("offer_loan START — kingdom: %s" % kid)
+
+	if kid.is_empty():
+		DevLogger.error("offer_loan — empty kingdom id")
+		return
+
+	if Purse == null:
+		DevLogger.error("offer_loan — Purse autoload is null")
+		return
+	if Finance == null:
+		DevLogger.error("offer_loan — Finance autoload is null")
+		return
+	if Inbox == null:
+		DevLogger.error("offer_loan — Inbox autoload is null")
+		return
+
+	var current: String = str(Purse.current_band()) if Purse.has_method("current_band") else "unknown"
+	DevLogger.write("offer_loan — purse band: %s silver: %s" % [current, str(Purse.silver)])
+
+	if not Finance.has_method("open_iou"):
+		DevLogger.error("offer_loan — Finance.open_iou does not exist")
+		return
+	if not Purse.has_method("spend"):
+		DevLogger.error("offer_loan — Purse.spend does not exist")
+		return
+
+	var k: Kingdom = WorldData.get_kingdom(kid) if WorldData != null else null
+	var k_name: String = k.kingdom_name if k != null else kid
+
+	if not Purse.can_afford(_LEDGER_LOAN_PRINCIPAL):
+		DevLogger.warn("offer_loan — insufficient funds, sending refusal letter")
+		var refusal: Letter = Letter.create(
+			StringName("ledger_refusal_%d" % Time.get_ticks_msec()),
+			OrgRoles.sender_line(OrgRoles.FACTOTUM),
+			GameDate.today(),
+			"On the matter of the loan",
+			"Our reserves are not sufficient to extend credit to %s at this time." % k_name,
+			&"misc",
+		)
+		refusal.is_read = false
+		Inbox.add_letter(refusal)
+		DevLogger.write("offer_loan — refusal letter delivered")
+		return
+
+	var spend_result: bool = Purse.spend(_LEDGER_LOAN_PRINCIPAL)
+	DevLogger.write("offer_loan — spend result: %s" % str(spend_result))
+	if not spend_result:
+		DevLogger.error("offer_loan — spend returned false after can_afford succeeded")
+		return
+
+	var iou: Dictionary = Finance.open_iou(kid, _LEDGER_LOAN_PRINCIPAL, _LEDGER_LOAN_MONTHS)
+	var iou_id: String = String(iou.get("id", ""))
+	DevLogger.write("offer_loan — IOU opened: %s" % iou_id)
+
+	var confirmation: Letter = Letter.create(
+		StringName("ledger_%d" % Time.get_ticks_msec()),
+		OrgRoles.sender_line(OrgRoles.PAYMASTER),
+		GameDate.today(),
+		"Credit extended",
+		"Four hundred silver has been routed to the treasury of %s. Repayment expected over twelve months. IOU: %s"
+			% [k_name, iou_id],
+		&"misc",
+	)
+	confirmation.is_read = false
+	Inbox.add_letter(confirmation)
+	DevLogger.write("offer_loan — confirmation letter delivered")
+	DevLogger.write("offer_loan END")
+
+
+func _on_ledger_economic_pressure_requested(kingdom_id: String) -> void:
+	DevLogger.write("economic_pressure: kingdom=%s" % kingdom_id)
+	if kingdom_id.is_empty():
+		DevLogger.write("economic_pressure: abort empty kingdom_id")
+		return
+	# `fan_border` is our kingdom-scope ACTIVE-tier lever — the
+	# honest fit for "economic pressure" from a ledger row. Compose
+	# opens with the target locked and fires immediately.
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, "", StringName("fan_border"), kingdom_id)
+	DevLogger.write("economic_pressure: complete")
+
+
+## Post a short informational Letter into the Inbox. Used by direct-
+## action buttons whose outcome is immediate (no scheduler handle to
+## follow). Kind is taken as StringName so callers can tag the letter
+## for filtering by subject.
+func _post_ledger_notice(subject: String, body: String, kind: StringName) -> void:
+	if Inbox == null:
+		return
+	var letter: Letter = Letter.create(
+		StringName("ledger_%d" % Time.get_ticks_msec()),
+		"Your hand",
+		GameDate.today(),
+		subject,
+		body,
+		kind,
+	)
+	letter.is_read = false
+	Inbox.add_letter(letter)
 
 
 func _on_dossiers_clicked() -> void:
@@ -793,14 +935,35 @@ func _on_dossier_view_closed() -> void:
 
 
 func _on_dossier_compose_action_requested(action_id: StringName, actor_id: StringName) -> void:
-	# Open Compose on top of the dossier with the action preset. The
-	# player can back out to the target picker if they want a different
-	# actor; otherwise issuing is one more click.
-	var actor: Actor = Actors.get_actor(actor_id) if Actors != null else null
-	var kingdom_id: String = actor.kingdom_id if actor != null else ""
-	var province_id: String = actor.province_id if actor != null else ""
-	var tgt: String = String(actor_id) if actor != null else ""
+	DevLogger.write("compose_action START — action: '%s' actor: '%s'" % [String(action_id), String(actor_id)])
+
+	if String(actor_id).is_empty():
+		DevLogger.error("compose_action — empty actor_id received")
+		return
+
+	if Actors == null:
+		DevLogger.error("compose_action — Actors autoload is null")
+		return
+	if not Actors.has_method("get_actor"):
+		DevLogger.error("compose_action — Actors.get_actor does not exist")
+		return
+
+	var actor: Actor = Actors.get_actor(actor_id)
+	if actor == null:
+		DevLogger.error("compose_action — actor not found for id: %s" % String(actor_id))
+		return
+
+	var actor_label: String = actor.display_name() if actor.has_method("display_name") else String(actor_id)
+	DevLogger.write("compose_action — actor found: %s kingdom=%s province=%s"
+		% [actor_label, actor.kingdom_id, actor.province_id])
+
+	var kingdom_id: String = actor.kingdom_id
+	var province_id: String = actor.province_id
+	var tgt: String = String(actor_id)
+
+	DevLogger.write("compose_action — deferring compose view prefilter")
 	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, action_id, tgt)
+	DevLogger.write("compose_action END")
 
 
 func _on_roster_clicked() -> void:
@@ -918,6 +1081,27 @@ func _on_compose_view_closed() -> void:
 	_overlay_active = false
 
 
+## Find the currently-active overlay child (map, dossier, ledger,
+## settlement, etc.) so we can ask it to close before opening Compose
+## on top of it. Excludes ComposeView itself. Returns null if none.
+##
+## Iterates in reverse so when multiple overlays are stacked (e.g. map
+## + settlement) we return the topmost — closing the bottom one while
+## the top still sits on the scene is what caused ghost overlays.
+func _find_active_overlay() -> Control:
+	var kids: Array = get_children()
+	for i in range(kids.size() - 1, -1, -1):
+		var child: Node = kids[i]
+		if not (child is Control):
+			continue
+		var name_str: String = String(child.name)
+		if name_str == "ComposeView":
+			continue
+		if name_str.ends_with("View"):
+			return child
+	return null
+
+
 ## Open Compose on top of whatever overlay is currently up (map,
 ## dossier, settlement). The caller hands us any combination of
 ## kingdom/province pre-filter and an optional action/target preset.
@@ -929,23 +1113,58 @@ func _open_compose_view_prefiltered(
 	action_id: StringName,
 	target_id: String,
 ) -> void:
-	if _overlay_active:
-		# Try again next frame — the caller's overlay is mid-close.
-		call_deferred(
-			"_open_compose_view_prefiltered",
-			kingdom_id, province_id, action_id, target_id,
-		)
+	DevLogger.write("_open_compose_view_prefiltered ENTER — k=%s p=%s action=%s tgt=%s overlay_active=%s"
+		% [kingdom_id, province_id, String(action_id), target_id, str(_overlay_active)])
+
+	# Re-entrancy guard. Callers routinely use call_deferred to enter
+	# this coroutine, so a second click before the first await returns
+	# would otherwise race a second ComposeView onto the scene.
+	if _compose_opening:
+		DevLogger.warn("_open_compose_view_prefiltered — already opening; ignoring re-entry")
 		return
+	_compose_opening = true
+
+	# If an overlay (dossier / map / ledger / settlement) is still up,
+	# tell it to close and AWAIT its removal from the tree. Using await
+	# guarantees the engine ticks tweens between calls — polling via
+	# call_deferred stays inside the same idle flush and never advances.
+	if _overlay_active:
+		var existing: Control = _find_active_overlay()
+		if existing != null:
+			if existing.has_method("close"):
+				DevLogger.write("_open_compose_view_prefiltered — asking '%s' to close, awaiting tree_exited"
+					% existing.name)
+				existing.call("close")
+			else:
+				DevLogger.warn("_open_compose_view_prefiltered — overlay '%s' has no close() method, forcing queue_free"
+					% existing.name)
+				existing.queue_free()
+			await existing.tree_exited
+			DevLogger.write("_open_compose_view_prefiltered — overlay exited tree")
+		else:
+			DevLogger.warn("_open_compose_view_prefiltered — overlay_active=true but no overlay child found; clearing flag")
+			_overlay_active = false
+
 	_overlay_active = true
+	DevLogger.write("_open_compose_view_prefiltered — building Control")
 	var view: Control = Control.new()
+	DevLogger.write("_open_compose_view_prefiltered — attaching ComposeViewScript")
 	view.set_script(ComposeViewScript)
 	view.name = "ComposeView"
 	view.anchor_right = 1.0
 	view.anchor_bottom = 1.0
 	if view.has_method("configure"):
+		DevLogger.write("_open_compose_view_prefiltered — calling configure()")
 		view.call("configure", kingdom_id, province_id, action_id, target_id)
+		DevLogger.write("_open_compose_view_prefiltered — configure() returned")
+	else:
+		DevLogger.error("_open_compose_view_prefiltered — view has no configure() method")
+	DevLogger.write("_open_compose_view_prefiltered — add_child (will trigger _ready)")
 	add_child(view)
+	DevLogger.write("_open_compose_view_prefiltered — add_child returned, connecting closed signal")
 	view.closed.connect(_on_compose_view_closed)
+	_compose_opening = false
+	DevLogger.write("_open_compose_view_prefiltered EXIT — view attached")
 
 
 ## Open the dedicated settlement zoom view on top of the map view,
@@ -1061,6 +1280,9 @@ func open_panel(title: String, body: String) -> void:
 func close_panel() -> void:
 	if not _panel_layer.visible:
 		return
+	if _panel_closing:
+		return
+	_panel_closing = true
 
 	if Prefs.reduced_motion:
 		_panel_layer.modulate.a = 0.0
@@ -1068,6 +1290,7 @@ func close_panel() -> void:
 		_panel_layer.visible = false
 		for obj in _all_objects():
 			_tween_object_scale(obj, 1.0)
+		_panel_closing = false
 		return
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
@@ -1078,6 +1301,7 @@ func close_panel() -> void:
 
 	for obj in _all_objects():
 		_tween_object_scale(obj, 1.0)
+	_panel_closing = false
 
 
 func _on_dimmer_input(event: InputEvent) -> void:

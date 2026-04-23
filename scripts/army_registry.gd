@@ -61,6 +61,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Armies: ready")
 	_rng.randomize()
 	if WorldData.is_loaded():
 		_seed()
@@ -423,6 +424,7 @@ func restore(d: Dictionary) -> void:
 			continue
 		_armies[a.kingdom_id] = a
 	_last_size_band.clear()
-	var last: Dictionary = d.get("last_band", {})
-	for k in last.keys():
-		_last_size_band[String(k)] = StringName(String(last[k]))
+	var last_raw: Variant = d.get("last_band", {})
+	if last_raw is Dictionary:
+		for k in (last_raw as Dictionary).keys():
+			_last_size_band[String(k)] = StringName(String(last_raw[k]))

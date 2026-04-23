@@ -22,6 +22,15 @@ signal closed
 ## sidebar. `table.gd` listens for this and opens ComposeView with
 ## the kingdom/province pre-filters set.
 signal compose_here_requested(kingdom_id: String, province_id: String)
+## Emitted when the player hits "Assign coverage" on a province panel.
+## `table.gd` opens ComposeView pre-filtered to this kingdom/province
+## with a coverage-building (observe/cultivate) action preselected so
+## the next click is just picking the host actor to run it through.
+signal assign_coverage_requested(kingdom_id: String, province_id: String)
+## Emitted when the player hits "Regional dispatch" on a province
+## panel. `table.gd` opens ComposeView pre-filtered to this kingdom
+## with a regional-level kingdom-target action preselected.
+signal regional_dispatch_requested(kingdom_id: String, province_id: String)
 ## Emitted when the player clicks a settlement dot hard enough to
 ## trigger the dedicated settlement zoom. `table.gd` opens
 ## SettlementView over the map rather than replacing it.
@@ -448,6 +457,9 @@ func _render_detail(p: Province) -> void:
 	_detail_vbox.add_child(_make_heading("SOULS"))
 	_detail_vbox.add_child(_make_line(_population_phrase(p.population)))
 	if p.population > 0:
+		_detail_vbox.add_child(_make_line(
+			"Census reckoning: %s." % IntelNumbers.thousands_display(p.population, _coverage_for(p.owning_kingdom), "souls")
+		))
 		var trend: String = Population.phrase_for(p.id)
 		if trend != "":
 			_detail_vbox.add_child(_make_line(trend))
@@ -509,6 +521,9 @@ func _render_detail(p: Province) -> void:
 		_detail_vbox.add_child(_make_divider())
 		_detail_vbox.add_child(_make_heading("THE CROWN IT FEEDS"))
 		_detail_vbox.add_child(_make_line("%s — %s" % [k.kingdom_name, k.treasury_condition_name()]))
+		_detail_vbox.add_child(_make_line(
+			"Coffers — %s." % IntelNumbers.amount_display(k.treasury_silver, _coverage_for(k.id), "silver")
+		))
 		_detail_vbox.add_child(_make_line(k.tax_level_phrase() + "."))
 
 		# Generational drift on the local population (§8.11). Only
@@ -552,6 +567,35 @@ func _render_contextual_actions_block(p: Province) -> void:
 	compose_btn.pressed.connect(func() -> void:
 		compose_here_requested.emit(CrashGuard.safe_str(p.owning_kingdom), p.id))
 	_detail_vbox.add_child(compose_btn)
+
+	# Assign coverage — opens Compose pre-wired with `observe`, so the
+	# next click is picking a host to watch. The shortest path from
+	# "I don't know this region" to "a coordinator is now listening."
+	var assign_btn: Button = Button.new()
+	assign_btn.text = "Assign coverage here…"
+	assign_btn.tooltip_text = "Open Compose pre-selected to Observe — pick a host and begin lifting the fog on this region."
+	assign_btn.custom_minimum_size.y = 28.0
+	assign_btn.focus_mode = Control.FOCUS_NONE
+	assign_btn.add_theme_color_override("font_color", COLOR_INK)
+	assign_btn.add_theme_font_size_override("font_size", 12)
+	assign_btn.pressed.connect(func() -> void:
+		assign_coverage_requested.emit(CrashGuard.safe_str(p.owning_kingdom), p.id))
+	_detail_vbox.add_child(assign_btn)
+
+	# Regional dispatch — a kingdom-scope shove, pre-wired with a
+	# DEEP_SHADOW kingdom-target action (`quiet_plot`) so the player
+	# skips the action picker entirely for one of the commonest
+	# regional moves.
+	var dispatch_btn: Button = Button.new()
+	dispatch_btn.text = "Regional dispatch…"
+	dispatch_btn.tooltip_text = "Open Compose pre-selected to a kingdom-scope dispatch (Quiet a plot)."
+	dispatch_btn.custom_minimum_size.y = 28.0
+	dispatch_btn.focus_mode = Control.FOCUS_NONE
+	dispatch_btn.add_theme_color_override("font_color", COLOR_INK)
+	dispatch_btn.add_theme_font_size_override("font_size", 12)
+	dispatch_btn.pressed.connect(func() -> void:
+		regional_dispatch_requested.emit(CrashGuard.safe_str(p.owning_kingdom), p.id))
+	_detail_vbox.add_child(dispatch_btn)
 
 	# Enter-settlement button (§D4 dedicated settlement zoom).
 	if p.city != null:
@@ -600,6 +644,10 @@ func _render_cold_detail(p: Province) -> void:
 	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_vbox.add_child(msg)
 	_render_base_block(p)
+	# Cold provinces deserve action buttons too — the most useful thing
+	# a player can do on an unknown region is deploy Observe through
+	# Compose or issue a regional dispatch.
+	_render_contextual_actions_block(p)
 
 
 func _render_city_block(p: Province) -> void:
@@ -1628,14 +1676,23 @@ func _population_phrase(pop: int) -> String:
 
 func _production_phrases(p: Province) -> Array[String]:
 	var out: Array[String] = []
+	var cov: int = _coverage_for(p.owning_kingdom)
 	if p.grain_production > 0.0:
-		out.append("grain — %s" % _yield_band(p.grain_production))
+		out.append("grain — %s (%s per month)" % [_yield_band(p.grain_production), IntelNumbers.amount_display(p.grain_production, cov)])
 	if p.silver_production > 0.0:
-		out.append("silver — %s" % _yield_band(p.silver_production))
+		out.append("silver — %s (%s per month)" % [_yield_band(p.silver_production), IntelNumbers.amount_display(p.silver_production, cov)])
 	if p.iron_production > 0.0:
-		out.append("iron — %s" % _yield_band(p.iron_production))
+		out.append("iron — %s (%s per month)" % [_yield_band(p.iron_production), IntelNumbers.amount_display(p.iron_production, cov)])
 	if p.timber_production > 0.0:
-		out.append("timber — %s" % _yield_band(p.timber_production))
+		out.append("timber — %s (%s per month)" % [_yield_band(p.timber_production), IntelNumbers.amount_display(p.timber_production, cov)])
+	if p.gold_production > 0.0:
+		out.append("gold — %s (%s per month)" % [_yield_band(p.gold_production), IntelNumbers.amount_display(p.gold_production, cov)])
+	if p.horses_production > 0.0:
+		out.append("horses — %s (%s per month)" % [_yield_band(p.horses_production), IntelNumbers.amount_display(p.horses_production, cov)])
+	if p.cloth_production > 0.0:
+		out.append("cloth — %s (%s per month)" % [_yield_band(p.cloth_production), IntelNumbers.amount_display(p.cloth_production, cov)])
+	if p.salt_production > 0.0:
+		out.append("salt — %s (%s per month)" % [_yield_band(p.salt_production), IntelNumbers.amount_display(p.salt_production, cov)])
 	return out
 
 
@@ -1644,6 +1701,12 @@ func _yield_band(v: float) -> String:
 	if v < 8.0:   return "a modest yield"
 	if v < 18.0:  return "a respectable harvest"
 	return "one of the region's great sources"
+
+
+func _coverage_for(kingdom_id: String) -> int:
+	if Picture == null or kingdom_id.is_empty():
+		return 0
+	return Picture.score_for(kingdom_id)
 
 
 func _share_phrase(share: int) -> String:

@@ -8,6 +8,10 @@ extends Node
 
 var pending_load_slot: String = ""
 
+
+func _ready() -> void:
+	DevLogger.write("Session: ready")
+
 ## True once the table scene has finished its first wire-up. Flipped
 ## back off on return to the title screen. Gates autosave-on-quit so
 ## we don't churn the quicksave from the title screen.

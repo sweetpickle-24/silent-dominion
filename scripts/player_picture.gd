@@ -40,6 +40,7 @@ const COORDINATOR_FLOOR: int = 70     # coordinator presence holds to this
 
 
 func _ready() -> void:
+	DevLogger.write("Picture: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 	GameClock.year_passed.connect(_on_year_passed)
 	EventBus.action_resolved.connect(_on_action_resolved)

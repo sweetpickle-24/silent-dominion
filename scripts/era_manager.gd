@@ -29,6 +29,7 @@ var current: Era = null
 
 
 func _ready() -> void:
+	DevLogger.write("Eras: ready")
 	_load_data()
 	_initialise()
 	GameClock.year_passed.connect(_on_year_passed)

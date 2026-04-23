@@ -65,6 +65,7 @@ const CB_PEACE_MULT: Dictionary = {
 
 
 func _ready() -> void:
+	DevLogger.write("Relations: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 
 
@@ -333,15 +334,19 @@ func restore(d: Dictionary) -> void:
 	_war_months.clear()
 	_war_weariness_emitted.clear()
 	_casus_belli.clear()
-	var edges: Dictionary = d.get("edges", {})
-	for k in edges.keys():
-		_edges[String(k)] = int(edges[k])
-	var months: Dictionary = d.get("war_months", {})
-	for k in months.keys():
-		_war_months[String(k)] = int(months[k])
-	var weary: Dictionary = d.get("war_weariness", {})
-	for k in weary.keys():
-		_war_weariness_emitted[String(k)] = bool(weary[k])
-	var cbs: Dictionary = d.get("casus_belli", {})
-	for k in cbs.keys():
-		_casus_belli[String(k)] = int(cbs[k])
+	var edges_raw: Variant = d.get("edges", {})
+	if edges_raw is Dictionary:
+		for k in (edges_raw as Dictionary).keys():
+			_edges[String(k)] = int(edges_raw[k])
+	var months_raw: Variant = d.get("war_months", {})
+	if months_raw is Dictionary:
+		for k in (months_raw as Dictionary).keys():
+			_war_months[String(k)] = int(months_raw[k])
+	var weary_raw: Variant = d.get("war_weariness", {})
+	if weary_raw is Dictionary:
+		for k in (weary_raw as Dictionary).keys():
+			_war_weariness_emitted[String(k)] = bool(weary_raw[k])
+	var cbs_raw: Variant = d.get("casus_belli", {})
+	if cbs_raw is Dictionary:
+		for k in (cbs_raw as Dictionary).keys():
+			_casus_belli[String(k)] = int(cbs_raw[k])

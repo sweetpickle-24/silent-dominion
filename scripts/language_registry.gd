@@ -28,6 +28,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Languages: ready")
 	_rng.randomize()
 	_load()
 	_load_evolution()

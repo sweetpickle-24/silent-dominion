@@ -61,6 +61,7 @@ var _fracture_months: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Religions: ready")
 	_rng.randomize()
 	if not WorldData.is_loaded():
 		WorldData.world_loaded.connect(_seed)
@@ -520,4 +521,5 @@ func restore(d: Dictionary) -> void:
 		if r.id == &"":
 			continue
 		religions[r.id] = r
-	_fracture_months = (d.get("_fracture_months", {}) as Dictionary).duplicate(true)
+	var fm_raw: Variant = d.get("_fracture_months", {})
+	_fracture_months = (fm_raw as Dictionary).duplicate(true) if fm_raw is Dictionary else {}

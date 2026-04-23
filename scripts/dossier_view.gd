@@ -373,13 +373,17 @@ func _build_list_row(actor: Actor) -> Control:
 		hbox.add_child(trait_strip)
 
 	# Only surface relationship when it's left neutral territory. Prevents
-	# the roster from shouting "INDIFFERENT" at every unmet face.
+	# the roster from shouting "INDIFFERENT" at every unmet face. The tag
+	# carries a coverage-gated numeric score after the band label.
 	if actor.relationship >= 11 or actor.relationship <= -11:
 		var rel: Label = Label.new()
-		rel.text = _relationship_tag(actor.relationship)
+		rel.text = "%s  %s" % [
+			_relationship_tag(actor.relationship),
+			IntelNumbers.score_display(actor.relationship, _coverage_for_actor(actor)),
+		]
 		rel.add_theme_color_override("font_color", _relationship_color(actor.relationship))
 		rel.add_theme_font_size_override("font_size", 10)
-		rel.custom_minimum_size.x = 90.0
+		rel.custom_minimum_size.x = 150.0
 		rel.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hbox.add_child(rel)
 
@@ -391,6 +395,41 @@ func _build_list_row(actor: Actor) -> Control:
 		host_tag.custom_minimum_size.x = 48.0
 		host_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hbox.add_child(host_tag)
+
+	# Inline Compose button — skip the detail step for players who know
+	# what they want to send. Sits inside the row; its mouse_filter keeps
+	# it from being shadowed by the row-level button underneath.
+	var compose_chip: Button = Button.new()
+	compose_chip.text = "✉ Compose"
+	compose_chip.tooltip_text = "Open Compose with %s preselected" % actor.display_name()
+	compose_chip.custom_minimum_size = Vector2(90.0, 24.0)
+	compose_chip.focus_mode = Control.FOCUS_NONE
+	compose_chip.add_theme_font_size_override("font_size", 10)
+	compose_chip.add_theme_color_override("font_color", COLOR_INK)
+	var chip_sb: StyleBoxFlat = StyleBoxFlat.new()
+	chip_sb.bg_color = Color(0.88, 0.82, 0.68, 0.85)
+	chip_sb.border_color = COLOR_PARCHMENT_EDGE
+	chip_sb.border_width_left = 1
+	chip_sb.border_width_right = 1
+	chip_sb.border_width_top = 1
+	chip_sb.border_width_bottom = 1
+	chip_sb.corner_radius_top_left = 3
+	chip_sb.corner_radius_top_right = 3
+	chip_sb.corner_radius_bottom_left = 3
+	chip_sb.corner_radius_bottom_right = 3
+	chip_sb.content_margin_left = 8
+	chip_sb.content_margin_right = 8
+	chip_sb.content_margin_top = 2
+	chip_sb.content_margin_bottom = 2
+	var chip_hover: StyleBoxFlat = chip_sb.duplicate()
+	chip_hover.bg_color = Color(0.75, 0.62, 0.40, 0.95)
+	compose_chip.add_theme_stylebox_override("normal", chip_sb)
+	compose_chip.add_theme_stylebox_override("hover", chip_hover)
+	compose_chip.add_theme_stylebox_override("pressed", chip_hover)
+	compose_chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	compose_chip.pressed.connect(func() -> void:
+		compose_action_requested.emit(StringName(""), actor.id))
+	hbox.add_child(compose_chip)
 
 	row.pressed.connect(func() -> void: _show_detail(actor))
 	return row
@@ -461,6 +500,17 @@ func _relationship_color(v: int) -> Color:
 	if v >=  61: return Color(0.18, 0.34, 0.22, 1.0)    # forest green
 	if v >=  11: return Color(0.40, 0.36, 0.14, 1.0)    # mustard
 	return COLOR_INK_MUTED
+
+
+## Coverage score for the actor's home kingdom, used to gate any
+## numeric figure displayed on the dossier (§15.1). Zero when the
+## actor has no kingdom or Picture is unavailable.
+func _coverage_for_actor(a: Actor) -> int:
+	if a == null or Picture == null:
+		return 0
+	if a.kingdom_id.is_empty():
+		return 0
+	return Picture.score_for(a.kingdom_id)
 
 
 # --- Detail mode -------------------------------------------------------------
@@ -575,12 +625,20 @@ func _show_detail(actor: Actor) -> void:
 	_body_vbox.add_child(_make_body_line(
 		"They %s." % TraitCues.relationship_phrase(actor.relationship)
 	))
+	_body_vbox.add_child(_make_body_line(
+		"Measured warmth — %s (on the scale of -100 to +100)." % IntelNumbers.score_display(actor.relationship, _coverage_for_actor(actor))
+	))
 	if actor.is_host():
 		var host_line: Label = _make_body_line(
 			"They will act on your behalf, if you ask it carefully. They are a host."
 		)
 		host_line.add_theme_color_override("font_color", Color(0.18, 0.34, 0.22, 1.0))
 		_body_vbox.add_child(host_line)
+
+	# Primary CTA: every dossier is a target. Always offer a one-click
+	# path into Compose with this actor already selected — even if the
+	# contextual action grid below is empty or all blocked.
+	_body_vbox.add_child(_make_primary_compose_button(actor))
 
 	_body_vbox.add_child(_make_divider())
 
@@ -1115,6 +1173,41 @@ func _make_close_button(on_press: Callable) -> Button:
 	b.add_theme_color_override("font_color", COLOR_INK)
 	b.add_theme_font_size_override("font_size", 13)
 	b.pressed.connect(on_press)
+	return b
+
+
+## Primary "act against them" button. Unlike the contextual action
+## grid below, this button is always present — it opens Compose with
+## the actor preselected and lets the player choose what to send.
+func _make_primary_compose_button(actor: Actor) -> Button:
+	var b: Button = Button.new()
+	b.text = "Compose a letter against %s…" % actor.display_name()
+	b.custom_minimum_size.y = 32.0
+	b.focus_mode = Control.FOCUS_NONE
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.88, 0.82, 0.68, 1.0)
+	sb.border_color = COLOR_PARCHMENT_EDGE
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	var hover: StyleBoxFlat = sb.duplicate()
+	hover.bg_color = COLOR_ROW_HOVER
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", hover)
+	b.add_theme_color_override("font_color", COLOR_INK)
+	b.add_theme_font_size_override("font_size", 13)
+	b.pressed.connect(func() -> void:
+		compose_action_requested.emit(StringName(""), actor.id))
 	return b
 
 

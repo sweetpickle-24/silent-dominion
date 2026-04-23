@@ -13,6 +13,10 @@ extends Node
 signal day_passed(year: int, month: int, day: int)
 signal month_passed(year: int, month: int)
 signal year_passed(year: int)
+
+
+func _ready() -> void:
+	DevLogger.write("GameClock: ready")
 signal speed_changed(speed: int)
 
 enum Speed { PAUSED, DAY, MONTH }

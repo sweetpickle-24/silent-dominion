@@ -22,6 +22,7 @@ var _last_autosave_abs_day: int = -1
 
 
 func _ready() -> void:
+	DevLogger.write("TimeCtl: ready")
 	EventBus.letter_delivered.connect(_on_letter_delivered)
 	GameClock.day_passed.connect(_on_day_passed)
 

@@ -37,6 +37,7 @@ var patterns: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Memoirs: ready")
 	EventBus.action_resolved.connect(_on_action_resolved)
 	GameClock.year_passed.connect(_on_year_passed)
 

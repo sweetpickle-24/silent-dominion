@@ -22,6 +22,7 @@ var _wired: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("AudioDirector: ready")
 	_ensure_buses()
 	_ensure_players()
 	_wire_events.call_deferred()

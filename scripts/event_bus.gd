@@ -61,6 +61,7 @@ signal load_completed(path: String)
 
 
 func _ready() -> void:
+	DevLogger.write("EventBus: ready")
 	# EventBus itself does nothing; it only carries signals. Logging here
 	# makes debugging signal storms easier during development.
 	if OS.is_debug_build():

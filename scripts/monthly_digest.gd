@@ -44,6 +44,7 @@ var _first_tick_consumed: bool = false
 
 
 func _ready() -> void:
+	DevLogger.write("Digest: ready")
 	# The monthly letter reports what has actually reached the player
 	# this month — so we count news as it lands on the scroll, not as
 	# it happens in the world (§34.4 intelligence channels).

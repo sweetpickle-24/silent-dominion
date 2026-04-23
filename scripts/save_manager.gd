@@ -28,6 +28,7 @@ const AUTOSAVE_SLOT: String  = "autosave"
 
 
 func _ready() -> void:
+	DevLogger.write("SaveManager: ready")
 	GameClock.year_passed.connect(_on_year_passed)
 	# Intercept the window close so we can autosave before quitting.
 	get_tree().set_auto_accept_quit(false)

@@ -84,6 +84,7 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	DevLogger.write("Mandates: ready")
 	_rng.randomize()
 	EventBus.action_resolved.connect(_on_action_resolved)
 	EventBus.actor_died.connect(_on_actor_died)
@@ -1091,5 +1092,7 @@ func restore(d: Dictionary) -> void:
 			continue
 		mandates[m.id] = m
 	_last_emergent_month = int(d.get("_last_emergent_month", -9999))
-	_last_emergent_by_category = (d.get("_last_emergent_by_category", {}) as Dictionary).duplicate()
-	_rival_hits_by_kingdom = (d.get("_rival_hits_by_kingdom", {}) as Dictionary).duplicate()
+	var le_raw: Variant = d.get("_last_emergent_by_category", {})
+	_last_emergent_by_category = (le_raw as Dictionary).duplicate() if le_raw is Dictionary else {}
+	var rh_raw: Variant = d.get("_rival_hits_by_kingdom", {})
+	_rival_hits_by_kingdom = (rh_raw as Dictionary).duplicate() if rh_raw is Dictionary else {}

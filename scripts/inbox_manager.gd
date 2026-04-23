@@ -20,6 +20,7 @@ var _by_actor: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Inbox: ready")
 	_seed_placeholder_letters()
 	EventBus.letter_delivered.connect(add_letter)
 	# §F2 — when a table object is unlocked by a milestone, drop a

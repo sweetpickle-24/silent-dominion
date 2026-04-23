@@ -25,6 +25,7 @@ const REVERT_STEP: int      = 1
 
 
 func _ready() -> void:
+	DevLogger.write("AmbitionDrift: ready")
 	GameClock.month_passed.connect(_on_month_passed)
 
 

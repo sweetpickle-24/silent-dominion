@@ -16,6 +16,7 @@ const STARTER_ID: StringName = &"ident_starter_trader"
 
 
 func _ready() -> void:
+	DevLogger.write("Identities: ready")
 	if WorldData != null and not WorldData.is_loaded():
 		WorldData.world_loaded.connect(_seed_starter_identity, CONNECT_ONE_SHOT)
 	else:

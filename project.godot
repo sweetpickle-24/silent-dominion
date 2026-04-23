@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+DevLogger="*res://scripts/dev_logger.gd"
 CrashGuard="*res://scripts/crash_guard.gd"
 EventBus="*res://scripts/event_bus.gd"
 GameClock="*res://scripts/game_clock.gd"
@@ -84,7 +85,6 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-
 
 [physics]
 

@@ -38,6 +38,7 @@ var _announced_lost: Dictionary = {}
 
 
 func _ready() -> void:
+	DevLogger.write("Entities: ready")
 	_rng.randomize()
 	GameClock.month_passed.connect(_on_month_passed)
 	GameClock.year_passed.connect(_on_year_passed)
@@ -620,4 +621,5 @@ func restore(d: Dictionary) -> void:
 		if e.id == &"":
 			continue
 		entities[e.id] = e
-	_announced_lost = (d.get("_announced_lost", {}) as Dictionary).duplicate(true)
+	var al_raw: Variant = d.get("_announced_lost", {})
+	_announced_lost = (al_raw as Dictionary).duplicate(true) if al_raw is Dictionary else {}

@@ -33,6 +33,7 @@ const TIMED_BEATS: Array[Dictionary] = [
 
 
 func _ready() -> void:
+	DevLogger.write("Beats: ready")
 	# Run beat checks on every tick so reloads catch missed beats.
 	GameClock.day_passed.connect(_on_day_passed)
 

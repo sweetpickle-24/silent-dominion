@@ -22,6 +22,7 @@ var known_rumours: Array = []        # list of rumour dicts
 
 
 func _ready() -> void:
+	DevLogger.write("WorldProfile: ready")
 	_load_from_disk()
 	profile_loaded.emit(runs.size())
 
@@ -237,10 +238,14 @@ func snapshot() -> Dictionary:
 
 func restore(d: Dictionary) -> void:
 	schema = int(d.get("schema", SCHEMA_VERSION))
-	runs = (d.get("runs", []) as Array).duplicate(true)
-	legacy_entities = (d.get("legacy_entities", []) as Array).duplicate(true)
-	legacy_families = (d.get("legacy_families", []) as Array).duplicate(true)
-	known_rumours = (d.get("known_rumours", []) as Array).duplicate(true)
+	var runs_raw: Variant = d.get("runs", [])
+	runs = (runs_raw as Array).duplicate(true) if runs_raw is Array else []
+	var le_raw: Variant = d.get("legacy_entities", [])
+	legacy_entities = (le_raw as Array).duplicate(true) if le_raw is Array else []
+	var lf_raw: Variant = d.get("legacy_families", [])
+	legacy_families = (lf_raw as Array).duplicate(true) if lf_raw is Array else []
+	var kr_raw: Variant = d.get("known_rumours", [])
+	known_rumours = (kr_raw as Array).duplicate(true) if kr_raw is Array else []
 
 
 # --- Disk I/O ---------------------------------------------------------------
