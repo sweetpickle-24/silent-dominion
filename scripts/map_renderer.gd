@@ -51,6 +51,10 @@ const OVERLAY_MILITARY:  StringName  = &"military"
 ## into the PopulationManager "collapse" band, so pre-famine emptying
 ## still reads as a crisis even without the hard famine tag.
 const OVERLAY_FAMINE:    StringName  = &"famine"
+## Resources overlay: colours provinces by their dominant production
+## (grain, silver, iron, timber, gold, horses, cloth, salt). Replaces
+## the text-in-sidebar "Produces: X" phrasing.
+const OVERLAY_RESOURCES: StringName  = &"resources"
 
 var _overlay_mode: StringName = OVERLAY_POLITICAL
 
@@ -230,6 +234,8 @@ func _cell_color_for_mode(_cell: MapCell, province: Province, kingdom_id: String
 			out = base_col.lerp(_military_color(kingdom_id), _overlay_mix)
 		OVERLAY_FAMINE:
 			out = base_col.lerp(_famine_color(province), _overlay_mix)
+		OVERLAY_RESOURCES:
+			out = base_col.lerp(_resources_color(province), _overlay_mix)
 	# §10.9 colour-blind remap — pass-through in "off" mode. Applied
 	# at the dispatcher so every overlay branch benefits without
 	# patching each palette function individually.
@@ -340,6 +346,79 @@ func _famine_color(province: Province) -> Color:
 	# No hard famine — map the decline band onto ochre→bone.
 	var decline: float = clampf((1.0 - ratio) / 0.15, 0.0, 1.0)
 	return ochre.lerp(bone, decline)
+
+
+## Resources overlay. Each commodity gets a distinct, readable hue so
+## the map reads as an economic-geography sheet at a glance. Intensity
+## scales with the dominant resource's share of total output: uniform
+## provinces sit muted, specialised provinces saturate.
+##
+## Dominant-commodity colours (tuned for parchment background + the
+## political tint the player is usually blending underneath):
+##   grain  — wheat gold
+##   silver — cool silver-blue
+##   iron   — steel grey-blue
+##   timber — forest green
+##   gold   — bright gold
+##   horses — tan / umber
+##   cloth  — muted purple
+##   salt   — bone white
+static var _resource_palette: Dictionary = {
+	&"grain":  Color(0.92, 0.78, 0.32),
+	&"silver": Color(0.72, 0.80, 0.88),
+	&"iron":   Color(0.48, 0.54, 0.62),
+	&"timber": Color(0.32, 0.56, 0.30),
+	&"gold":   Color(0.98, 0.82, 0.22),
+	&"horses": Color(0.72, 0.54, 0.32),
+	&"cloth":  Color(0.68, 0.42, 0.74),
+	&"salt":   Color(0.90, 0.90, 0.86),
+}
+
+static func resource_color_for(kind: StringName) -> Color:
+	return CrashGuard.safe_get(_resource_palette, kind, Color(0.65, 0.62, 0.55))
+
+
+## Return the dominant resource kind of a province, or "" if the
+## province produces nothing noteworthy.
+static func dominant_resource_of(province: Province) -> StringName:
+	if province == null:
+		return &""
+	var best_kind: StringName = &""
+	var best_val: float = 0.0
+	for kv in [
+		[&"grain",  province.grain_production],
+		[&"silver", province.silver_production],
+		[&"iron",   province.iron_production],
+		[&"timber", province.timber_production],
+		[&"gold",   province.gold_production],
+		[&"horses", province.horses_production],
+		[&"cloth",  province.cloth_production],
+		[&"salt",   province.salt_production],
+	]:
+		var kind: StringName = kv[0]
+		var val: float = float(kv[1])
+		if val > best_val:
+			best_val = val
+			best_kind = kind
+	return best_kind
+
+
+func _resources_color(province: Province) -> Color:
+	if province == null:
+		return Color(0.65, 0.62, 0.55)
+	var dom: StringName = dominant_resource_of(province)
+	if dom == &"":
+		return Color(0.65, 0.62, 0.55)
+	var total: float = province.total_production()
+	if total <= 0.0:
+		return Color(0.65, 0.62, 0.55)
+	var share: float = clampf(province.production_of(dom) / total, 0.0, 1.0)
+	# Muted base → saturated commodity colour as share rises.
+	var muted: Color = Color(0.68, 0.64, 0.56)
+	var vivid: Color = resource_color_for(dom)
+	# Share of 0.4 already feels "that province is known for X".
+	var t: float = clampf((share - 0.15) / 0.35, 0.0, 1.0)
+	return muted.lerp(vivid, t)
 
 
 ## Dominant religion per province. Each religion id hashes to a

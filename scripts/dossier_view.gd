@@ -15,6 +15,10 @@ extends Control
 signal closed
 signal actor_link_clicked(actor_id: StringName)
 signal codebook_link_clicked(anchor: StringName)
+## Emitted when the player clicks a direct action button on a dossier.
+## `table.gd` opens Compose with the action preset and target locked
+## to the dossier's actor, so issuing is one more click.
+signal compose_action_requested(action_id: StringName, actor_id: StringName)
 
 const LetterViewScene: PackedScene = preload("res://scenes/inbox/letter_view.tscn")
 
@@ -517,7 +521,7 @@ func _show_detail(actor: Actor) -> void:
 	# the clearest moment to remind the player they are reading a
 	# picture, not the world. Only surfaced when it actually matters —
 	# current, well-covered regions stay quiet.
-	if actor.kingdom_id != "":
+	if actor.kingdom_id != "" and Picture != null:
 		var state: StringName = Picture.state_for(actor.kingdom_id)
 		if state != &"current":
 			var phrase: String = Picture.freshness_phrase(actor.kingdom_id)
@@ -542,7 +546,7 @@ func _show_detail(actor: Actor) -> void:
 	# normal "what is said of them" list because the dossier itself
 	# is now a dangerous object — if they ever got this file, they
 	# would have us.
-	if Shadow.is_hunter(String(actor.id)):
+	if Shadow != null and Shadow.is_hunter(String(actor.id)):
 		var hunter_line: Label = _make_body_line(
 			"This name is on our own hunter list. They are building a file on "
 			+ "the shadow figure and have stopped asking the ordinary questions."
@@ -579,6 +583,8 @@ func _show_detail(actor: Actor) -> void:
 		_body_vbox.add_child(host_line)
 
 	_body_vbox.add_child(_make_divider())
+
+	_build_contextual_actions_section(actor)
 
 	_maybe_build_languages_section(actor)
 
@@ -746,6 +752,101 @@ func _domain_guess(actor: Actor) -> int:
 		Actor.Role.PHILOSOPHER: return int(Family.Domain.SCHOLARLY)
 		Actor.Role.ADVISOR:     return int(Family.Domain.COURT)
 		_:                      return int(Family.Domain.GENERIC)
+
+
+## Direct contextual actions: one button per ACTOR-targeting action
+## the player can currently issue against this dossier's subject.
+## Disabled buttons carry a tooltip explaining the block (exposure,
+## purse, no host). A final "More…" button opens the full Compose UI
+## pre-filtered to the dossier's kingdom/province, for rarer targets.
+func _build_contextual_actions_section(actor: Actor) -> void:
+	if actor == null or Actions == null:
+		return
+	var defs: Array[ActionDefinition] = Actions.all_definitions()
+	# Order: tier ascending (shadow-first), then display name.
+	defs.sort_custom(func(a: ActionDefinition, b: ActionDefinition) -> bool:
+		if int(a.tier) == int(b.tier):
+			return a.display_name < b.display_name
+		return int(a.tier) < int(b.tier))
+	var relevant: Array[ActionDefinition] = []
+	for def in defs:
+		if def == null:
+			continue
+		if def.target_kind != ActionDefinition.TargetKind.ACTOR:
+			continue
+		relevant.append(def)
+	if relevant.is_empty():
+		return
+	_body_vbox.add_child(_make_section_heading("WHAT YOU CAN SEND AGAINST THEM"))
+	var grid: VBoxContainer = VBoxContainer.new()
+	grid.add_theme_constant_override("separation", 4)
+	_body_vbox.add_child(grid)
+	var shown: int = 0
+	for def in relevant:
+		var btn: Button = _build_action_button_against(actor, def)
+		if btn == null:
+			continue
+		grid.add_child(btn)
+		shown += 1
+		# Keep the list from eating the dossier — roll the tail into a
+		# single "see all" button that opens Compose.
+		if shown >= 6:
+			break
+	var more_btn: Button = Button.new()
+	more_btn.text = "More instruments…"
+	more_btn.custom_minimum_size.y = 28.0
+	more_btn.focus_mode = Control.FOCUS_NONE
+	more_btn.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	more_btn.add_theme_font_size_override("font_size", 12)
+	more_btn.pressed.connect(func() -> void:
+		compose_action_requested.emit(StringName(""), actor.id))
+	grid.add_child(more_btn)
+	_body_vbox.add_child(_make_divider())
+
+
+## Build a single action button targeting `actor` with `def`. Returns
+## null for actions the player should not even see (e.g. hidden by
+## discovery). Disabled with tooltip for actions that are visible but
+## blocked.
+func _build_action_button_against(actor: Actor, def: ActionDefinition) -> Button:
+	var btn: Button = Button.new()
+	var costs: String = ""
+	if def.silver_cost > 0:
+		costs = "  (%d silver)" % def.silver_cost
+	btn.text = "%s%s" % [def.display_name, costs]
+	btn.tooltip_text = def.blurb
+	btn.custom_minimum_size.y = 28.0
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_color_override("font_color", COLOR_INK)
+	btn.add_theme_font_size_override("font_size", 12)
+
+	var reason: String = _action_block_reason(actor, def)
+	if reason != "":
+		btn.disabled = true
+		btn.tooltip_text = reason
+	else:
+		btn.disabled = false
+
+	btn.pressed.connect(func() -> void:
+		compose_action_requested.emit(def.id, actor.id))
+	return btn
+
+
+## Return the player-facing reason the action is blocked, or "" if it
+## can fire. Mirrors the gating logic in ComposeView's card builder so
+## the two stay in sync.
+func _action_block_reason(actor: Actor, def: ActionDefinition) -> String:
+	if def == null or actor == null:
+		return "This action cannot be composed right now."
+	if Exposure != null and not Exposure.allows_tier(def.tier):
+		return CrashGuard.safe_str(Exposure.block_reason(def.tier), "Exposure too high for this tier.")
+	if def.silver_cost > 0 and Purse != null and not Purse.can_afford(def.silver_cost):
+		return "The purse will not cover this."
+	if def.requires_host_target and not actor.is_host():
+		return "They are not loyal enough to act on your behalf yet."
+	if not actor.is_alive():
+		return "They are beyond reach of any letter."
+	return ""
 
 
 func _maybe_build_languages_section(actor: Actor) -> void:

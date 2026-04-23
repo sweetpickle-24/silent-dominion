@@ -42,6 +42,18 @@ const ALL_KINGDOMS_KEY: String = "__all__"
 var _step: Step = Step.PICK_ACTION
 var _selected_action: ActionDefinition = null
 var _kingdom_filter: String = ALL_KINGDOMS_KEY
+## When non-empty, restrict actor targets to this province (in addition
+## to the kingdom filter). Set via `configure()` when Compose is
+## launched from a province sidebar.
+var _province_filter: String = ""
+## When set, Compose auto-selects this action and jumps straight to
+## the target picker. Used by dossier / settlement buttons so the
+## player doesn't re-pick the action they already clicked.
+var _preset_action_id: StringName = &""
+## When set with a preset_action, Compose auto-selects this target and
+## goes straight to confirmation (actor id, kingdom id, province id,
+## etc — must match the action's target_kind).
+var _preset_target_id: String = ""
 
 # --- Nodes -------------------------------------------------------------------
 
@@ -60,10 +72,58 @@ func _ready() -> void:
 
 	_build_dimmer()
 	_build_sheet()
-	_render_action_picker()
+	_apply_preset_or_render()
 
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+
+## Public API. Call BEFORE adding the view to the scene tree (or at
+## latest before _ready runs). Any of the fields can be omitted.
+##
+##   kingdom_id        — pre-filter the actor list by this kingdom
+##   province_id       — pre-filter the actor list by this province
+##                       (host actors whose `province_id` matches)
+##   preset_action_id  — skip the action picker; open directly on this
+##                       action's target picker
+##   preset_target_id  — with preset_action_id, issue immediately
+##                       without opening the target picker
+func configure(
+	kingdom_id: String = "",
+	province_id: String = "",
+	preset_action_id: StringName = &"",
+	preset_target_id: String = "",
+) -> void:
+	if not kingdom_id.is_empty():
+		_kingdom_filter = kingdom_id
+	if not province_id.is_empty():
+		_province_filter = province_id
+	_preset_action_id = preset_action_id
+	_preset_target_id = preset_target_id
+
+
+## If a preset was supplied via `configure()`, honour it; otherwise
+## fall through to the regular action picker.
+func _apply_preset_or_render() -> void:
+	if _preset_action_id == &"":
+		_render_action_picker()
+		return
+	var def: ActionDefinition = null
+	if Actions != null and Actions.has_method("get_definition"):
+		def = Actions.get_definition(_preset_action_id)
+	if def == null:
+		_render_action_picker()
+		return
+	_selected_action = def
+	# A fully-resolved preset (action + target) skips every picker.
+	if not _preset_target_id.is_empty():
+		_issue_action(_preset_target_id)
+		return
+	# NONE-target actions fire immediately when preset.
+	if def.target_kind == ActionDefinition.TargetKind.NONE:
+		_issue_action("")
+		return
+	_render_target_picker()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -443,6 +503,8 @@ func _render_actor_target_list() -> void:
 		if host_only and not a.is_host():
 			continue
 		if _kingdom_filter != ALL_KINGDOMS_KEY and a.kingdom_id != _kingdom_filter:
+			continue
+		if not _province_filter.is_empty() and a.province_id != _province_filter:
 			continue
 		candidates.append(a)
 	candidates.sort_custom(func(x, y):

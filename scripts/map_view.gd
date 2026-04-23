@@ -18,6 +18,14 @@ extends Control
 ##   _cartouche          hover tooltip, top-level
 
 signal closed
+## Emitted when the player hits "Compose action here" on a province
+## sidebar. `table.gd` listens for this and opens ComposeView with
+## the kingdom/province pre-filters set.
+signal compose_here_requested(kingdom_id: String, province_id: String)
+## Emitted when the player clicks a settlement dot hard enough to
+## trigger the dedicated settlement zoom. `table.gd` opens
+## SettlementView over the map rather than replacing it.
+signal settlement_zoom_requested(city_id: String)
 
 # --- Visual tokens ----------------------------------------------------------
 
@@ -102,6 +110,7 @@ const LAYER_DEFS: Array = [
 	{ "id": &"rivals",     "label": "Rivals",     "hint": "Known rival-society heat." },
 	{ "id": &"military",   "label": "Military",   "hint": "Army size weighted by quality." },
 	{ "id": &"famine",     "label": "Famine",     "hint": "Hunger and emptying villages." },
+	{ "id": &"resources",  "label": "Resources",  "hint": "Dominant commodity per province." },
 ]
 
 var _opacity_slider: HSlider = null
@@ -515,13 +524,60 @@ func _render_detail(p: Province) -> void:
 	# province is a plausible destination.
 	_render_base_block(p)
 
-	# §D4 Zoom level past province: if this province hosts a city
-	# (Athens, Sparta, …), render its districts with per-quarter fog
-	# descriptions. Only a non-burned coordinator in the holding
-	# kingdom lifts the fog — outside coverage the city stays as
-	# "a name on the map, nothing more".
+	# §D4 City summary lives in the detail panel but district browsing
+	# is now its own zoom level via SettlementView. We keep the
+	# one-line fog summary here and offer a button to walk the city.
 	if p.city != null:
 		_render_city_block(p)
+
+	_render_contextual_actions_block(p)
+
+
+## Contextual actions — the "never close this panel to Compose" rule.
+## A single primary button opens Compose pre-filtered to this province
+## and kingdom. If actors we know are hosted here, surface a short
+## roster so the player can jump straight to a dossier.
+func _render_contextual_actions_block(p: Province) -> void:
+	if p == null:
+		return
+	_detail_vbox.add_child(_make_divider())
+	_detail_vbox.add_child(_make_heading("ACTIONS"))
+
+	var compose_btn: Button = Button.new()
+	compose_btn.text = "Compose action here…"
+	compose_btn.custom_minimum_size.y = 28.0
+	compose_btn.focus_mode = Control.FOCUS_NONE
+	compose_btn.add_theme_color_override("font_color", COLOR_INK)
+	compose_btn.add_theme_font_size_override("font_size", 12)
+	compose_btn.pressed.connect(func() -> void:
+		compose_here_requested.emit(CrashGuard.safe_str(p.owning_kingdom), p.id))
+	_detail_vbox.add_child(compose_btn)
+
+	# Enter-settlement button (§D4 dedicated settlement zoom).
+	if p.city != null:
+		var city_id: String = _city_id_for_province(p.id)
+		if not city_id.is_empty():
+			var enter_btn: Button = Button.new()
+			enter_btn.text = "Walk the streets of %s" % CrashGuard.safe_str(p.city.display_name, p.province_name)
+			enter_btn.custom_minimum_size.y = 28.0
+			enter_btn.focus_mode = Control.FOCUS_NONE
+			enter_btn.add_theme_color_override("font_color", COLOR_INK)
+			enter_btn.add_theme_font_size_override("font_size", 12)
+			enter_btn.pressed.connect(func() -> void: settlement_zoom_requested.emit(city_id))
+			_detail_vbox.add_child(enter_btn)
+
+
+## Resolve the MapGeometry city id whose host province matches.
+## `MapGeometry.cities()` entries are keyed by their own id; the
+## province match falls through to any city whose id matches.
+func _city_id_for_province(province_id: String) -> String:
+	if province_id.is_empty():
+		return ""
+	for cid in MapGeometry.cities().keys():
+		var city: Dictionary = CrashGuard.safe_dict(MapGeometry.cities()[cid])
+		if CrashGuard.safe_str(city.get("region", "")) == province_id:
+			return String(cid)
+	return ""
 
 
 ## §D4 — minimal detail pane for kingdoms the player has no useful
@@ -666,6 +722,9 @@ func _render_legend() -> void:
 			_legend.add_child(_build_swatch_label(Color(0.82, 0.74, 0.44), "fed"))
 			_legend.add_child(_build_swatch_label(Color(0.70, 0.66, 0.52), "thinning"))
 			_legend.add_child(_build_swatch_label(Color(0.78, 0.24, 0.18), "hunger"))
+		&"resources":
+			for kind in [&"grain", &"silver", &"iron", &"timber", &"gold", &"horses", &"cloth", &"salt"]:
+				_legend.add_child(_build_swatch_label(MapRenderer.resource_color_for(kind), String(kind)))
 		&"religion":
 			var seen: Dictionary = {}
 			for p_id in WorldData.provinces.keys():
@@ -1109,11 +1168,53 @@ func _handle_hover(canvas_pt: Vector2) -> void:
 
 
 func _handle_click(canvas_pt: Vector2) -> void:
+	# Settlement-dot hit-test first. At province zoom a tap on a city
+	# dot should open the dedicated settlement view rather than just
+	# selecting its province. A generous hit radius lets the player
+	# click the label too.
+	var hit_city: String = _city_id_at_canvas(canvas_pt)
+	if not hit_city.is_empty():
+		settlement_zoom_requested.emit(hit_city)
+		return
 	var uv: Vector2 = _canvas_to_uv(canvas_pt)
 	var cid: int = MapData.cell_id_at_uv(uv)
 	if cid == 0:
 		return
 	_select_cell(cid)
+
+
+## Return the city id whose on-screen dot the given canvas point
+## overlaps, respecting the same zoom-driven visibility rules as
+## `_draw_cities`. Empty string when nothing is hit.
+func _city_id_at_canvas(canvas_pt: Vector2) -> String:
+	if _renderer == null:
+		return ""
+	var bs: Vector2 = _renderer.bitmap_size()
+	var eff: float = _fit_zoom * _zoom_user
+	var best_id: String = ""
+	var best_dist: float = 9999.0
+	for cid in MapGeometry.cities().keys():
+		var city: Dictionary = CrashGuard.safe_dict(MapGeometry.cities()[cid])
+		var tier: int = int(CrashGuard.safe_get(city, "tier", 3))
+		if _city_alpha(tier) <= 0.05:
+			continue
+		var n: Vector2 = MapGeometry.ll_to_norm(
+			CrashGuard.safe_float(city.get("lon", 0.0)),
+			CrashGuard.safe_float(city.get("lat", 0.0)),
+		)
+		var px: Vector2 = Vector2(
+			n.x * bs.x * eff + _map_offset.x,
+			n.y * bs.y * eff + _map_offset.y,
+		)
+		var dot_r: float = _city_dot_radius(tier)
+		# Be forgiving — the dot is tiny at low zoom, so expand the
+		# hit target.
+		var hit_r: float = maxf(dot_r + 6.0, 10.0)
+		var d: float = canvas_pt.distance_to(px)
+		if d <= hit_r and d < best_dist:
+			best_dist = d
+			best_id = String(cid)
+	return best_id
 
 
 ## Shared selection path used by both clicks and programmatic picks
@@ -1214,8 +1315,9 @@ func _draw_labels(_c: Control = null) -> void:
 		return
 	_draw_region_labels()
 	_draw_cities()
-	if _zoom_user >= LOD_CITY:
-		_draw_city_districts()
+	# §D4 revision: the old in-map wedge-district overlay is gone.
+	# District browsing now lives in the dedicated SettlementView
+	# which is opened by clicking a settlement dot.
 	_draw_base_pin()
 
 

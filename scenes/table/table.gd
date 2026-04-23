@@ -16,6 +16,7 @@ const ExposureIndicatorScript: Script   = preload("res://scripts/exposure_indica
 const LedgerViewScript: Script          = preload("res://scripts/ledger_view.gd")
 const PublicNewsViewScript: Script      = preload("res://scripts/public_news_view.gd")
 const MapViewScript: Script             = preload("res://scripts/map_view.gd")
+const SettlementViewScript: Script      = preload("res://scripts/settlement_view.gd")
 const PurseIndicatorScript: Script      = preload("res://scripts/purse_indicator.gd")
 const SlotsViewScript: Script           = preload("res://scripts/slots_view.gd")
 const PreferencesViewScript: Script     = preload("res://scripts/preferences_view.gd")
@@ -577,10 +578,28 @@ func _open_map_view() -> void:
 	view.anchor_bottom = 1.0
 	add_child(view)
 	view.closed.connect(_on_map_view_closed)
+	# Contextual entry-points: opening Compose pre-filtered, or diving
+	# into a settlement. Both are handled by stacking a second overlay
+	# on top of the map without closing it, so the map's own selection
+	# state is preserved.
+	if view.has_signal("compose_here_requested"):
+		view.compose_here_requested.connect(_on_map_compose_here_requested)
+	if view.has_signal("settlement_zoom_requested"):
+		view.settlement_zoom_requested.connect(_on_map_settlement_zoom_requested)
 
 
 func _on_map_view_closed() -> void:
 	_overlay_active = false
+
+
+func _on_map_compose_here_requested(kingdom_id: String, province_id: String) -> void:
+	# Deferred so the button-press signal finishes unwinding before we
+	# add a second overlay on top of the map.
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, StringName(""), "")
+
+
+func _on_map_settlement_zoom_requested(city_id: String) -> void:
+	call_deferred("_open_settlement_view", city_id)
 
 
 # --- Archive (save slots) overlay --------------------------------------------
@@ -765,10 +784,23 @@ func _open_dossier_view() -> void:
 	view.closed.connect(_on_dossier_view_closed)
 	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
 	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
+	if view.has_signal("compose_action_requested"):
+		view.compose_action_requested.connect(_on_dossier_compose_action_requested)
 
 
 func _on_dossier_view_closed() -> void:
 	_overlay_active = false
+
+
+func _on_dossier_compose_action_requested(action_id: StringName, actor_id: StringName) -> void:
+	# Open Compose on top of the dossier with the action preset. The
+	# player can back out to the target picker if they want a different
+	# actor; otherwise issuing is one more click.
+	var actor: Actor = Actors.get_actor(actor_id) if Actors != null else null
+	var kingdom_id: String = actor.kingdom_id if actor != null else ""
+	var province_id: String = actor.province_id if actor != null else ""
+	var tgt: String = String(actor_id) if actor != null else ""
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, action_id, tgt)
 
 
 func _on_roster_clicked() -> void:
@@ -886,6 +918,64 @@ func _on_compose_view_closed() -> void:
 	_overlay_active = false
 
 
+## Open Compose on top of whatever overlay is currently up (map,
+## dossier, settlement). The caller hands us any combination of
+## kingdom/province pre-filter and an optional action/target preset.
+## Compose will skip the action picker if a preset action is given, and
+## skip the target picker too if a preset target is given.
+func _open_compose_view_prefiltered(
+	kingdom_id: String,
+	province_id: String,
+	action_id: StringName,
+	target_id: String,
+) -> void:
+	if _overlay_active:
+		# Try again next frame — the caller's overlay is mid-close.
+		call_deferred(
+			"_open_compose_view_prefiltered",
+			kingdom_id, province_id, action_id, target_id,
+		)
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(ComposeViewScript)
+	view.name = "ComposeView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	if view.has_method("configure"):
+		view.call("configure", kingdom_id, province_id, action_id, target_id)
+	add_child(view)
+	view.closed.connect(_on_compose_view_closed)
+
+
+## Open the dedicated settlement zoom view on top of the map view,
+## without closing the map. Closes back to the map alone.
+func _open_settlement_view(city_id: String) -> void:
+	if _overlay_active:
+		call_deferred("_open_settlement_view", city_id)
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(SettlementViewScript)
+	view.name = "SettlementView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	if view.has_method("configure"):
+		view.call("configure", city_id)
+	add_child(view)
+	view.closed.connect(_on_settlement_view_closed)
+	if view.has_signal("compose_here_requested"):
+		view.compose_here_requested.connect(_on_settlement_compose_here_requested)
+
+
+func _on_settlement_view_closed() -> void:
+	_overlay_active = false
+
+
+func _on_settlement_compose_here_requested(kingdom_id: String, province_id: String) -> void:
+	call_deferred("_open_compose_view_prefiltered", kingdom_id, province_id, StringName(""), "")
+
+
 func _on_inbox_clicked() -> void:
 	var letter: Letter = Inbox.get_top_letter()
 	if letter == null:
@@ -931,6 +1021,8 @@ func _open_dossier_view_for_actor(actor: Actor) -> void:
 	view.closed.connect(_on_dossier_view_closed)
 	view.actor_link_clicked.connect(_on_letter_actor_link_clicked)
 	view.codebook_link_clicked.connect(_on_letter_codebook_link_clicked)
+	if view.has_signal("compose_action_requested"):
+		view.compose_action_requested.connect(_on_dossier_compose_action_requested)
 	view.show_actor(actor)
 
 

@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+CrashGuard="*res://scripts/crash_guard.gd"
 EventBus="*res://scripts/event_bus.gd"
 GameClock="*res://scripts/game_clock.gd"
 Scheduler="*res://scripts/scheduler.gd"
