@@ -17,13 +17,18 @@ var _primed: bool = false
 # Timed beats keyed by (year_offset, month_offset). Month-granularity is
 # enough — the narrative moments don't need to fire on a specific day.
 const TIMED_BEATS: Array[Dictionary] = [
-	{"id": &"intro_letter",       "year_off": 0,  "month_off": 0},
-	{"id": &"week_courtship",     "year_off": 0,  "month_off": 0, "day_off": 7},
-	{"id": &"month_surprise",     "year_off": 0,  "month_off": 1},
-	{"id": &"month3_neighbour",   "year_off": 0,  "month_off": 3},
-	{"id": &"year1_money",        "year_off": 1,  "month_off": 0},
-	{"id": &"year3_contradiction","year_off": 3,  "month_off": 0},
-	{"id": &"year5_mortality",    "year_off": 5,  "month_off": 0},
+	{"id": &"intro_letter",              "year_off": 0,  "month_off": 0},
+	{"id": &"week_courtship",            "year_off": 0,  "month_off": 0, "day_off": 7},
+	{"id": &"day14_rival_courts_host",   "year_off": 0,  "month_off": 0, "day_off": 14},
+	{"id": &"day21_second_host_opportunity", "year_off": 0, "month_off": 0, "day_off": 21},
+	{"id": &"month_surprise",            "year_off": 0,  "month_off": 1},
+	{"id": &"month2_first_corruption_whisper", "year_off": 0, "month_off": 2},
+	{"id": &"month3_neighbour",          "year_off": 0,  "month_off": 3},
+	{"id": &"month4_hunter_precursor",   "year_off": 0,  "month_off": 4},
+	{"id": &"month6_memoirs_invitation", "year_off": 0,  "month_off": 6},
+	{"id": &"year1_money",               "year_off": 1,  "month_off": 0},
+	{"id": &"year3_contradiction",       "year_off": 3,  "month_off": 0},
+	{"id": &"year5_mortality",           "year_off": 5,  "month_off": 0},
 ]
 
 
@@ -82,13 +87,18 @@ func _beat_is_due(beat: Dictionary, y: int, m: int, d: int) -> bool:
 
 func _fire_beat(id: StringName) -> void:
 	match id:
-		&"intro_letter":        _beat_intro_letter()
-		&"week_courtship":      _beat_week_courtship()
-		&"month_surprise":      _beat_month_surprise()
-		&"month3_neighbour":    _beat_month3_neighbour()
-		&"year1_money":         _beat_year1_money()
-		&"year3_contradiction": _beat_year3_contradiction()
-		&"year5_mortality":     _beat_year5_mortality()
+		&"intro_letter":                    _beat_intro_letter()
+		&"week_courtship":                  _beat_week_courtship()
+		&"day14_rival_courts_host":         _beat_day14_rival_courts_host()
+		&"day21_second_host_opportunity":   _beat_day21_second_host_opportunity()
+		&"month_surprise":                  _beat_month_surprise()
+		&"month2_first_corruption_whisper": _beat_month2_first_corruption_whisper()
+		&"month3_neighbour":                _beat_month3_neighbour()
+		&"month4_hunter_precursor":         _beat_month4_hunter_precursor()
+		&"month6_memoirs_invitation":       _beat_month6_memoirs_invitation()
+		&"year1_money":                     _beat_year1_money()
+		&"year3_contradiction":             _beat_year3_contradiction()
+		&"year5_mortality":                 _beat_year5_mortality()
 	fired[id] = true
 
 
@@ -273,6 +283,175 @@ func _beat_year5_mortality() -> void:
 		body,
 		&"intro"
 	)
+
+
+# --- §D5 Additional scripted beats --------------------------------------
+
+## A second rival-signal on the first host, slightly harder than week_courtship.
+## A named rival faction (chosen from active rival societies, falling back
+## to a generic label) is now openly asking after the host.
+func _beat_day14_rival_courts_host() -> void:
+	var anchor: Actor = _best_prospect_in_any_kingdom()
+	if anchor == null:
+		return
+	var who: String = anchor.display_name()
+	var rival_label: String = "a guild of merchants with no crest"
+	if Rivals != null:
+		var society_list: Array = Rivals.all_societies() if Rivals.has_method("all_societies") else []
+		if not society_list.is_empty():
+			var s: Variant = society_list[0]
+			if s != null and typeof(s) == TYPE_OBJECT and (s as Object).has_method("get"):
+				rival_label = String(s.get("display_name"))
+	var body: String = (
+		"The Corinthian who was buying %s's wine two weeks ago has been seen again — "
+		+ "this time at the back table of %s, in talk with an older man I am told is "
+		+ "of %s. They did not leave together; they did not need to.\n\n"
+		+ "I will not counsel what to do, because what to do depends on how much of %s "
+		+ "you already consider yours. But I will counsel this: if you intend to move, "
+		+ "do not move loudly, and do not move tomorrow. A decision made in haste now "
+		+ "will be a fingerprint you cannot lift for a generation."
+	) % [who, _home_establishment_for(anchor), rival_label, who]
+	_send(
+		"Your watcher in the quarter",
+		"The Corinthian is not alone",
+		body,
+		&"intel"
+	)
+
+
+## A concrete second-host opportunity with a named figure in a different
+## kingdom. Gives the player a second pin to drop on the map.
+func _beat_day21_second_host_opportunity() -> void:
+	var anchor: Actor = _best_prospect_in_any_kingdom()
+	var second: Actor = _best_prospect_excluding(anchor)
+	if second == null:
+		return
+	var second_kingdom: String = _kingdom_name_for(second.kingdom_id)
+	var body: String = (
+		"There is a second figure worth cultivating. %s, in %s — younger than our "
+		+ "first, less settled, and for that reason faster to move when they decide "
+		+ "to move. They are not known to us yet, and we are not known to them. "
+		+ "That is the only state in which the first acquaintance is cheap.\n\n"
+		+ "I do not ask you to choose between them. I ask you to stop treating our "
+		+ "network as one name. Begin the cultivation. The approach is the same; the "
+		+ "risks are independent. A table with two legs does not fall from one kick."
+	) % [second.display_name(), second_kingdom]
+	_send(
+		"Your correspondent at the harbour",
+		"%s, in %s" % [second.display_name(), second_kingdom],
+		body,
+		&"intel"
+	)
+
+
+## First whisper that one of the hands handling network silver is
+## reaching for extra. No accusation; just a pattern in the ledger.
+func _beat_month2_first_corruption_whisper() -> void:
+	var handler: String = "the man who carries our coin"
+	var via: String = "the ledger"
+	if Finance != null:
+		var houses: Array[BankingHouse] = Finance.active_houses()
+		if houses.size() > 0:
+			via = houses[0].display_name
+	if Org != null:
+		for m in Org.all_members():
+			if m == null or m.burned:
+				continue
+			if m.layer == OrgMember.Layer.OPERATIVE:
+				handler = String(m.display_name)
+				break
+	var body: String = (
+		"I went back through three months of %s's entries because a tally did not "
+		+ "sit right. The tally still does not sit right. It is not a large sum — "
+		+ "half a mina across twelve lines, all within the band of what a careful "
+		+ "man might call 'rounding'. A careful man would not leave the same rounding "
+		+ "twelve times in the same direction.\n\n"
+		+ "I am writing this before acting. There are two roads. One is %s has begun "
+		+ "to reach for the coin himself, quietly, because no one is watching him. "
+		+ "The other is that a rival's hand is already on his shoulder, and the coin "
+		+ "is the signal that the hand has been accepted. The two look identical in "
+		+ "a ledger. They do not look identical when a second pair of eyes walks the "
+		+ "same room he walks."
+	) % [via, handler]
+	_send(
+		"Your archivist",
+		"A tally that will not sit right",
+		body,
+		&"intel"
+	)
+
+
+## Far-off echo that someone is beginning to ask the wrong kind of
+## question about a pattern of incidents — the seed of a hunter, but
+## not yet one.
+func _beat_month4_hunter_precursor() -> void:
+	var body: String = (
+		"A letter reached me by way of two friends and a customs-man at Rhodes. "
+		+ "It was not meant for me, and it did not name me, but it named three "
+		+ "separate affairs of our own of the past year as though they were one "
+		+ "affair. The author is a clerk of the proconsul — a clerk, not a "
+		+ "proconsul — and he is younger than his hand suggests.\n\n"
+		+ "He is not a man we need to kill. He is a man we need to notice. When a "
+		+ "clerk begins to see the shape, the clerk's master sees the shape a year "
+		+ "later, and the clerk's master's patron sees the shape a year after that. "
+		+ "What reaches us now as curiosity will, untended, reach us as an "
+		+ "indictment."
+	)
+	_send(
+		"Your correspondent at the harbour",
+		"A clerk at Rhodes has been drawing connections",
+		body,
+		&"intel"
+	)
+
+
+## Explicit invitation to write in the Memoirs — surfaces the archive
+## as a tool rather than a tab. Does not prescribe content.
+func _beat_month6_memoirs_invitation() -> void:
+	var body: String = (
+		"You have done six months of work. Not all of it landed; most of it landed "
+		+ "imperfectly. This is the moment to open the drawer and write down what "
+		+ "worked — not the outcome, which anyone could have guessed, but the shape "
+		+ "of the approach. What kind of man was receptive, what kind of offer was "
+		+ "accepted, what kind of go-between was trusted.\n\n"
+		+ "I do not ask this because I fear you will forget. I ask it because the "
+		+ "second time you do this work you will not be yourself — you will be a "
+		+ "coordinator in a different city, or a lieutenant two generations on, "
+		+ "and they will open your Memoirs the way a younger carpenter opens the "
+		+ "notes of an older one."
+	)
+	_send(
+		"Your predecessor, through a third hand",
+		"Write it down while it is warm",
+		body,
+		&"intro"
+	)
+
+
+func _best_prospect_excluding(avoid: Actor) -> Actor:
+	var best: Actor = null
+	var best_score: int = -1
+	for a in Actors.all_actors():
+		if not a.is_alive() or a.role == Actor.Role.RULER:
+			continue
+		if avoid != null and a.id == avoid.id:
+			continue
+		if avoid != null and a.kingdom_id == avoid.kingdom_id:
+			continue
+		if Org.is_actor_member(a.id):
+			continue
+		var score: int = a.ambition + a.intellect + (100 - a.paranoia) + a.charisma
+		if score > best_score:
+			best = a
+			best_score = score
+	return best
+
+
+func _home_establishment_for(_a: Actor) -> String:
+	# Intentionally vague — no location system for shops yet, so pick
+	# something evocative. Keeps the letter readable without demanding
+	# a fiction we don't own.
+	return "the long tavern on the quay"
 
 
 # --- Helpers --------------------------------------------------------------

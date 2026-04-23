@@ -41,7 +41,7 @@ func _ready() -> void:
 	_populate()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.45)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.45))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -358,6 +358,6 @@ func _on_quit() -> void:
 
 func _go_to_table() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.20)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.20))
 	tw.tween_callback(func() -> void:
 		get_tree().change_scene_to_file(TABLE_SCENE))

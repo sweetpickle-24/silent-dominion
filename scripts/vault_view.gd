@@ -51,7 +51,10 @@ func _ready() -> void:
 	_render()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 	if not Finance.house_updated.is_connected(_on_finance_changed):
 		Finance.house_updated.connect(_on_finance_changed)
@@ -59,6 +62,10 @@ func _ready() -> void:
 		Finance.house_added.connect(_on_finance_changed)
 	if not Finance.ledger_changed.is_connected(_on_ledger_changed):
 		Finance.ledger_changed.connect(_on_ledger_changed)
+	if not Finance.settlement_started.is_connected(_on_ledger_changed):
+		Finance.settlement_started.connect(_on_settlement_changed)
+	if not Finance.settlement_completed.is_connected(_on_settlement_changed):
+		Finance.settlement_completed.connect(_on_settlement_changed)
 
 
 func _exit_tree() -> void:
@@ -68,6 +75,10 @@ func _exit_tree() -> void:
 		Finance.house_added.disconnect(_on_finance_changed)
 	if Finance.ledger_changed.is_connected(_on_ledger_changed):
 		Finance.ledger_changed.disconnect(_on_ledger_changed)
+	if Finance.settlement_started.is_connected(_on_settlement_changed):
+		Finance.settlement_started.disconnect(_on_settlement_changed)
+	if Finance.settlement_completed.is_connected(_on_settlement_changed):
+		Finance.settlement_completed.disconnect(_on_settlement_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -79,7 +90,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -159,6 +170,63 @@ func _on_ledger_changed() -> void:
 	_render()
 
 
+func _on_settlement_changed(_s: Dictionary) -> void:
+	_render()
+
+
+func _build_settlement_row(s: Dictionary) -> Control:
+	var panel: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.96, 0.92, 0.80, 1.0)
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.border_color = COLOR_PARCHMENT_EDGE
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", sb)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	panel.add_child(vbox)
+
+	var hops: Array = s.get("hops", [])
+	var eta_day: int = int(s.get("completed_abs_day", 0)) - GameClock.absolute_day()
+	var eta_text: String = "arriving today" if eta_day <= 0 else "%d day%s out" % [
+		eta_day, "" if eta_day == 1 else "s"
+	]
+	var title: Label = Label.new()
+	title.text = "%d %s -> %s  (%s, %d hop%s)" % [
+		int(s.get("amount", 0)),
+		String(s.get("currency", "silver")),
+		_kingdom_name(String(s.get("dest_kingdom", ""))),
+		eta_text,
+		hops.size(),
+		"" if hops.size() == 1 else "s",
+	]
+	title.add_theme_color_override("font_color", COLOR_INK)
+	title.add_theme_font_size_override("font_size", 14)
+	vbox.add_child(title)
+
+	for hop in hops:
+		var h: BankingHouse = Finance.get_house(StringName(String(hop.get("house_id", ""))))
+		if h == null:
+			continue
+		var line: Label = Label.new()
+		line.text = "  via %s — %d %s" % [
+			h.display_name, int(hop.get("amount", 0)), String(s.get("currency", "silver")),
+		]
+		line.add_theme_color_override("font_color", Color(COLOR_INK, 0.7))
+		line.add_theme_font_size_override("font_size", 12)
+		vbox.add_child(line)
+
+	return panel
+
+
 func _render() -> void:
 	for c in _body_vbox.get_children():
 		c.queue_free()
@@ -179,6 +247,13 @@ func _render() -> void:
 	else:
 		for h in actives:
 			_body_vbox.add_child(_build_house_row(h))
+
+	var pending: Array[Dictionary] = Finance.pending_settlements_for()
+	if not pending.is_empty():
+		_body_vbox.add_child(_divider())
+		_body_vbox.add_child(_heading("SETTLEMENTS IN FLIGHT"))
+		for s in pending:
+			_body_vbox.add_child(_build_settlement_row(s))
 
 	_body_vbox.add_child(_divider())
 	_body_vbox.add_child(_heading("OPEN IOUs"))
@@ -251,7 +326,9 @@ func _build_house_row(h: BankingHouse) -> Control:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
-	top.add_child(_build_pill(h.capacity_band_label(), _capacity_color(h)))
+	top.add_child(_build_pill("SILVER · " + h.capacity_band_label(), _capacity_color(h)))
+	if h.gold_max_capacity > 0:
+		top.add_child(_build_pill("GOLD · " + h.gold_capacity_band_label(), _gold_capacity_color(h)))
 	top.add_child(_build_pill(h.discretion_band_label(), _discretion_color(h)))
 
 	# Line 2: reach
@@ -287,8 +364,16 @@ func _build_iou_row(iou: Dictionary) -> Control:
 	if amt > 200:   amt_band = "a respectable sum"
 	if amt > 800:   amt_band = "a considerable loan"
 	if amt > 2000:  amt_band = "a crown-weight of silver"
-	row.text = "%s owes us %s, to be returned by the %s of %d BCE." % [
-		kname, amt_band, _month_name(due_m), -due_y,
+	# due_y uses the GameClock convention (negative = BCE).
+	var due_year_phrase: String = ""
+	if due_y < 0:
+		due_year_phrase = "%d BCE" % -due_y
+	elif due_y == 0:
+		due_year_phrase = "1 BCE"
+	else:
+		due_year_phrase = "%d CE" % due_y
+	row.text = "%s owes us %s, to be returned by the %s of %s." % [
+		kname, amt_band, _month_name(due_m), due_year_phrase,
 	]
 	row.add_theme_color_override("font_color", COLOR_INK)
 	row.add_theme_font_size_override("font_size", 13)
@@ -323,6 +408,15 @@ func _build_pill(text: String, bg: Color) -> Control:
 
 func _capacity_color(h: BankingHouse) -> Color:
 	match h.capacity_band():
+		&"ample":      return COLOR_CAP_AMPLE
+		&"cautious":   return COLOR_CAP_CAUTIOUS
+		&"strained":   return COLOR_CAP_STRAINED
+		&"tapped_out": return COLOR_CAP_TAPPED
+	return COLOR_INK_MUTED
+
+
+func _gold_capacity_color(h: BankingHouse) -> Color:
+	match h.gold_capacity_band():
 		&"ample":      return COLOR_CAP_AMPLE
 		&"cautious":   return COLOR_CAP_CAUTIOUS
 		&"strained":   return COLOR_CAP_STRAINED

@@ -18,6 +18,26 @@ var _loaded: bool = false
 
 func _ready() -> void:
 	load_world(WORLD_FILE)
+	# §D2 Lift city fog every month for any city that sits in a kingdom
+	# where the player has a non-burned coordinator. The work lives here
+	# rather than OrgRegistry because the fog is a property of the world,
+	# not of the org.
+	GameClock.month_passed.connect(_on_month_passed_tick_city_fog)
+
+
+func _on_month_passed_tick_city_fog(_year: int, _month: int) -> void:
+	for p in provinces.values():
+		if p.city == null:
+			continue
+		if p.owning_kingdom.is_empty():
+			continue
+		var cov: OrgMember = Org.coverage_for(p.owning_kingdom)
+		if cov == null:
+			continue
+		# A coordinator with higher `cover` rips through fog faster; cap
+		# the step so it still takes several months on a raw posting.
+		var step: int = clampi(12 + int(cov.cover) / 8, 10, 25)
+		p.city.lift_fog(step, 10)
 
 
 # --- Loading ------------------------------------------------------------------

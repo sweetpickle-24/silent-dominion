@@ -53,6 +53,68 @@ enum Role {
 # ...), mutually decays toward zero when ignored.
 @export_range(-100, 100) var relationship: int = 0
 
+
+# --- Language profile (§23) --------------------------------------------------
+#
+# A dictionary of language_id (StringName) -> competence level 0..3.
+# Most actors speak exactly one language fluently — whatever is native
+# to the kingdom they were generated in. Cosmopolitan provinces and
+# scholarly roles spread this wider. Competence levels follow §23.1:
+#   0 = none, 1 = basic, 2 = functional, 3 = fluent.
+# Absent keys mean "none"; there's no ceremony to speaking nothing.
+@export var languages: Dictionary = {}
+
+
+# --- Family / dynasty (§21) --------------------------------------------------
+#
+# Actors may belong to a named family tracked across generations.
+# `family_id` is empty for actors not part of a tracked dynasty.
+# Parentage is a soft reference: `parent_id` may be empty even when a
+# family is set (e.g. the founding generation). Children are populated
+# only when a relation is authored — we don't invent parents for world
+# seed actors retroactively.
+@export var family_id: StringName = &""
+@export var parent_id: StringName = &""
+@export var children: Array = []
+
+
+# --- Long-run compression (§6.5) --------------------------------------------
+#
+# Actors who have been dead for long enough (see
+# ActorRegistry.COMPRESS_AFTER_YEARS) are flagged here. Compressed
+# actors stay in the registry so Memoirs, family trees, and letters
+# can still reference them by id, but they are **skipped by the
+# iteration helpers**: WorldAI rolls, month/year ticks, ambient
+# simulation. The registry only has to pay for their existence once
+# they die and the compression window closes.
+@export var compressed: bool = false
+
+
+func is_compressed() -> bool:
+	return compressed
+
+
+const LANG_NONE: int       = 0
+const LANG_BASIC: int      = 1
+const LANG_FUNCTIONAL: int = 2
+const LANG_FLUENT: int     = 3
+
+
+func speaks(language_id: StringName, min_level: int = LANG_FUNCTIONAL) -> bool:
+	return int(languages.get(language_id, 0)) >= min_level
+
+
+func language_level(language_id: StringName) -> int:
+	return int(languages.get(language_id, 0))
+
+
+func known_languages() -> Array:
+	var out: Array = []
+	for k in languages.keys():
+		if int(languages[k]) >= LANG_BASIC:
+			out.append(k)
+	return out
+
 # --- Host memory (§5 fragility) ----------------------------------------------
 #
 # Once an actor has been cultivated past HOST_THRESHOLD they remember
@@ -143,6 +205,17 @@ static func from_dict(d: Dictionary) -> Actor:
 	a.relationship = clampi(int(d.get("relationship", 0)), -100, 100)
 	a.ever_host    = bool(d.get("ever_host", false))
 	a.betrayed     = bool(d.get("betrayed", false))
+	a.languages = {}
+	for lk in d.get("languages", {}).keys():
+		a.languages[StringName(String(lk))] = clampi(
+			int(d["languages"][lk]), 0, Actor.LANG_FLUENT
+		)
+	a.family_id = StringName(String(d.get("family_id", "")))
+	a.parent_id = StringName(String(d.get("parent_id", "")))
+	a.children = []
+	for cid in d.get("children", []):
+		a.children.append(StringName(String(cid)))
+	a.compressed = bool(d.get("compressed", false))
 	return a
 
 
@@ -150,6 +223,12 @@ func to_dict() -> Dictionary:
 	var traits: Dictionary = {}
 	for k in TRAIT_KEYS:
 		traits[String(k)] = get_trait(k)
+	var lang_out: Dictionary = {}
+	for lk in languages.keys():
+		lang_out[String(lk)] = int(languages[lk])
+	var kids_out: Array = []
+	for cid in children:
+		kids_out.append(String(cid))
 	return {
 		"id": String(id),
 		"given_name": given_name,
@@ -163,6 +242,11 @@ func to_dict() -> Dictionary:
 		"relationship": relationship,
 		"ever_host": ever_host,
 		"betrayed": betrayed,
+		"languages": lang_out,
+		"family_id": String(family_id),
+		"parent_id": String(parent_id),
+		"children": kids_out,
+		"compressed": compressed,
 	}
 
 

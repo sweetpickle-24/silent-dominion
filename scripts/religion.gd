@@ -21,6 +21,13 @@ enum Phase {
 @export var religion_name: String = ""
 @export var phase: Phase = Phase.CONSOLIDATION
 
+## §25.3 — ideologies (Stoicism, Confucianism, later liberalism /
+## nationalism) share the religious data model wholesale. This
+## flag only changes the vocabulary used in UI and the weighting
+## of certain lifecycle nudges (ideologies fracture on reform
+## potential faster; religions fracture on doctrinal rigidity).
+@export var is_ideology: bool = false
+
 # All five §25.1 attributes on a 0-100 scale.
 @export_range(0, 100) var doctrinal_rigidity:    int = 50
 @export_range(0, 100) var institutional_strength: int = 50
@@ -45,8 +52,59 @@ enum Phase {
 @export var parent_religion_id: StringName = &""
 
 
+# --- §13.4 manual-engagement gate -------------------------------------------
+#
+# A religion is an opaque black box until the player has worked
+# through it manually at least once. `engaged_manually` latches
+# true after the first successful religion-aimed action against
+# one of its significant provinces. The snapshot captured at that
+# moment is what the staleness check compares against later —
+# doctrinal or institutional drift past `ENGAGEMENT_STALE_DRIFT`
+# means the old library entry is no longer a safe guide.
+@export var engaged_manually: bool = false
+@export var engaged_year: int = 0
+@export var engaged_doctrinal_rigidity: int = 0
+@export var engaged_institutional_strength: int = 0
+@export var engaged_popular_depth: int = 0
+@export var engaged_reform_potential: int = 0
+@export var engaged_ecumenical_openness: int = 0
+
+
+const ENGAGEMENT_STALE_DRIFT: int = 15
+
+
 func phase_name() -> String:
 	return Phase.keys()[phase]
+
+
+func kind_label() -> String:
+	return "school of thought" if is_ideology else "faith"
+
+
+func follower_verb() -> String:
+	return "adhere to" if is_ideology else "follow"
+
+
+func engagement_stale() -> bool:
+	if not engaged_manually:
+		return false
+	return (
+		absi(doctrinal_rigidity     - engaged_doctrinal_rigidity)     >= ENGAGEMENT_STALE_DRIFT
+		or absi(institutional_strength - engaged_institutional_strength) >= ENGAGEMENT_STALE_DRIFT
+		or absi(popular_depth        - engaged_popular_depth)        >= ENGAGEMENT_STALE_DRIFT
+		or absi(reform_potential     - engaged_reform_potential)     >= ENGAGEMENT_STALE_DRIFT
+		or absi(ecumenical_openness  - engaged_ecumenical_openness)  >= ENGAGEMENT_STALE_DRIFT
+	)
+
+
+func snapshot_engagement(year: int) -> void:
+	engaged_manually = true
+	engaged_year = year
+	engaged_doctrinal_rigidity = doctrinal_rigidity
+	engaged_institutional_strength = institutional_strength
+	engaged_popular_depth = popular_depth
+	engaged_reform_potential = reform_potential
+	engaged_ecumenical_openness = ecumenical_openness
 
 
 func is_extinct() -> bool:
@@ -83,6 +141,14 @@ static func from_dict(d: Dictionary) -> Religion:
 	r.ecumenical_openness    = clampi(int(d.get("ecumenical_openness", 50)),    0, 100)
 	r.founded_year           = int(d.get("founded_year", 0))
 	r.parent_religion_id     = StringName(String(d.get("parent_religion_id", "")))
+	r.is_ideology            = bool(d.get("is_ideology", false))
+	r.engaged_manually              = bool(d.get("engaged_manually", false))
+	r.engaged_year                  = int(d.get("engaged_year", 0))
+	r.engaged_doctrinal_rigidity    = int(d.get("engaged_doctrinal_rigidity", 0))
+	r.engaged_institutional_strength = int(d.get("engaged_institutional_strength", 0))
+	r.engaged_popular_depth         = int(d.get("engaged_popular_depth", 0))
+	r.engaged_reform_potential      = int(d.get("engaged_reform_potential", 0))
+	r.engaged_ecumenical_openness   = int(d.get("engaged_ecumenical_openness", 0))
 	r.presence = {}
 	for pid in d.get("presence", {}).keys():
 		r.presence[String(pid)] = clampi(int(d["presence"][pid]), 0, 100)
@@ -101,6 +167,14 @@ func to_dict() -> Dictionary:
 		"ecumenical_openness":    ecumenical_openness,
 		"founded_year":           founded_year,
 		"parent_religion_id":     String(parent_religion_id),
+		"is_ideology":            is_ideology,
+		"engaged_manually":       engaged_manually,
+		"engaged_year":           engaged_year,
+		"engaged_doctrinal_rigidity":     engaged_doctrinal_rigidity,
+		"engaged_institutional_strength": engaged_institutional_strength,
+		"engaged_popular_depth":          engaged_popular_depth,
+		"engaged_reform_potential":       engaged_reform_potential,
+		"engaged_ecumenical_openness":    engaged_ecumenical_openness,
 		"presence":               presence.duplicate(true),
 	}
 

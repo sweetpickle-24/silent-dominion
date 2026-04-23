@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "notes": "Language evolution triggered on era transitions (§23.5). Entries are keyed by the era_id that, when entered, applies them. Vernacular splits introduce a daughter language in listed kingdoms; the parent language is retained as an institutional/scholarly tongue — priests and philosophers keep fluency, merchants and commoners migrate to the daughter."
+  },
+  "transitions": {
+    "classical_collapse": {
+      "introduce": [
+        { "id": "late_latin",           "name": "Late Latin" },
+        { "id": "medieval_greek",       "name": "Medieval Greek" },
+        { "id": "coptic",               "name": "Coptic" },
+        { "id": "middle_persian",       "name": "Middle Persian (Pahlavi)" }
+      ],
+      "vernacular_splits": [
+        {
+          "parent": "latin",
+          "daughter": "late_latin",
+          "kingdoms": ["rome", "massalia", "syracuse"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER", "ADVISOR"]
+        },
+        {
+          "parent": "koine_greek",
+          "daughter": "medieval_greek",
+          "kingdoms": ["athens", "sparta", "corinth", "thebes", "macedon", "molossia", "colchis"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER"]
+        },
+        {
+          "parent": "egyptian",
+          "daughter": "coptic",
+          "kingdoms": ["egypt"],
+          "institutional_roles": ["PRIEST"]
+        },
+        {
+          "parent": "persian",
+          "daughter": "middle_persian",
+          "kingdoms": ["persia"],
+          "institutional_roles": ["PRIEST", "ADVISOR"]
+        }
+      ],
+      "retired_as_native": ["etruscan", "phoenician", "thracian", "illyrian", "punic"]
+    },
+    "medieval_consolidation": {
+      "introduce": [
+        { "id": "classical_arabic",     "name": "Classical Arabic" },
+        { "id": "old_french",           "name": "Old French" },
+        { "id": "old_spanish",          "name": "Old Spanish" },
+        { "id": "old_italian",          "name": "Old Italian" },
+        { "id": "old_english",          "name": "Old English" }
+      ],
+      "vernacular_splits": [
+        {
+          "parent": "aramaic",
+          "daughter": "classical_arabic",
+          "kingdoms": [],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER"]
+        },
+        {
+          "parent": "late_latin",
+          "daughter": "old_french",
+          "kingdoms": ["massalia"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER", "ADVISOR"]
+        },
+        {
+          "parent": "late_latin",
+          "daughter": "old_italian",
+          "kingdoms": ["rome", "syracuse"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER", "ADVISOR"]
+        }
+      ],
+      "retired_as_native": []
+    },
+    "early_modern_fracture": {
+      "introduce": [
+        { "id": "middle_french",        "name": "Middle French" },
+        { "id": "renaissance_italian",  "name": "Renaissance Italian" },
+        { "id": "early_modern_english", "name": "Early Modern English" },
+        { "id": "early_modern_spanish", "name": "Early Modern Spanish" },
+        { "id": "ottoman_turkish",      "name": "Ottoman Turkish" }
+      ],
+      "vernacular_splits": [
+        {
+          "parent": "old_french",
+          "daughter": "middle_french",
+          "kingdoms": ["massalia"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER"]
+        },
+        {
+          "parent": "old_italian",
+          "daughter": "renaissance_italian",
+          "kingdoms": ["rome", "syracuse"],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER"]
+        },
+        {
+          "parent": "medieval_greek",
+          "daughter": "ottoman_turkish",
+          "kingdoms": [],
+          "institutional_roles": ["PRIEST", "PHILOSOPHER"]
+        }
+      ],
+      "retired_as_native": []
+    },
+    "modern_era": {
+      "introduce": [
+        { "id": "modern_french",        "name": "Modern French" },
+        { "id": "modern_italian",       "name": "Modern Italian" },
+        { "id": "modern_english",       "name": "Modern English" },
+        { "id": "modern_spanish",       "name": "Modern Spanish" },
+        { "id": "modern_greek",         "name": "Modern Greek" }
+      ],
+      "vernacular_splits": [
+        {
+          "parent": "middle_french",
+          "daughter": "modern_french",
+          "kingdoms": ["massalia"],
+          "institutional_roles": []
+        },
+        {
+          "parent": "renaissance_italian",
+          "daughter": "modern_italian",
+          "kingdoms": ["rome", "syracuse"],
+          "institutional_roles": []
+        },
+        {
+          "parent": "medieval_greek",
+          "daughter": "modern_greek",
+          "kingdoms": ["athens", "sparta", "corinth", "thebes", "macedon", "molossia", "colchis"],
+          "institutional_roles": ["PRIEST"]
+        }
+      ],
+      "retired_as_native": []
+    }
+  }
+}

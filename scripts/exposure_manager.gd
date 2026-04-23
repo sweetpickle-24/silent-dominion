@@ -80,6 +80,10 @@ func allows_tier(tier: ActionDefinition.Tier) -> bool:
 ## Used by systems other than the direct action-issued hook (whisper
 ## follow-ups, botched covert actions, discovered ties).
 func bump(delta: float, _reason: String = "") -> void:
+	# §10.6 Brittle-cover modifier: every positive bump gets scaled by
+	# the current difficulty profile (default 1.0, 1.25 when on).
+	if delta > 0.0:
+		delta *= DifficultyProfile.current().cover_decay_multiplier()
 	_add(delta)
 
 

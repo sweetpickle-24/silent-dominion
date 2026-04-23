@@ -79,7 +79,7 @@ func _ready() -> void:
 	_render_list()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
 
 	KingdomEconomy.tick.connect(_on_economy_tick)
 
@@ -96,7 +96,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -209,14 +209,65 @@ func _build_owned_entities_panel() -> void:
 		return
 	_body_vbox.add_child(_make_section_heading("OUR HOUSES AND WORKS"))
 	for e in active:
-		_body_vbox.add_child(_make_body_line("•  %s — %s in %s · %d silver/month · %s" % [
+		if e.control_disrupted:
+			var warn: Label = _make_body_line("•  %s — %s in %s · control slipped · %s" % [
+				e.display_name,
+				e.kind_label().to_lower(),
+				_kingdom_name(e.home_kingdom),
+				e.memory_phrase(),
+			])
+			warn.add_theme_color_override("font_color", Color(0.58, 0.22, 0.12, 1.0))
+			_body_vbox.add_child(warn)
+			var reclaim_btn: Button = Button.new()
+			reclaim_btn.text = "Seat a new proxy"
+			reclaim_btn.focus_mode = Control.FOCUS_NONE
+			reclaim_btn.custom_minimum_size.y = 26.0
+			var eid: StringName = e.id
+			reclaim_btn.pressed.connect(func() -> void:
+				var new_proxy: StringName = _choose_new_proxy_for(eid)
+				if new_proxy != &"":
+					Entities.reestablish_control(eid, new_proxy)
+				_clear_body()
+				_render_list())
+			_body_vbox.add_child(reclaim_btn)
+			continue
+		_body_vbox.add_child(_make_body_line("•  %s — %s in %s · %d silver/month · %s · %s" % [
 			e.display_name,
 			e.kind_label().to_lower(),
 			_kingdom_name(e.home_kingdom),
 			_effective_monthly_yield(e),
 			e.corruption_phrase(),
+			e.memory_phrase(),
 		]))
+		# §20 paperwork. A muted secondary line, just enough that the
+		# player can see what their names look like when someone
+		# does pull the charter.
+		var papers_line: Label = _make_body_line("    on paper: " + e.papers_phrase(-GameClock.year))
+		papers_line.add_theme_color_override("font_color", Color(0.42, 0.38, 0.32, 1.0))
+		papers_line.add_theme_font_size_override("font_size", 12)
+		_body_vbox.add_child(papers_line)
 	_body_vbox.add_child(_make_divider())
+
+
+func _choose_new_proxy_for(entity_id: StringName) -> StringName:
+	# Prefer the first host currently positioned in the entity's
+	# home kingdom. If none, fall back to any host, then any
+	# living merchant-role actor in the home kingdom. Empty if
+	# nothing plausible exists — the player then has to cultivate
+	# a fresh contact before re-establishing.
+	var e: OwnedEntity = Entities.get_entity(entity_id)
+	if e == null:
+		return &""
+	var hosts_here: Array[Actor] = Actors.hosts_in(e.home_kingdom)
+	if not hosts_here.is_empty():
+		return hosts_here[0].id
+	var any_hosts: Array[Actor] = Actors.hosts()
+	if not any_hosts.is_empty():
+		return any_hosts[0].id
+	for a in Actors.actors_in_kingdom(e.home_kingdom):
+		if a.is_alive() and a.role == Actor.Role.MERCHANT:
+			return a.id
+	return &""
 
 
 func _effective_monthly_yield(e: OwnedEntity) -> int:

@@ -69,10 +69,16 @@ func set_speed(new_speed: Speed) -> void:
 
 
 func format_date() -> String:
-	# "1 January 500 BCE"
-	var bce_year: int = -year
+	# "1 January 500 BCE" or "14 March 1204 CE". GameClock.year is
+	# stored BCE-negative / CE-positive; year 0 is treated as 1 BCE
+	# to match the astronomical convention the rest of the codebase
+	# uses.
 	var idx: int = clampi(month, 1, MONTHS_PER_YEAR) - 1
-	return "%d %s %d BCE" % [day, MONTH_NAMES[idx], bce_year]
+	if year < 0:
+		return "%d %s %d BCE" % [day, MONTH_NAMES[idx], -year]
+	if year == 0:
+		return "%d %s 1 BCE" % [day, MONTH_NAMES[idx]]
+	return "%d %s %d CE" % [day, MONTH_NAMES[idx], year]
 
 
 ## Absolute day index since 1 January of year 0. Used by the Scheduler to
@@ -100,9 +106,13 @@ func date_from_absolute(abs_day: int) -> Dictionary:
 
 func format_absolute(abs_day: int) -> String:
 	var dt: Dictionary = date_from_absolute(abs_day)
-	var bce_year: int = -int(dt["year"])
+	var y: int = int(dt["year"])
 	var idx: int = clampi(int(dt["month"]), 1, MONTHS_PER_YEAR) - 1
-	return "%d %s %d BCE" % [int(dt["day"]), MONTH_NAMES[idx], bce_year]
+	if y < 0:
+		return "%d %s %d BCE" % [int(dt["day"]), MONTH_NAMES[idx], -y]
+	if y == 0:
+		return "%d %s 1 BCE" % [int(dt["day"]), MONTH_NAMES[idx]]
+	return "%d %s %d CE" % [int(dt["day"]), MONTH_NAMES[idx], y]
 
 
 # --- Internal -----------------------------------------------------------------

@@ -196,6 +196,18 @@ var operatives: Dictionary = {} # String operative_id -> Dictionary
 
 const OP_LOG_MAX: int = 400
 
+# §C2 internal-org tuning. Each coordinator handles at most this many
+# operatives before we spawn a sibling coordinator. Lieutenants handle
+# up to this many coordinators before a sibling lieutenant is created.
+const _COORD_OP_CAP: int = 3
+const _LT_COORD_CAP: int = 3
+# Below this coverage value, a coordinator is considered "blown" — they
+# get reassigned (new id, coverage reset, all operatives lose
+# coordinator_id for the interval until re-linked). Mirrors the
+# player-side strain mechanic.
+const _COORD_REASSIGN_THRESHOLD: int = 20
+const _LT_REASSIGN_THRESHOLD: int = 15
+
 # Roster of flavour name fragments used to stamp a rival operative when
 # one is seeded. Kept local — we never reveal these to the player
 # before the sweep action resolves.
@@ -291,6 +303,7 @@ func detect_first_available(kingdom_id: String) -> Dictionary:
 	var best_score: int = -1
 	for e in pool:
 		var sid: StringName = StringName(String(e.get("society_id", "")))
+		@warning_ignore("integer_division")
 		var score: int = int(e.get("heat", 0)) + Fingerprints.confirmation_for(sid) / 2
 		if score > best_score:
 			best_score = score
@@ -326,6 +339,7 @@ func neutralize_first_eligible(kingdom_id: String) -> Dictionary:
 		var s: RivalSociety = get_society(sid)
 		if s != null:
 			s.bump_foothold(kingdom_id, -15)
+			_dock_coordinator_on_burn(s, e, 30)
 		return e
 	return {}
 
@@ -405,6 +419,7 @@ func best_impersonation_target(kingdom_id: String) -> StringName:
 		var conf: int = Fingerprints.confirmation_for(s.id)
 		if conf < 65:
 			continue
+		@warning_ignore("integer_division")
 		var score: int = conf + (s.foothold_in(kingdom_id) / 4)
 		if score > best_score:
 			best_score = score
@@ -452,6 +467,9 @@ func _tick_turned_operatives() -> void:
 			e["turned"] = false
 			# The player's exposure ticks because a scene was made.
 			Exposure.bump(4.0, "double_agent_burned")
+			var s2: RivalSociety = get_society(sid)
+			if s2 != null:
+				_dock_coordinator_on_burn(s2, e, 25)
 
 
 func _tick_society(s: RivalSociety) -> void:
@@ -467,7 +485,9 @@ func _tick_society(s: RivalSociety) -> void:
 	# seed new operatives.
 	if _is_posthumous(s):
 		chance *= 0.5
-	if _rng.randf() > chance:
+	# §10.6 Aggressive-rivals modifier: doubles action frequency.
+	chance *= DifficultyProfile.current().rival_action_frequency()
+	if _rng.randf() > minf(chance, 0.99):
 		return
 
 	var kid: String = _pick_operating_region(s)
@@ -510,6 +530,18 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 		"rival_suspected":   true,
 	}
 
+	# §C4 rival false-flag against the player. If this op fires in a
+	# kingdom where the player has visible presence (a non-burned
+	# coordinator), 10% chance the rival stamps the event with the
+	# player's fingerprint. The in-world outcome: a public accusation
+	# surfaces. The player can clear it with `investigate_anomaly`.
+	# We flag the op (not the society) because the forgery is a single
+	# act, not a standing doctrine.
+	if _player_has_presence_in(kingdom_id) and _rng.randf() < 0.10:
+		op["rival_false_flagged_player"] = true
+		op["false_flag_cleared"] = false
+		_emit_public_accusation_letter(s, kingdom_id)
+
 	op_log.append(op)
 	if op_log.size() > OP_LOG_MAX:
 		op_log = op_log.slice(op_log.size() - OP_LOG_MAX, op_log.size())
@@ -532,6 +564,17 @@ func _run_operation(s: RivalSociety, kingdom_id: String) -> void:
 	# a memory cost for us.
 	_maybe_seed_operative(s, kingdom_id)
 
+	# §B9 institution↔institution: a society that has consolidated
+	# a kingdom (>50 foothold) actively shoulders other societies
+	# out of recruitment there. This creates the "turf" behaviour
+	# the player sees when they try to triangulate between rivals.
+	if s.foothold_in(kingdom_id) > 50:
+		for other in societies.values():
+			if String(other.id) == String(s.id):
+				continue
+			if other.foothold_in(kingdom_id) >= 30:
+				InstRelations.block_in_province(String(s.id), String(other.id), kingdom_id)
+
 	# Ops elsewhere marginally accelerate instability: the target
 	# kingdom gets a small exposure-analogue bump we surface as unrest.
 	EventBus.public_event.emit(op)
@@ -545,12 +588,18 @@ func _maybe_seed_operative(s: RivalSociety, kingdom_id: String) -> void:
 	# carried the induction mystery, and that mystery is gone.
 	if _is_posthumous(s):
 		return
+	# §B9: if a rival society currently has this kingdom under turf
+	# block, the would-be operative never gets inducted. The block
+	# expires on its own timer (see InstRelations).
+	if not InstRelations.blockers_of(String(s.id), kingdom_id).is_empty():
+		return
 	var already: int = 0
 	for e in operatives.values():
 		if String(e.get("society_id", "")) == String(s.id) \
 				and String(e.get("kingdom_id", "")) == kingdom_id \
 				and not bool(e.get("neutralized", false)):
 			already += 1
+	@warning_ignore("integer_division")
 	var cap: int = 1 + (s.foothold_in(kingdom_id) / 30)
 	if already >= cap:
 		return
@@ -561,17 +610,22 @@ func _maybe_seed_operative(s: RivalSociety, kingdom_id: String) -> void:
 	var id: String = "riv_%s_%s_%d" % [String(s.id), kingdom_id, GameClock.absolute_day()]
 	var first: String = _FIRST_NAMES[_rng.randi_range(0, _FIRST_NAMES.size() - 1)]
 	var trade: String = _TRADES[_rng.randi_range(0, _TRADES.size() - 1)]
+	var coord_id: String = _ensure_coordinator_for(s, kingdom_id)
 	var entry: Dictionary = {
-		"id":           id,
-		"name":         first,
-		"cover_role":   trade,
-		"society_id":   String(s.id),
-		"kingdom_id":   kingdom_id,
-		"detected":     false,
-		"turned":       false,
-		"neutralized":  false,
-		"heat":         10,
-		"placed_day":   GameClock.absolute_day(),
+		"id":             id,
+		"name":           first,
+		"cover_role":     trade,
+		"society_id":     String(s.id),
+		"kingdom_id":     kingdom_id,
+		"detected":       false,
+		"turned":         false,
+		"neutralized":    false,
+		"heat":           10,
+		"placed_day":     GameClock.absolute_day(),
+		# §C2 link back up the chain. Coordinators degrade when their
+		# operatives burn; lieutenants degrade when their coordinators
+		# get reassigned. This is the spine the investigation UI reads.
+		"coordinator_id": coord_id,
 	}
 	operatives[id] = entry
 
@@ -637,7 +691,7 @@ func _pick_method(s: RivalSociety, _kingdom_id: String) -> StringName:
 	return s.preferred_methods[0]
 
 
-func _body_for(s: RivalSociety, method: StringName, kingdom_id: String) -> String:
+func _body_for(s: RivalSociety, _method: StringName, kingdom_id: String) -> String:
 	# Note: we deliberately do not name the society in the body. The
 	# attribution is the prize of the fingerprint chain; it must not
 	# appear on a plain news read.
@@ -717,6 +771,11 @@ func _add_society(s: RivalSociety) -> void:
 	# Prime footholds in strongholds so they aren't inert on month 1.
 	for kid in s.stronghold_kingdoms:
 		s.footholds[kid] = 55 + _rng.randi_range(0, 15)
+	# §10.6 Aggressive-rivals: each society starts with one
+	# pre-installed lieutenant in its first stronghold, so the
+	# machine is already moving on turn 1.
+	if DifficultyProfile.current().aggressive_rivals and not s.stronghold_kingdoms.is_empty():
+		_spawn_lieutenant(s, s.stronghold_kingdoms[0])
 
 
 func _make_architects() -> RivalSociety:
@@ -784,6 +843,271 @@ func _filter_existing(ids: Array) -> Array[String]:
 	for id in ids:
 		if WorldData.get_kingdom(String(id)) != null:
 			out.append(String(id))
+	return out
+
+
+# --- §C2 internal-org plumbing --------------------------------------------
+
+## Find an existing coordinator for this society in this kingdom, or
+## spawn one. When spawned, also ensures a lieutenant exists to parent
+## it. Returns the coordinator id.
+func _ensure_coordinator_for(s: RivalSociety, kingdom_id: String) -> String:
+	# Prefer an under-capacity, still-active coordinator already in the
+	# region. A coordinator is "active" if not explicitly blown.
+	for k in s.org_coordinators.keys():
+		var c: Dictionary = s.org_coordinators[k]
+		if String(c.get("kingdom_id", "")) != kingdom_id:
+			continue
+		if int(c.get("coverage", 0)) <= _COORD_REASSIGN_THRESHOLD:
+			continue
+		var load_count: int = _coord_operative_count(s, String(c.get("id", "")))
+		if load_count < _COORD_OP_CAP:
+			return String(c.get("id", ""))
+	return _spawn_coordinator(s, kingdom_id)
+
+
+func _spawn_coordinator(s: RivalSociety, kingdom_id: String) -> String:
+	var lt_id: String = _ensure_lieutenant_for(s, kingdom_id)
+	var coord_id: String = "rco_%s_%s_%d_%d" % [
+		String(s.id), kingdom_id, GameClock.absolute_day(), _rng.randi(),
+	]
+	s.org_coordinators[coord_id] = {
+		"id":             coord_id,
+		"parent_lt":      lt_id,
+		"kingdom_id":     kingdom_id,
+		"coverage":       70,
+		"reassigned_day": 0,
+	}
+	return coord_id
+
+
+## Find a lieutenant whose region already includes this kingdom; if
+## none, try to append to an under-capacity lieutenant; else spawn a
+## new lieutenant. Regions grow organically as the society pushes into
+## new kingdoms.
+func _ensure_lieutenant_for(s: RivalSociety, kingdom_id: String) -> String:
+	for k in s.org_lieutenants.keys():
+		var lt: Dictionary = s.org_lieutenants[k]
+		if int(lt.get("coverage", 0)) <= _LT_REASSIGN_THRESHOLD:
+			continue
+		var kingdoms: Array = lt.get("kingdoms", [])
+		if kingdoms.has(kingdom_id):
+			return String(lt.get("id", ""))
+	for k in s.org_lieutenants.keys():
+		var lt2: Dictionary = s.org_lieutenants[k]
+		if int(lt2.get("coverage", 0)) <= _LT_REASSIGN_THRESHOLD:
+			continue
+		var coord_count: int = _lt_coord_count(s, String(lt2.get("id", "")))
+		if coord_count < _LT_COORD_CAP:
+			var k_arr: Array = lt2.get("kingdoms", [])
+			if not k_arr.has(kingdom_id):
+				k_arr.append(kingdom_id)
+				lt2["kingdoms"] = k_arr
+			return String(lt2.get("id", ""))
+	return _spawn_lieutenant(s, kingdom_id)
+
+
+func _spawn_lieutenant(s: RivalSociety, kingdom_id: String) -> String:
+	var lt_id: String = "rlt_%s_%d_%d" % [
+		String(s.id), GameClock.absolute_day(), _rng.randi(),
+	]
+	s.org_lieutenants[lt_id] = {
+		"id":             lt_id,
+		"kingdoms":       [kingdom_id],
+		"coverage":       80,
+		"reassigned_day": 0,
+	}
+	return lt_id
+
+
+func _coord_operative_count(s: RivalSociety, coord_id: String) -> int:
+	var n: int = 0
+	for e in operatives.values():
+		if bool(e.get("neutralized", false)):
+			continue
+		if String(e.get("society_id", "")) != String(s.id):
+			continue
+		if String(e.get("coordinator_id", "")) == coord_id:
+			n += 1
+	return n
+
+
+func _lt_coord_count(s: RivalSociety, lt_id: String) -> int:
+	var n: int = 0
+	for c in s.org_coordinators.values():
+		if String(c.get("parent_lt", "")) == lt_id \
+				and int(c.get("coverage", 0)) > _COORD_REASSIGN_THRESHOLD:
+			n += 1
+	return n
+
+
+## When an operative burns, the coordinator takes a hit. If coverage
+## falls below the reassign threshold, the coordinator is considered
+## blown, gets reassigned (orphaning their operatives), and the
+## lieutenant above them takes collateral damage. The player sees a
+## letter only if they have enough confirmation on the society to
+## have earned the insight.
+func _dock_coordinator_on_burn(s: RivalSociety, op: Dictionary, delta: int) -> void:
+	var coord_id: String = String(op.get("coordinator_id", ""))
+	if coord_id == "":
+		return
+	var c: Dictionary = s.org_coordinators.get(coord_id, {})
+	if c.is_empty():
+		return
+	var prev: int = int(c.get("coverage", 0))
+	var next_v: int = maxi(0, prev - delta)
+	c["coverage"] = next_v
+	s.org_coordinators[coord_id] = c
+	if prev > _COORD_REASSIGN_THRESHOLD and next_v <= _COORD_REASSIGN_THRESHOLD:
+		_reassign_coordinator(s, c)
+
+
+func _reassign_coordinator(s: RivalSociety, c: Dictionary) -> void:
+	var coord_id: String = String(c.get("id", ""))
+	var kid: String = String(c.get("kingdom_id", ""))
+	c["reassigned_day"] = GameClock.absolute_day()
+	s.org_coordinators[coord_id] = c
+	# Orphan the operatives: they lose their handler and run hot until
+	# a new coordinator re-links them (future operation ticks will
+	# rewire via _ensure_coordinator_for).
+	for e in operatives.values():
+		if String(e.get("coordinator_id", "")) == coord_id:
+			e["coordinator_id"] = ""
+			e["heat"] = mini(100, int(e.get("heat", 0)) + 10)
+	# Dock the lieutenant above — they're answerable for this.
+	var lt_id: String = String(c.get("parent_lt", ""))
+	if lt_id != "" and s.org_lieutenants.has(lt_id):
+		var lt: Dictionary = s.org_lieutenants[lt_id]
+		var lt_prev: int = int(lt.get("coverage", 0))
+		var lt_next: int = maxi(0, lt_prev - 12)
+		lt["coverage"] = lt_next
+		s.org_lieutenants[lt_id] = lt
+		if lt_prev > _LT_REASSIGN_THRESHOLD and lt_next <= _LT_REASSIGN_THRESHOLD:
+			lt["reassigned_day"] = GameClock.absolute_day()
+			s.org_lieutenants[lt_id] = lt
+	# Surface a letter only if the player has enough confirmation on
+	# the society. Otherwise the reassignment is silent — the world
+	# doesn't report things the player can't yet perceive.
+	if Fingerprints.confirmation_for(s.id) >= 50:
+		_emit_coordinator_reassigned_letter(s, kid)
+
+
+func _emit_coordinator_reassigned_letter(s: RivalSociety, kid: String) -> void:
+	EventBus.public_event.emit({
+		"kind":             &"rival_event",
+		"kingdom_id":       kid,
+		"headline":         "%s goes quiet in %s" % [s.display_name, _kingdom_name(kid)],
+		"body": (
+			"Their hand in %s has stilled. The market stall, the scribe "
+			+ "at the harbour, the coin-changer who always had the right "
+			+ "answer first — all three have stopped answering the same way. "
+			+ "Someone up the chain has pulled them back. The network will "
+			+ "re-thread in a season; it always does. But for a few months "
+			+ "%s will be quieter than it was."
+		) % [_kingdom_name(kid), _kingdom_name(kid)],
+		"rival_signature": String(s.id),
+		"news_tier":       &"FACTIONAL",
+	})
+
+
+func _player_has_presence_in(kingdom_id: String) -> bool:
+	var c: OrgMember = Org.coverage_for(kingdom_id)
+	return c != null and not c.burned
+
+
+func _emit_public_accusation_letter(s: RivalSociety, kid: String) -> void:
+	# The rival society's name is never visible in the body — the
+	# attribution is always the player's to earn. Exposure bumps
+	# because the accusation genuinely damages legend-adjacent cover.
+	Exposure.bump(6.0, "public_false_flag_against_player")
+	EventBus.public_event.emit({
+		"kind":             &"rumour",
+		"kingdom_id":       kid,
+		"headline":         "Market-square gossip in %s points at your coordinator's name" % _kingdom_name(kid),
+		"body": (
+			"In %s, the authorship of the last strange thing has been "
+			+ "decided in the markets before anyone official got to it. "
+			+ "The name being spoken belongs to our coordinator in that "
+			+ "city. I cannot find a single document that puts her in the "
+			+ "place at the time, and yet three different merchants and a "
+			+ "dockhand agree she was seen. The accusation will stand "
+			+ "unless we walk the ground under it ourselves."
+		) % _kingdom_name(kid),
+		"rival_signature": String(s.id),
+		"news_tier":       &"LOCAL",
+	})
+
+
+## Called by `investigate_anomaly` when the player pays to walk the
+## ground under an accusation. Finds the most recent still-standing
+## false-flag in this kingdom and clears it. Returns the op dict if
+## one was cleared, or {} if none was available.
+func clear_false_flag_in(kingdom_id: String) -> Dictionary:
+	for i in range(op_log.size() - 1, -1, -1):
+		var op: Dictionary = op_log[i]
+		if String(op.get("kingdom_id", "")) != kingdom_id:
+			continue
+		if not bool(op.get("rival_false_flagged_player", false)):
+			continue
+		if bool(op.get("false_flag_cleared", false)):
+			continue
+		op["false_flag_cleared"] = true
+		return op
+	return {}
+
+
+## Public accessor for the library view (§C3). Returns flat list of
+## inferred lieutenants/coordinators/operatives under this society,
+## filtered to only those the player has evidence for. Evidence rule:
+## - operatives: must be `detected`;
+## - coordinators: at least one detected operative under them OR
+##                 confirmation ≥ 60 on the society;
+## - lieutenants: at least one revealed coordinator under them OR
+##                confirmation ≥ 80 on the society.
+func inferred_chain_for(society_id: StringName) -> Dictionary:
+	var s: RivalSociety = get_society(society_id)
+	if s == null:
+		return {}
+	var conf: int = Fingerprints.confirmation_for(society_id)
+	var out: Dictionary = {
+		"society_id":   String(society_id),
+		"lieutenants":  [],
+		"coordinators": [],
+		"operatives":   [],
+	}
+	# Operatives: the ones the player has actually caught.
+	var visible_coord_ids: Dictionary = {}
+	for e in operatives.values():
+		if String(e.get("society_id", "")) != String(society_id):
+			continue
+		if not bool(e.get("detected", false)):
+			continue
+		out["operatives"].append(e.duplicate(true))
+		var cid: String = String(e.get("coordinator_id", ""))
+		if cid != "":
+			visible_coord_ids[cid] = true
+	# Coordinators.
+	var visible_lt_ids: Dictionary = {}
+	for c in s.org_coordinators.values():
+		var cid2: String = String(c.get("id", ""))
+		var via_operative: bool = visible_coord_ids.has(cid2)
+		var via_confirmation: bool = conf >= 60
+		if via_operative or via_confirmation:
+			var copy: Dictionary = c.duplicate(true)
+			copy["revealed_by"] = "evidence" if via_operative else "inferred"
+			out["coordinators"].append(copy)
+			var lt_id: String = String(c.get("parent_lt", ""))
+			if lt_id != "":
+				visible_lt_ids[lt_id] = true
+	# Lieutenants.
+	for lt in s.org_lieutenants.values():
+		var lid: String = String(lt.get("id", ""))
+		var via_coord: bool = visible_lt_ids.has(lid)
+		var via_high_conf: bool = conf >= 80
+		if via_coord or via_high_conf:
+			var lt_copy: Dictionary = lt.duplicate(true)
+			lt_copy["revealed_by"] = "evidence" if via_coord else "inferred"
+			out["lieutenants"].append(lt_copy)
 	return out
 
 

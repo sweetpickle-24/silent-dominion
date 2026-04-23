@@ -41,7 +41,23 @@ const COORDINATOR_FLOOR: int = 70     # coordinator presence holds to this
 
 func _ready() -> void:
 	GameClock.month_passed.connect(_on_month_passed)
+	GameClock.year_passed.connect(_on_year_passed)
 	EventBus.action_resolved.connect(_on_action_resolved)
+
+
+## Long-run compression (§6.5). Once a year, throw out snapshots for
+## actors who have been dead long enough to be compressed out of the
+## registry. Their cover stories don't matter anymore.
+func _on_year_passed(_y: int) -> void:
+	if actor_snapshots.is_empty():
+		return
+	var to_drop: Array = []
+	for aid in actor_snapshots.keys():
+		var a: Actor = Actors.get_actor(StringName(String(aid)))
+		if a == null or a.compressed:
+			to_drop.append(aid)
+	for aid in to_drop:
+		actor_snapshots.erase(aid)
 
 
 # --- Public: visibility queries ---------------------------------------------
@@ -195,7 +211,15 @@ func _on_month_passed(_y: int, _m: int) -> void:
 		var prev: int = score_for(kid_s)
 		if prev <= 0:
 			continue
-		set_visibility(kid_s, prev - decay)
+		# Modernity rots cover faster (§15.2 × §6.2): transparency,
+		# literacy, and newspapers all make the picture harder to
+		# hold. `visibility_decay_multiplier` is 1.0 in antiquity
+		# and climbs to ~1.5 in the Modern Era.
+		var era_mult: float = 1.0
+		if Eras != null:
+			era_mult = Eras.visibility_decay_multiplier()
+		var scaled: int = max(1, int(round(float(decay) * era_mult)))
+		set_visibility(kid_s, prev - scaled)
 
 
 func _on_action_resolved(action_id: StringName, result: Dictionary) -> void:

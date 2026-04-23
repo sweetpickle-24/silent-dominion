@@ -19,6 +19,7 @@ enum TargetKind {
 	KINGDOM,       # needs a target kingdom id
 	PROVINCE,      # needs a target province id
 	ORG_MEMBER,    # needs an OrgMember id (audit, double-agent, sever)
+	ENTITY,        # needs an OwnedEntity id (audit, replace, dissolve)
 }
 
 @export var id: StringName = &""
@@ -82,4 +83,5 @@ static func _target_from_string(s: String) -> TargetKind:
 		"KINGDOM":    return TargetKind.KINGDOM
 		"PROVINCE":   return TargetKind.PROVINCE
 		"ORG_MEMBER": return TargetKind.ORG_MEMBER
+		"ENTITY":     return TargetKind.ENTITY
 		_:            return TargetKind.ACTOR

@@ -45,23 +45,18 @@ const HEAT_BURN_THRESHOLD: int = 75
 # threshold earns a "strain" status that docks effective skill a few
 # points and slowly lifts heat. UI surfaces this as a warning on the
 # roster row rather than a hard block.
-const MAX_COORDINATORS_PER_LIEUTENANT: int = 5
-const MAX_OPERATIVES_PER_COORDINATOR: int = 6
+## §C1 the actual caps live in the per-layer Ops modules now; the
+## constants here are thin aliases kept for callers that historically
+## read them off the registry.
+const MAX_COORDINATORS_PER_LIEUTENANT: int = LieutenantOps.MAX_COORDINATORS
+const MAX_OPERATIVES_PER_COORDINATOR: int = CoordinatorOps.MAX_OPERATIVES
 const STRAIN_SKILL_PENALTY_PER_EXCESS: int = 4
 const STRAIN_MONTHLY_HEAT_BUMP: int = 1
 
-# Per-kingdom naming banks for abstract operatives. Deliberately small;
-# repeats are fine across centuries.
-const OP_COVER_BANK: Array[String] = [
-	"a scribe at the record-house",
-	"a merchant in the coastal quarter",
-	"a steward at a minor temple",
-	"a smith with custom of the palace",
-	"a purser on the ferry route",
-	"a tutor to a second son",
-	"a harbour clerk",
-	"an innkeeper on the north road",
-]
+## §C1 cover bank lives in `OperativeOps` now so the operative layer
+## owns its own content. Alias retained for old tooling that greps for
+## the constant name.
+const OP_COVER_BANK: Array[String] = OperativeOps.OP_COVER_BANK
 
 
 func _ready() -> void:
@@ -104,15 +99,8 @@ func coordinators_in(kingdom_id: String) -> Array[OrgMember]:
 ## The single point of truth for "does the player have coverage here?".
 func coverage_for(kingdom_id: String) -> OrgMember:
 	var list: Array[OrgMember] = coordinators_in(kingdom_id)
-	if list.is_empty():
-		return null
-	# Prefer the highest-trust coverage; in practice there's usually
-	# only one coordinator per kingdom.
-	var best: OrgMember = list[0]
-	for m in list:
-		if m.trust > best.trust:
-			best = m
-	return best
+	# §C1 delegate the "best coordinator" heuristic to CoordinatorOps.
+	return CoordinatorOps.pick_best_coverage(list)
 
 
 ## True if an actor is currently an OrgMember (any layer).
@@ -151,17 +139,20 @@ func reports_to(boss_id: StringName) -> int:
 
 ## Excess headcount above the soft cap for a given member. Returns 0
 ## when inside the cap. UI and drift use this to paint "strained" rows.
+## §C1 Delegates to the per-layer Ops module so the caps are owned by
+## the layer they belong to.
 func strain_of(id: StringName) -> int:
 	var m: OrgMember = get_member(id)
 	if m == null or m.burned:
 		return 0
-	var cap: int = 0
-	match m.layer:
-		OrgMember.Layer.LIEUTENANT:  cap = MAX_COORDINATORS_PER_LIEUTENANT
-		OrgMember.Layer.COORDINATOR: cap = MAX_OPERATIVES_PER_COORDINATOR
-		_:                           return 0
 	var n: int = reports_to(id)
-	return maxi(0, n - cap)
+	match m.layer:
+		OrgMember.Layer.LIEUTENANT:
+			return LieutenantOps.strain_excess(m, n)
+		OrgMember.Layer.COORDINATOR:
+			return CoordinatorOps.strain_excess(m, n)
+		_:
+			return OperativeOps.strain_excess(m)
 
 
 ## Qualitative status used in the Roster view — keeps numbers out of
@@ -213,7 +204,7 @@ func promote_actor_to_coordinator(actor_id: StringName) -> OrgMember:
 	m.skill           = clampi(30 + a.intellect / 3 + a.charisma / 5 + _rng.randi_range(-5, 10), 15, 80)
 	m.heat            = 0
 	m.tenure_days     = 0
-	m.cover           = _coord_cover_for(a)
+	m.cover           = CoordinatorOps.cover_for_role(a.role)
 	m.origin_blurb    = "Formerly %s, %s" % [_role_phrase(a.role), _kingdom_name(a.kingdom_id)]
 	_add(m)
 
@@ -243,6 +234,21 @@ func promote_coordinator_to_lieutenant(coord_id: StringName) -> OrgMember:
 	m.trust       = clampi(m.trust + 5, 0, 100)
 	m.skill       = clampi(m.skill + 5, 0, 100)
 	m.origin_blurb = "Raised to Lieutenant from the " + _kingdom_name(m.region_id) + " cell."
+
+	# If this lieutenant comes from a tracked family, derive their
+	# natural §21.5 specialisation — a scholarly line goes ideological,
+	# a banking line financial, etc. The player can override later.
+	if m.source_actor_id != &"":
+		var src: Actor = Actors.get_actor(m.source_actor_id)
+		if src != null:
+			var fam: Family = Dynasties.family_of(src)
+			if fam != null:
+				m.specialisation = m.recommended_specialisation_from_family(fam)
+				# A lieutenant drawn from the "right" dynasty walks in
+				# with authority the outsider would spend years to
+				# earn — reflected as a modest skill bump.
+				if m.specialisation != OrgMember.Specialisation.NONE:
+					m.skill = clampi(m.skill + 8, 0, 100)
 
 	# Reassign peers: every coordinator in the same region now reports
 	# to the fresh Lieutenant.
@@ -384,10 +390,9 @@ func _trust_drift_for(m: OrgMember) -> int:
 			if a.loyalty < 35:
 				down += MONTHLY_TRUST_DRIFT_BASE
 			return up - down
-	# Abstract operative: very slow drift upward toward 60.
-	if m.trust < 60:
-		return 1 if _rng.randf() < 0.33 else 0
-	return 0
+	# Abstract operative: §C1 delegated to OperativeOps for per-layer
+	# tuning.
+	return OperativeOps.trust_drift_abstract(m, _rng)
 
 
 # --- Save / load -------------------------------------------------------------
@@ -429,49 +434,17 @@ func _add(m: OrgMember) -> void:
 
 
 func _find_lieutenant_over(kingdom_id: String) -> StringName:
-	# Lieutenants are often assigned a *region*, which for Phase 2.1 is
-	# one kingdom. If any Lieutenant's region_id matches, they inherit
-	# the new coord. Otherwise the coord reports straight to the player.
-	for m in members.values():
-		if m.burned:
-			continue
-		if m.layer == OrgMember.Layer.LIEUTENANT and m.region_id == kingdom_id:
-			return m.id
-	return &""
+	# §C1 delegated to LieutenantOps so the "who covers what region?"
+	# rule lives next to the other lieutenant-level rules.
+	return LieutenantOps.find_over(all_members(), kingdom_id)
 
 
 func _spawn_abstract_operative(coord: OrgMember) -> OrgMember:
-	var op: OrgMember = OrgMember.new()
-	op.id              = StringName("org_op_%s_%d_%d" % [coord.region_id, Time.get_ticks_msec(), _rng.randi()])
-	op.source_actor_id = &""
-	op.display_name    = _abstract_op_name(coord.region_id)
-	op.layer           = OrgMember.Layer.OPERATIVE
-	op.region_id       = coord.region_id
-	op.superior_id     = coord.id
-	op.trust           = _rng.randi_range(40, 55)
-	op.skill           = clampi(coord.skill - 10 + _rng.randi_range(-5, 10), 20, 75)
-	op.heat            = 0
-	op.tenure_days     = 0
-	op.cover           = OP_COVER_BANK[_rng.randi_range(0, OP_COVER_BANK.size() - 1)]
-	op.origin_blurb    = "Recruited by %s." % coord.display_name
+	# §C1 the operative layer owns its own spawn-shape; we keep the
+	# registry role (register the new member and wire signals) here.
+	var op: OrgMember = OperativeOps.spawn_abstract(coord, _rng)
 	_add(op)
 	return op
-
-
-func _abstract_op_name(kingdom_id: String) -> String:
-	var bank: Array = Actors.NAME_BANKS.get(kingdom_id, ["Eunomos", "Syros", "Dares"])
-	return "%s (op.)" % String(bank[_rng.randi_range(0, bank.size() - 1)])
-
-
-func _coord_cover_for(a: Actor) -> String:
-	match a.role:
-		Actor.Role.MERCHANT:    return "trader; still runs their houses openly"
-		Actor.Role.ADVISOR:     return "councillor; their voice at court is also ours"
-		Actor.Role.PRIEST:      return "priest; every rite is a covering meeting"
-		Actor.Role.PHILOSOPHER: return "scholar; the academy is a front"
-		Actor.Role.GENERAL:     return "retired commander; veterans listen"
-		Actor.Role.HEIR:        return "heir apparent; kept from the paperwork"
-		_:                      return "kept out of records; lives as a private citizen"
 
 
 func _role_phrase(role: int) -> String:

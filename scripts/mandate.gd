@@ -13,12 +13,16 @@ extends Resource
 ## itself is pure data.
 
 enum Category {
-	REMOVAL,           # remove a dangerous individual
-	ELEVATION,         # lift a family or faction to power
-	IDEOLOGICAL,       # seed a religion or ideology
-	SURVIVAL,          # go cold, outlast the hunt
-	DESTABILISATION,   # fracture a kingdom
-	COUNTER_SOCIETY,   # blunt a rival's drive
+	REMOVAL,               # remove a dangerous individual
+	ELEVATION,             # lift a family or faction to power
+	IDEOLOGICAL,           # seed a religion or ideology
+	SURVIVAL,              # go cold, outlast the hunt
+	DESTABILISATION,       # fracture a kingdom
+	COUNTER_SOCIETY,       # blunt a rival's drive
+	TERRITORIAL,           # push a specific border (via puppet ruler / pretext war)
+	INSTITUTIONAL,         # entrench a chosen institution across a state
+	SUCCESSION,            # seat a specific heir on a specific throne
+	COLLAPSE_PREVENTION,   # keep a kingdom alive long enough to matter
 }
 
 enum Status {
@@ -122,13 +126,17 @@ func to_dict() -> Dictionary:
 
 static func _category_from_string(s: String) -> Category:
 	match s.to_upper():
-		"REMOVAL":         return Category.REMOVAL
-		"ELEVATION":       return Category.ELEVATION
-		"IDEOLOGICAL":     return Category.IDEOLOGICAL
-		"SURVIVAL":        return Category.SURVIVAL
-		"DESTABILISATION": return Category.DESTABILISATION
-		"COUNTER_SOCIETY": return Category.COUNTER_SOCIETY
-		_:                  return Category.REMOVAL
+		"REMOVAL":             return Category.REMOVAL
+		"ELEVATION":           return Category.ELEVATION
+		"IDEOLOGICAL":         return Category.IDEOLOGICAL
+		"SURVIVAL":            return Category.SURVIVAL
+		"DESTABILISATION":     return Category.DESTABILISATION
+		"COUNTER_SOCIETY":     return Category.COUNTER_SOCIETY
+		"TERRITORIAL":         return Category.TERRITORIAL
+		"INSTITUTIONAL":       return Category.INSTITUTIONAL
+		"SUCCESSION":          return Category.SUCCESSION
+		"COLLAPSE_PREVENTION": return Category.COLLAPSE_PREVENTION
+		_:                      return Category.REMOVAL
 
 
 static func _status_from_string(s: String) -> Status:

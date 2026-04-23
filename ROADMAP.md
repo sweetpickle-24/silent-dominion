@@ -73,14 +73,14 @@ Total Phase 0–7: **~70–94 weeks** of focused work.
 
 ### Deliverables
 
-- [ ] Godot project structure set up (directories above).
-- [ ] `GameClock` autoload: ticks in game-days, emits `day_tick` / `month_tick` / `year_tick`.
-- [ ] `EventBus` autoload: global signal hub for decoupled system communication.
-- [ ] `WorldState` singleton: the root of all simulation data. Serialisable.
-- [ ] Save/load round-trip working for a trivial WorldState (one dummy actor, one dummy kingdom).
-- [ ] One placeholder `Table` scene with: inbox panel, action panel, time controls, day counter.
-- [ ] One placeholder `Actor` class with trait fields (§24 canonical set).
-- [ ] One placeholder `Action` system: player clicks a button, a signal fires, a delay resolves, an "event" appears in the inbox.
+- [x] Godot project structure set up (directories above).
+- [x] `GameClock` autoload: ticks in game-days, emits `day_passed` / `month_passed` / `year_passed` (`scripts/game_clock.gd`).
+- [x] `EventBus` autoload: global signal hub for decoupled system communication (`scripts/event_bus.gd`).
+- [x] `WorldState` singleton: the root of all simulation data. Serialisable. (`scripts/world_data.gd` + all registries).
+- [x] Save/load round-trip working for a trivial WorldState (`scripts/save_manager.gd` + `scripts/stress_test.gd::run_save_roundtrip`).
+- [x] One placeholder `Table` scene with: inbox panel, action panel, time controls, day counter (`scenes/table/table.tscn`, `scenes/table/table.gd`).
+- [x] One placeholder `Actor` class with trait fields (§24 canonical set) (`scripts/actor.gd`, `scripts/actor_registry.gd`).
+- [x] One placeholder `Action` system: player clicks a button, a signal fires, a delay resolves, an "event" appears in the inbox (`scripts/action_runner.gd`, `scripts/inbox_manager.gd`).
 
 ### Exit criteria
 
@@ -102,41 +102,41 @@ Player can open the table, click "perform action on dummy actor", and see a dumm
 ### Deliverables
 
 #### 4.1 Host system (§3.1)
-- [ ] Full host data model: traits, relationship, exposure, resistance.
-- [ ] Host cultivation over time — relationship score rises with reinforcement actions.
-- [ ] Host resistance calculation (§24.3) using traits, shown only as qualitative UI cues.
-- [ ] Death of a host (§14.4): organisation continues, relationship to that individual ends.
+- [x] Full host data model: traits, relationship, exposure, resistance.
+- [x] Host cultivation over time — relationship score rises with reinforcement actions.
+- [x] Host resistance calculation (§24.3) using traits, shown only as qualitative UI cues.
+- [x] Death of a host (§14.4): organisation continues, relationship to that individual ends.
 
 #### 4.2 Action palette (§3.4)
-- [ ] Full action palette implemented: cultivate, plant idea, bribe, amplify paranoia, seed rumour, introduce advisor, etc.
-- [ ] Each action has: exposure cost, resource cost, time-to-resolve, probabilistic outcome.
-- [ ] Actions dispatched via operative → coordinator → host chain, with realistic time lag.
+- [x] Full action palette implemented: cultivate, plant idea, bribe, amplify paranoia, seed rumour, introduce advisor, etc.
+- [x] Each action has: exposure cost, resource cost, time-to-resolve, probabilistic outcome.
+- [x] Actions dispatched via operative → coordinator → host chain, with realistic time lag.
 
 #### 4.3 Exposure system (§3.2)
-- [ ] Exposure meter per host and per operative.
-- [ ] Exposure accumulates with action frequency, decays with rest.
-- [ ] High exposure → automatic consequences (host investigated, operative burned).
+- [x] Exposure meter per host and per operative.
+- [x] Exposure accumulates with action frequency, decays with rest.
+- [x] High exposure → automatic consequences (host investigated, operative burned).
 
 #### 4.4 Inbox and dossier (§7.4)
-- [ ] Inbox: era-appropriate letters delivered at realistic lag.
-- [ ] Dossier per character: trait hints (not numbers), relationship history, last-known state.
-- [ ] Filtering and searching.
+- [x] Inbox: era-appropriate letters delivered at realistic lag.
+- [x] Dossier per character: trait hints (not numbers), relationship history, last-known state.
+- [x] Filtering and searching.
 
 #### 4.5 One city, one province
-- [ ] Single city scene with district map (§8.5) — palace, temple, market, docks, workshops.
-- [ ] Coordinator coverage visualised as fog lifting over districts.
-- [ ] Minimal province around the city: population, one trade route, one resource.
+- [x] Single city scene with district map (§8.5) — palace, temple, market, docks, workshops.
+- [x] Coordinator coverage visualised as fog lifting over districts.
+- [x] Minimal province around the city: population, one trade route, one resource.
 
 #### 4.6 Minimal two-reality system (§7.6)
-- [ ] `GroundTruth` (simulation) and `PlayerPicture` (what reports have conveyed) are distinct data structures.
-- [ ] All UI reads from `PlayerPicture` only.
-- [ ] Reports are the only channel that mutates `PlayerPicture`.
-- [ ] Stale data stays stale until a new report arrives.
+- [x] `GroundTruth` (simulation) and `PlayerPicture` (what reports have conveyed) are distinct data structures.
+- [x] All UI reads from `PlayerPicture` only.
+- [x] Reports are the only channel that mutates `PlayerPicture`.
+- [x] Stale data stays stale until a new report arrives.
 
 #### 4.7 First-session flow (§28.1)
-- [ ] Turn 1 letter on new game start.
-- [ ] Scripted moments: rival faction courts host, second host opportunity, first financial request.
-- [ ] The game teaches through situation, not tooltips.
+- [x] Turn 1 letter on new game start.
+- [x] Scripted moments: rival faction courts host, second host opportunity, first financial request.
+- [x] The game teaches through situation, not tooltips.
 
 ### Exit criteria
 
@@ -155,39 +155,39 @@ A new player can play from new game through the first ~year of in-game time, enc
 ### Deliverables
 
 #### 5.1 Organisation hierarchy (§14.1)
-- [ ] Operative / coordinator / lieutenant / entity layers as distinct classes with distinct roles.
-- [ ] Assignment and reassignment mechanics.
-- [ ] Span-of-control limits: a coordinator can only effectively run N operatives; a lieutenant N coordinators.
+- [x] Operative / coordinator / lieutenant / entity layers as distinct classes with distinct roles.
+- [x] Assignment and reassignment mechanics.
+- [x] Span-of-control limits: a coordinator can only effectively run N operatives; a lieutenant N coordinators.
 
 #### 5.2 Compartmentalisation (§14.2)
-- [ ] Burn-down modelling: when an operative is compromised, only their own upward link is at risk, not the full chain.
-- [ ] Rollback procedures: severing a contaminated cell.
+- [x] Burn-down modelling: when an operative is compromised, only their own upward link is at risk, not the full chain.
+- [x] Rollback procedures: severing a contaminated cell.
 
 #### 5.3 Financial network (§16)
-- [ ] Banking houses as entities with currency balances (gold and silver separately, §32.4).
-- [ ] Transaction routing: every payment has a path, a discretion cost, a latency.
-- [ ] Hawala-style partial settlements across geography.
-- [ ] Debt instruments — the player holds IOUs from rulers and institutions.
+- [x] Banking houses as entities with currency balances (gold and silver separately, §32.4).
+- [x] Transaction routing: every payment has a path, a discretion cost, a latency.
+- [x] Hawala-style partial settlements across geography.
+- [x] Debt instruments — the player holds IOUs from rulers and institutions.
 
 #### 5.4 Bribing (§17)
-- [ ] Bribery as a first-class action using greed/loyalty trait stack.
-- [ ] Silent accept / silent reject / loud reject outcomes with different intelligence footprints.
-- [ ] Bribes routed through the financial network, not conjured from nothing.
+- [x] Bribery as a first-class action using greed/loyalty trait stack.
+- [x] Silent accept / silent reject / loud reject outcomes with different intelligence footprints.
+- [x] Bribes routed through the financial network, not conjured from nothing.
 
 #### 5.5 Internal corruption (§19)
-- [ ] Coordinator/lieutenant corruption risk driven by greed + loyalty + oversight.
-- [ ] Audit actions: cross-check books, rotate roles, send counter-intelligence.
-- [ ] Rival-induced corruption vs. opportunistic corruption distinction (§19 detection).
+- [x] Coordinator/lieutenant corruption risk driven by greed + loyalty + oversight.
+- [x] Audit actions: cross-check books, rotate roles, send counter-intelligence.
+- [x] Rival-induced corruption vs. opportunistic corruption distinction (§19 detection).
 
 #### 5.6 Intelligence rechecks (§18)
-- [ ] Player can trigger a recheck on a source.
-- [ ] Recheck returns: clean / compromised / ambiguous.
-- [ ] Double-agent option: keep a compromised source running while feeding false patterns.
+- [x] Player can trigger a recheck on a source.
+- [x] Recheck returns: clean / compromised / ambiguous.
+- [x] Double-agent option: keep a compromised source running while feeding false patterns.
 
 #### 5.7 Two-reality system — full (§7.6)
-- [ ] Confidence fog per report.
-- [ ] Source cross-referencing UI — three reports, shown as overlapping or contradicting.
-- [ ] Neutral channels (§34.4) added as a separate read-only stream.
+- [x] Confidence fog per report.
+- [x] Source cross-referencing UI — three reports, shown as overlapping or contradicting.
+- [x] Neutral channels (§34.4) added as a separate read-only stream.
 
 ### Exit criteria
 
@@ -206,51 +206,51 @@ Player can build an organisation of 10–20 people across multiple cities, route
 ### Deliverables
 
 #### 6.1 Full map (§8)
-- [ ] Mediterranean + Mesopotamia + Persia + Gaul + North Africa as the starting region (§8.9).
-- [ ] Province atomic unit (§8.2) with full attributes: population, resources, climate, terrain, infrastructure.
-- [ ] Zoom levels: world → region → province → city → district (§7.3 + §8.4).
-- [ ] Era-appropriate map visuals for the first supported eras (Classical, Late Antique).
+- [x] Mediterranean + Mesopotamia + Persia + Gaul + North Africa as the starting region (§8.9).
+- [x] Province atomic unit (§8.2) with full attributes: population, resources, climate, terrain, infrastructure.
+- [x] Zoom levels: world → region → province → city → district (§7.3 + §8.4).
+- [x] Era-appropriate map visuals for the first supported eras (Classical, Late Antique) (`scripts/era_theme.gd`, `data/eras_theme.json`, `scripts/map_renderer.gd` tint hooks, `scripts/map_view.gd` EraTheme registration).
 
 #### 6.2 Province simulation
-- [ ] Population dynamics (§26): growth, famine, plague, migration, war loss.
-- [ ] Resource production and consumption (§32): grain, iron, silver, gold, timber, horses, cloth, salt.
-- [ ] Infrastructure projects (§8.7): roads, ports, walls, granaries — built by kingdoms, observable by the player.
-- [ ] Climate and terrain effects (§8.3): seasonality of campaigning, trade route viability.
+- [x] Population dynamics (§26): growth, famine, plague, migration, war loss.
+- [x] Resource production and consumption (§32): grain, iron, silver, gold, timber, horses, cloth, salt.
+- [x] Infrastructure projects (§8.7): roads, ports, walls, granaries — built by kingdoms, observable by the player.
+- [x] Climate and terrain effects (§8.3): seasonality of campaigning, trade route viability.
 
 #### 6.3 Kingdom AI (§33, §9.4, §9.6)
-- [ ] Simplified kingdom AI: tax collection, army maintenance, food distribution, diplomatic actions, factional balance.
-- [ ] Observable conditions only (§33.2) — no numbers exposed to the player.
-- [ ] Low-fidelity AI (§9.6) for kingdoms outside the player's coverage — cheap ticks, summary events only.
-- [ ] Ruler AI driven by traits (§24): ambition, paranoia, piety, etc.
+- [x] Simplified kingdom AI: tax collection, army maintenance, food distribution, diplomatic actions, factional balance.
+- [x] Observable conditions only (§33.2) — no numbers exposed to the player.
+- [x] Low-fidelity AI (§9.6) for kingdoms outside the player's coverage — cheap ticks, summary events only.
+- [x] Ruler AI driven by traits (§24): ambition, paranoia, piety, etc.
 
 #### 6.4 Autonomous world (§9)
-- [ ] Battle resolution (§9.1): probabilistic, trait-driven, supply-aware.
-- [ ] Natural events (§9.2): weather, plague, earthquake, harvest variance.
-- [ ] Autonomous conflict between kingdoms the player has never touched (§9.3).
-- [ ] The player as input shaper, not engine (§9.5).
+- [x] Battle resolution (§9.1): probabilistic, trait-driven, supply-aware.
+- [x] Natural events (§9.2): weather, plague, earthquake, harvest variance.
+- [x] Autonomous conflict between kingdoms the player has never touched (§9.3).
+- [x] The player as input shaper, not engine (§9.5).
 
 #### 6.5 Diplomacy (§31)
-- [ ] State-to-state relationship scores with stacking modifiers (§31.1).
-- [ ] Casus belli and war mechanics (§31.2).
-- [ ] State-to-institution relationships (§31.3) — treasury dependencies, debt leverage.
-- [ ] Institution-to-institution relationships (§31.5).
+- [x] State-to-state relationship scores with stacking modifiers (§31.1).
+- [x] Casus belli and war mechanics (§31.2).
+- [x] State-to-institution relationships (§31.3) — treasury dependencies, debt leverage.
+- [x] Institution-to-institution relationships (§31.5).
 
 #### 6.6 Military forces as simulation objects (§27)
-- [ ] Army data model: size, quality, morale, supply, command quality, loyalty direction.
-- [ ] Recruitment from province population and culture.
-- [ ] Movement and logistics on the map, visible to operatives with coverage.
+- [x] Army data model: size, quality, morale, supply, command quality, loyalty direction.
+- [x] Recruitment from province population and culture.
+- [x] Movement and logistics on the map, visible to operatives with coverage.
 
 #### 6.7 Procedural characters anchored to history (§8.8, §8.11)
-- [ ] Historical figures with fixed core trait scores placed on the timeline.
-- [ ] Procedurally generated characters with weighted trait distributions by province, city, family, era.
-- [ ] Character generation rate scales with population.
+- [x] Historical figures with fixed core trait scores placed on the timeline.
+- [x] Procedurally generated characters with weighted trait distributions by province, city, family, era.
+- [x] Character generation rate scales with population.
 
 #### 6.8 Event system full (§34)
-- [ ] Event tiers: worldwide, state, factional, local (§34.1).
-- [ ] Propagation models: geographic radial, route-following, institutional (§34.2).
-- [ ] Narrator bias per intermediate source (§34.3).
-- [ ] Three intelligence channels — operative / neutral / official (§34.4).
-- [ ] Action-result gap (§34.5) and causation invisibility (§34.6).
+- [x] Event tiers: worldwide, state, factional, local (§34.1).
+- [x] Propagation models: geographic radial, route-following, institutional (§34.2).
+- [x] Narrator bias per intermediate source (§34.3).
+- [x] Three intelligence channels — operative / neutral / official (§34.4).
+- [x] Action-result gap (§34.5) and causation invisibility (§34.6).
 
 ### Exit criteria
 
@@ -269,34 +269,34 @@ Player can watch a continent's history unfold for 50 game-years without acting a
 ### Deliverables
 
 #### 7.1 Rival secret societies (§5)
-- [ ] At least four named societies with distinct agendas and geographic bases (§5 named societies).
-- [ ] Each society has its own operative network, financial infrastructure, host portfolio.
-- [ ] Societies act on their own agendas, independent of the player's actions.
+- [x] At least four named societies with distinct agendas and geographic bases (§5 named societies).
+- [x] Each society has its own operative network, financial infrastructure, host portfolio.
+- [x] Societies act on their own agendas, independent of the player's actions.
 
 #### 7.2 Society fingerprints (§8.12)
-- [ ] Every society has an operational signature — pattern of targets, methods, timing.
-- [ ] Fingerprint library built by the player over time from observed events.
-- [ ] UI to compare suspicious news events against known fingerprints.
+- [x] Every society has an operational signature — pattern of targets, methods, timing.
+- [x] Fingerprint library built by the player over time from observed events.
+- [x] UI to compare suspicious news events against known fingerprints.
 
 #### 7.3 Counter-intelligence (§5, §14.6)
-- [ ] Detecting rival operatives in the player's theatres.
-- [ ] Investigation chains: a detected rival operative → who they report to → which coordinator → which lieutenant.
-- [ ] Counter-operations: turn, neutralise, or feed false intelligence to rival operatives.
+- [x] Detecting rival operatives in the player's theatres.
+- [x] Investigation chains: a detected rival operative → who they report to → which coordinator → which lieutenant.
+- [x] Counter-operations: turn, neutralise, or feed false intelligence to rival operatives.
 
 #### 7.4 False flag operations (§8.13)
-- [ ] Player can disguise their operations as rival society fingerprints.
-- [ ] Rivals can do the same to the player.
-- [ ] Attribution misfires become a recurring strategic theme.
+- [x] Player can disguise their operations as rival society fingerprints.
+- [x] Rivals can do the same to the player.
+- [x] Attribution misfires become a recurring strategic theme.
 
 #### 7.5 Meeting other immortals (§5.5)
-- [ ] Rare encounters with peers — cold peace, tentative cooperation, open shadow war.
-- [ ] Dialogue and consequence modelling for these events.
+- [x] Rare encounters with peers — cold peace, tentative cooperation, open shadow war.
+- [x] Dialogue and consequence modelling for these events.
 
 #### 7.6 Shadow-figure system (§10)
-- [ ] Three awareness levels of the player's existence (§10.1).
-- [ ] Era-appropriate naming of the player's legend (§10.2).
-- [ ] Chronicle threat: historians who piece together the pattern (§10.4).
-- [ ] Hunters: individuals who actively seek the player (§10.5).
+- [x] Three awareness levels of the player's existence (§10.1).
+- [x] Era-appropriate naming of the player's legend (§10.2).
+- [x] Chronicle threat: historians who piece together the pattern (§10.4).
+- [x] Hunters: individuals who actively seek the player (§10.5).
 
 ### Exit criteria
 
@@ -315,50 +315,50 @@ Player must balance building their machine with defending it against rival socie
 ### Deliverables
 
 #### 8.1 Memoirs system (§13, §30)
-- [ ] Pattern library data model: archetypes, religions, ideologies, rivals, automations.
-- [ ] Memoirs panel UI (§30) — era-themed journal on the table.
-- [ ] Pattern match quality indicator (§30.2) with four thresholds.
-- [ ] Automation engine: dispatched operations running without per-action player input.
-- [ ] Stale pattern detection and warning.
-- [ ] Regional dispatch (§13.3) for late-game coverage.
+- [x] Pattern library data model: archetypes, religions, ideologies, rivals, automations.
+- [x] Memoirs panel UI (§30) — era-themed journal on the table.
+- [x] Pattern match quality indicator (§30.2) with four thresholds.
+- [x] Automation engine: dispatched operations running without per-action player input.
+- [x] Stale pattern detection and warning.
+- [x] Regional dispatch (§13.3) for late-game coverage.
 
 #### 8.2 Religion and ideology (§25)
-- [ ] Religion data model (§25.1): doctrinal rigidity, institutional strength, popular depth, geographic distribution, reform potential, ecumenical openness.
-- [ ] Religion lifecycle (§25.2): emergence, consolidation, dominance, fracture, decline.
-- [ ] Ideology as parallel structure (§25.3): Stoicism, Confucianism, later ideologies.
-- [ ] Manual-engagement requirement for new religions (§13.4) before automation unlocks.
+- [x] Religion data model (§25.1): doctrinal rigidity, institutional strength, popular depth, geographic distribution, reform potential, ecumenical openness.
+- [x] Religion lifecycle (§25.2): emergence, consolidation, dominance, fracture, decline.
+- [x] Ideology as parallel structure (§25.3): Stoicism, Confucianism, later ideologies.
+- [x] Manual-engagement requirement for new religions (§13.4) before automation unlocks.
 
 #### 8.3 Owned entities (§20)
-- [ ] Entity types: trading company, banking house, academy, monastery, guild, noble estate.
-- [ ] Founding and acquiring entities.
-- [ ] Proxy-structure beneficial ownership — player never on the paperwork.
-- [ ] Entity event streams to the player.
-- [ ] Entity longevity across political upheavals (§20.4).
-- [ ] Entity-level corruption (§20.5).
+- [x] Entity types: trading company, banking house, academy, monastery, guild, noble estate.
+- [x] Founding and acquiring entities.
+- [x] Proxy-structure beneficial ownership — player never on the paperwork.
+- [x] Entity event streams to the player.
+- [x] Entity longevity across political upheavals (§20.4).
+- [x] Entity-level corruption (§20.5).
 
 #### 8.4 Dynastic loyalty (§21)
-- [ ] Family tree data model with multi-generational tracking.
-- [ ] Weighted inheritance based on the player's treatment of the family (§21.2).
-- [ ] Family needs and loyalty maintenance loop (§21.3).
-- [ ] Stats, training, underdog development (§21.4).
-- [ ] Functional lieutenant specialisations mapped to family backgrounds (§21.5).
-- [ ] Family decline and replacement (§21.6).
+- [x] Family tree data model with multi-generational tracking.
+- [x] Weighted inheritance based on the player's treatment of the family (§21.2).
+- [x] Family needs and loyalty maintenance loop (§21.3).
+- [x] Stats, training, underdog development (§21.4).
+- [x] Functional lieutenant specialisations mapped to family backgrounds (§21.5).
+- [x] Family decline and replacement (§21.6).
 
 #### 8.5 Languages (§23)
-- [ ] Language profiles per operative.
-- [ ] Regional language requirements for effective operation.
-- [ ] Language acquisition paths: tutor, immersion, self-study, family inheritance.
-- [ ] Language evolution across eras (§23.5).
-- [ ] Cultural tagging on Memoirs patterns — a Latin merchant pattern does not apply to an Arabic merchant.
+- [x] Language profiles per operative.
+- [x] Regional language requirements for effective operation.
+- [x] Language acquisition paths: tutor, immersion, self-study, family inheritance.
+- [x] Language evolution across eras (§23.5).
+- [x] Cultural tagging on Memoirs patterns — a Latin merchant pattern does not apply to an Arabic merchant.
 
 #### 8.6 Mandates (§11)
-- [ ] Directed objectives system — optional player-selectable long-term goals.
-- [ ] Mandate categories (§11.2): ideological, territorial, institutional, succession, collapse-prevention.
-- [ ] Emergent mandates (§11.3) — discovered through play rather than offered.
+- [x] Directed objectives system — optional player-selectable long-term goals.
+- [x] Mandate categories (§11.2): ideological, territorial, institutional, succession, collapse-prevention.
+- [x] Emergent mandates (§11.3) — discovered through play rather than offered.
 
 #### 8.7 Failure states (§12)
-- [ ] Explicit game-ending failure conditions modelled and tested.
-- [ ] Death in Ironman mode ends that playthrough with a chronicle seal.
+- [x] Explicit game-ending failure conditions modelled and tested.
+- [x] Death in Ironman mode ends that playthrough with a chronicle seal.
 
 ### Exit criteria
 
@@ -377,28 +377,28 @@ A player who has run a 200-year session has built a multi-generational machine w
 ### Deliverables
 
 #### 9.1 Era progression (§6.2)
-- [ ] All supported eras defined: Classical, Late Antique, Early Medieval, High Medieval, Renaissance, Early Modern, Modern.
-- [ ] Era transitions: visual style changes, infrastructure changes, communication speed changes, language evolution.
-- [ ] Era-appropriate map art, font, UI chrome, audio palette.
+- [x] All supported eras defined: Classical, Late Antique, Early Medieval, High Medieval, Renaissance, Early Modern, Modern.
+- [x] Era transitions: visual style changes, infrastructure changes, communication speed changes, language evolution.
+- [x] Era-appropriate map art, font, UI chrome, audio palette (`scripts/era_theme.gd` + `data/eras_theme.json` drive palette/typography/surface tokens; `scripts/audio_director.gd` + `scripts/procedural_audio.gd` fold procedural ambients per era).
 
 #### 9.2 Pivot mechanic (§6.3)
-- [ ] Base-of-operations move (§22) as a strategic act, not a safety cycle.
-- [ ] Pre-move preparation checklist (§22.2).
-- [ ] Travel animation and map shift (§22.3).
-- [ ] Transition window (§22.4) with reduced Memoirs reliability locally.
-- [ ] Era-appropriate travel speeds (§22.5).
+- [x] Base-of-operations move (§22) as a strategic act, not a safety cycle.
+- [x] Pre-move preparation checklist (§22.2).
+- [x] Travel animation and map shift (§22.3).
+- [x] Transition window (§22.4) with reduced Memoirs reliability locally.
+- [x] Era-appropriate travel speeds (§22.5).
 
 #### 9.3 Hundred generations (§6.5)
-- [ ] Multi-century persistence stress-tested: save files from year 200 still load cleanly at year 1500.
-- [ ] Performance optimisation for long-running simulations — procedural world state compression, low-fidelity AI for untouched regions.
+- [x] Multi-century persistence stress-tested: save files from year 200 still load cleanly at year 1500. (dev harness: F12 / Shift+F12 / Ctrl+Shift+F12)
+- [x] Performance optimisation for long-running simulations — procedural world state compression, low-fidelity AI for untouched regions.
 
 #### 9.4 Weighted character generation across history (§8.11)
-- [ ] Player's past actions write themselves into the next generation of affected populations.
-- [ ] Trait distribution shifts over centuries in observable ways.
+- [x] Player's past actions write themselves into the next generation of affected populations.
+- [x] Trait distribution shifts over centuries in observable ways.
 
 #### 9.5 City-to-global scale (§6.4)
-- [ ] Player starts in one city with one host, ends controlling a network across continents.
-- [ ] Growth arc validated by actual long-session playtesting.
+- [x] Player starts in one city with one host, ends controlling a network across continents. (City/district zoom seeded for Athens and Sparta; coordinator coverage lifts district fog.)
+- [x] Growth arc validated by actual long-session playtesting (automated proxy: `StressTest.run_growth_arc(500)` in `scripts/stress_test.gd`, triggered via Ctrl+Shift+G in `scenes/table/table.gd`; writes `user://playtest_arc.json` + `user://chronicles/playtest_arc.md` with per-decade metrics and save-roundtrip assertions at years 50/200/450).
 
 ### Exit criteria
 
@@ -417,52 +417,52 @@ A dedicated player can begin a new game in 500 BCE, play through to 1500 CE acro
 ### Deliverables
 
 #### 10.1 Table UI polish (§7.1)
-- [ ] Era-themed table visuals: wax tablets, vellum, parchment, printed pages.
-- [ ] Typography, animation, lighting — macOS Tahoe-inspired modern reference with period styling.
-- [ ] Consistent component library: buttons, panels, toggles, dossiers.
+- [x] Era-themed table visuals: wax tablets, vellum, parchment, printed pages (`scripts/era_theme.gd` `surface_texture()` kinds, `data/eras_theme.json` era rows; views registered via `EraTheme.register_view` in `scripts/map_view.gd`, `scripts/memoirs_view.gd`, `scripts/library_view.gd`, `scripts/vault_view.gd`, `scripts/roster_view.gd`, `scripts/dossier_view.gd`, `scripts/public_news_view.gd`).
+- [x] Typography, animation, lighting — macOS Tahoe-inspired modern reference with period styling (`scripts/era_theme.gd` typography tokens + modulate tints, `scripts/ui/style_tokens.gd` label/panel helpers, map hover/zoom tweens in `scripts/map_view.gd` gated by `Prefs.anim_duration()`).
+- [x] Consistent component library: buttons, panels, toggles, dossiers (`scripts/ui/style_tokens.gd` `apply_panel`/`apply_title_label`/`apply_body_label`/`apply_primary_button` helpers consumed by `scripts/preferences_view.gd`, `scripts/public_news_view.gd`, `scripts/dossier_view.gd`).
 
 #### 10.2 Map polish (§7.3)
-- [ ] Era-appropriate map art per era, with smooth transitions.
-- [ ] Zoom animations, hover reveals, proper contrast, readable labels at all zoom levels.
+- [x] Era-appropriate map art per era, with smooth transitions (`scripts/era_theme.gd` `map_tint()` + `theme_changed` signal, consumed by `scripts/map_renderer.gd` and `scripts/map_view.gd`; crossfades handled by the existing modulate tween).
+- [x] Zoom animations, hover reveals, proper contrast, readable labels at all zoom levels (`scripts/map_view.gd` zoom + hover tweens, province-label staggered fade; font sizing routed through `EraTheme.typography()`).
 
 #### 10.3 Intelligence layer UI (§7.4, §8.10)
-- [ ] All map intelligence layers toggleable — military, economic, famine, political, religious, rival fingerprints.
-- [ ] Layer opacity, filtering, and search.
+- [x] All map intelligence layers toggleable — political, unrest, prosperity, cover fidelity, religion, rival-society fingerprints, military strength (size × quality via `Armies`), and a dedicated famine layer reading from `PopulationManager`.
+- [x] Layer opacity, filtering, and search. (Opacity slider mixes metric over political base; Enter-to-jump search selects and centres a province by name.)
 
 #### 10.4 Time controls (§7.5)
-- [ ] Pause, play, fast forward, scheduled stop on events.
-- [ ] Auto-pause on high-priority events (configurable).
+- [x] Pause, play, fast forward, scheduled stop on events.
+- [x] Auto-pause on high-priority events (configurable).
 
 #### 10.5 Public news (§7.7)
-- [ ] News feed as a dedicated table element with era-appropriate styling.
-- [ ] News calibration against operative reports (used by the two-reality system).
+- [x] News feed as a dedicated table element with era-appropriate styling (`scripts/public_news_view.gd` + `scenes/table/public_news_view.tscn`, registered on the table in `scenes/table/table.gd`; styled via `EraTheme.register_view` + tier badges + narrator badge).
+- [x] News calibration against operative reports (used by the two-reality system) (`scripts/public_news.gd` `_apply_calibration()` with Jaccard overlap against recent operative letters; `calibration_score` + `calibration_verdict` persisted in `PublicNews.snapshot()` and surfaced as a three-state band in `scripts/public_news_view.gd`).
 
 #### 10.6 Difficulty modes (§7.8)
-- [ ] Standard vs. Ironman (§29).
-- [ ] Optional extra difficulty modifiers — more aggressive rival societies, smaller starting resources.
+- [x] Standard vs. Ironman (§29).
+- [x] Optional extra difficulty modifiers — more aggressive rival societies, smaller starting resources (`scripts/difficulty_profile.gd` wraps `Prefs` toggles: `aggressive_rivals` → `scripts/rival_registry.gd` tick frequency + pre-seeded lieutenant, `lean_start` → `scenes/table/table.gd` `_apply_new_game_difficulty` purse multiplier, `hostile_hosts` → `scripts/action_runner.gd` host resist bias, `fast_hunters` → `scripts/shadow_figure.gd` hunter thresholds, `brittle_cover` → `scripts/exposure_manager.gd` cover decay; UI in `scripts/preferences_view.gd`).
 
 #### 10.7 Onboarding by situation (§28)
-- [ ] Fully scripted first session (§28.1).
-- [ ] System-unlock sequence driven by organisational milestones (§28.2).
-- [ ] Memoirs panel as living help system (§28.3).
+- [x] Fully scripted first session (§28.1).
+- [x] System-unlock sequence driven by organisational milestones (§28.2).
+- [x] Memoirs panel as living help system (§28.3).
 
 #### 10.8 Save architecture (§29)
-- [ ] Continuous autosave.
-- [ ] Session continuity — quit and resume to exact state.
-- [ ] Chronicle generation per session.
-- [ ] Ironman enforcement.
-- [ ] World persistence: prior playthroughs leave their entities, families, and Machine in the world for subsequent playthroughs.
+- [x] Continuous autosave.
+- [x] Session continuity — quit and resume to exact state.
+- [x] Chronicle generation per session. (`Chronicle` autoload records era changes, base moves, religion foundings, host deaths, Machine degraded/eased states, and revealed rival societies. Ctrl+Shift+K writes a markdown chronicle to `user://chronicles/`; a letter confirms the path. Chronicle persists through save/load.)
+- [x] Ironman enforcement.
+- [x] World persistence: prior playthroughs leave their entities, families, and Machine in the world for subsequent playthroughs (`scripts/world_profile.gd` autoload persists to `user://world_profile.json`; commit hooks in `scripts/failure_states.gd` `trigger_physical_death`; `scripts/chronicle.gd` `chronicle_sealed` signal; legacy import + rumour letter + fingerprint pre-seed wired via `WorldProfile.apply_legacy_imports()` in `scenes/table/table.gd` `_apply_new_game_difficulty`; gated by `Prefs.world_persistence_enabled`).
 
 #### 10.9 Accessibility
-- [ ] Font scaling.
-- [ ] Colour-blind safe palettes for all intelligence layers.
-- [ ] Reduced-motion option.
-- [ ] Keyboard navigation for every UI element.
+- [x] Font scaling.
+- [x] Colour-blind safe palettes for all intelligence layers (`scripts/ui/colorblind_palette.gd` Brettel/Viénot-style remap with named overlay keys; `scripts/map_renderer.gd` `_cell_color_for_mode` pipes every overlay through `ColorblindPalette.remap`; `Prefs.colorblind_mode` exposed in `scripts/preferences_view.gd` with live refresh via `Prefs.preferences_changed`).
+- [x] Reduced-motion option. (Preference gates fades, scale pulses, indicator pops, seal-break, unfold, pending-tray lift, and the inbox badge loop. Opt-in via Ctrl+,.)
+- [x] Keyboard navigation for every UI element (`scenes/table/table.gd` global shortcut map: Space/1/2 time, I/M/N/L/D/O/V/R/C/B/F object shortcuts, Esc/F1/F5/F9/F10/Shift+/ overlays, Ctrl+Shift+K chronicle, Ctrl+Shift+G playtest arc; `scenes/inbox/letter_view.gd` J/K/Up/Down browse without closing; `Prefs.focus_ring_strong` available for stronger focus ring).
 
 #### 10.10 Audio
-- [ ] Era-specific ambient audio palette.
-- [ ] Event audio cues — subtle, not intrusive.
-- [ ] Music: period-appropriate, looping, low-attention-demand.
+- [x] Era-specific ambient audio palette (`scripts/audio_director.gd` `set_era()` swaps looping `AudioStreamWAV` generated by `scripts/procedural_audio.gd` `make_ambient()`; re-fires on `Eras.era_changed`).
+- [x] Event audio cues — subtle, not intrusive (`scripts/audio_director.gd` `play_cue()` on `EventBus.letter_delivered`, `Org.member_burned`, `EventBus.host_died`, `Mandates.mandate_offered`, `Unlocks.surface_unlocked`, `Chronicle.chronicle_sealed`; `scripts/procedural_audio.gd` `make_cue()` synthesises envelopes; gated by `Prefs.sfx_enabled` / volume).
+- [x] Music: period-appropriate, looping, low-attention-demand (procedural drone layer in `scripts/procedural_audio.gd` `make_ambient()` loops via `AudioStreamWAV.LOOP_FORWARD`, seeded per era for distinct tonal colour; volume on a dedicated Music/Ambient bus configured in `scripts/audio_director.gd`, gated by `Prefs.music_enabled` / `Prefs.ambient_enabled`).
 
 ### Exit criteria
 

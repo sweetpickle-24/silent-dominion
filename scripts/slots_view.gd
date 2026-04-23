@@ -47,7 +47,7 @@ func _ready() -> void:
 	_render()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -59,7 +59,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -274,7 +274,7 @@ func _on_delete_pressed(slot: String) -> void:
 func _on_return_to_title() -> void:
 	Session.pending_load_slot = ""
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.18)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.18))
 	tw.tween_callback(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/title/title.tscn"))
 

@@ -252,6 +252,32 @@
       "report_sender": "Your internal reviewer"
     },
     {
+      "id": "rotate_roles",
+      "display_name": "Rotate roles under this coordinator",
+      "blurb": "Quietly move every operative under this coordinator to new duties, new faces, and new corners of the kingdom. Expensive, slow, and loud only to ourselves. Resets the heat around the cell; does not repair the trust lost with anyone we have already burned.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ORG_MEMBER",
+      "silver_cost": 160,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 40,
+      "max_days_to_resolve": 60,
+      "base_success_chance": 0.9,
+      "report_sender": "Your internal reviewer"
+    },
+    {
+      "id": "audit_entity",
+      "display_name": "Audit this entity",
+      "blurb": "Send trusted auditors through the books of this institution. Every drawer. Every receipt. The director will know they were there. The drift will be pulled back; the message they send downstream will last a year.",
+      "tier": "DEEP_SHADOW",
+      "target_kind": "ENTITY",
+      "silver_cost": 140,
+      "exposure_cost": 2,
+      "min_days_to_resolve": 30,
+      "max_days_to_resolve": 50,
+      "base_success_chance": 0.92,
+      "report_sender": "Your internal reviewer"
+    },
+    {
       "id": "run_double_agent",
       "display_name": "Run them as a double",
       "blurb": "A compromised source is not a problem — it is a chair at the other table. Turn them. Control what they carry upward. Bleeds your bandwidth every month and ends, eventually, in fire. Worth it, if the fire burns in the right direction.",
@@ -367,6 +393,19 @@
       "max_days_to_resolve": 75,
       "base_success_chance": 0.55,
       "report_sender": "Your counter-rumour chief"
+    },
+    {
+      "id": "destroy_archive",
+      "display_name": "Destroy the archive",
+      "blurb": "A historian is not a hunter in the street; they are a ledger in a room. The ledger is the threat. Burn the room. Scatter the chroniclers. Louder than we usually are, and costlier in stories told afterward — but historians cannot be silenced by discredit, only starved of what they read.",
+      "tier": "HIGH",
+      "target_kind": "KINGDOM",
+      "silver_cost": 360,
+      "exposure_cost": 10,
+      "min_days_to_resolve": 45,
+      "max_days_to_resolve": 90,
+      "base_success_chance": 0.55,
+      "report_sender": "Your arson chief"
     },
     {
       "id": "false_flag_operation",

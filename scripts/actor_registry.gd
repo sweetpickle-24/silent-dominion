@@ -35,6 +35,13 @@ const REPLACE_TASK_KIND: StringName = &"actor_replace"
 const REPLACE_DELAY_MIN_DAYS: int = 45
 const REPLACE_DELAY_MAX_DAYS: int = 150
 
+## Long-run compression (§6.5). Dead actors older than this fall out
+## of the iteration helpers. They remain in `actors` so that memoirs,
+## family trees, and old letters can still resolve their id; the
+## world simulation simply stops paying for them once they drop off
+## the cultural horizon.
+const COMPRESS_AFTER_YEARS: int = 80
+
 ## Culture-adjacent given-name banks per kingdom. Used when we have
 ## to generate a fresh actor and there is no same-kingdom exemplar
 ## to riff on. Short banks on purpose: repetition is fine, the game
@@ -61,6 +68,7 @@ func _ready() -> void:
 	print("[Actors] Loaded %d actors from %s" % [actors.size(), ACTOR_DATA_PATH])
 
 	GameClock.month_passed.connect(_on_month_passed)
+	GameClock.year_passed.connect(_on_year_passed)
 	EventBus.actor_died.connect(_on_actor_died)
 	Scheduler.task_due.connect(_on_task_due)
 
@@ -87,11 +95,39 @@ func _on_actor_died(actor_id: StringName, was_host: bool, _cause: StringName) ->
 func _on_month_passed(_y: int, _m: int) -> void:
 	# Pull every relationship one step closer to 0. Neutral actors are
 	# untouched. This is the "out of sight, out of mind" drift.
+	# Compressed (long-dead) actors are skipped — no one maintains a
+	# vendetta with a corpse eighty years gone.
 	for a in actors.values():
+		if a.compressed:
+			continue
 		if a.relationship > 0:
 			a.relationship = maxi(0, a.relationship - RELATIONSHIP_MONTHLY_DECAY)
 		elif a.relationship < 0:
 			a.relationship = mini(0, a.relationship + RELATIONSHIP_MONTHLY_DECAY)
+
+
+func _on_year_passed(_y: int) -> void:
+	_compress_long_dead()
+
+
+## Once per year, scan for actors whose death fell off the cultural
+## horizon. Flip the `compressed` flag so the iteration helpers skip
+## them; they stay resolvable by id for memoirs, ancestry, and any
+## outstanding letter that names them.
+func _compress_long_dead() -> void:
+	var now_year: int = GameClock.year
+	var compressed_this_year: int = 0
+	for a in actors.values():
+		if a.compressed:
+			continue
+		if a.death_year == 0:
+			continue
+		if now_year - a.death_year < COMPRESS_AFTER_YEARS:
+			continue
+		a.compressed = true
+		compressed_this_year += 1
+	if compressed_this_year > 0:
+		_rebuild_indices()
 
 
 # --- Public API --------------------------------------------------------------
@@ -100,7 +136,24 @@ func get_actor(id: StringName) -> Actor:
 	return actors.get(id, null)
 
 
+## Every non-compressed actor in the registry (living or recently
+## dead). The per-month sim, WorldAI, and UI walk this list. Actors
+## who have been dead long enough to fall off the cultural horizon
+## are skipped automatically (see §6.5 long-run compression).
 func all_actors() -> Array[Actor]:
+	var out: Array[Actor] = []
+	for a in actors.values():
+		if (a as Actor).compressed:
+			continue
+		out.append(a)
+	return out
+
+
+## Every actor, compressed or not. For the rare case we *do* need
+## the ancestors — family trees, memorialisation passes, save I/O.
+## Callers must opt in explicitly because most loops shouldn't pay
+## for the dead roster.
+func all_actors_including_compressed() -> Array[Actor]:
 	var out: Array[Actor] = []
 	for a in actors.values():
 		out.append(a)
@@ -132,6 +185,8 @@ func ruler_of(kingdom_id: String) -> Actor:
 func hosts() -> Array[Actor]:
 	var out: Array[Actor] = []
 	for a in actors.values():
+		if a.compressed:
+			continue
 		if a.is_host():
 			out.append(a)
 	return out
@@ -144,6 +199,8 @@ func hosts() -> Array[Actor]:
 func hosts_in(kingdom_id: String) -> Array[Actor]:
 	var out: Array[Actor] = []
 	for a in actors.values():
+		if a.compressed:
+			continue
 		if a.kingdom_id == kingdom_id and a.is_host():
 			out.append(a)
 	return out
@@ -213,7 +270,8 @@ func _announce_host_lost_by_death(a: Actor) -> void:
 		date,
 		"A name falls from the list",
 		body,
-		&"host"
+		&"host",
+		&"high"
 	)
 	EventBus.letter_delivered.emit(letter)
 
@@ -230,7 +288,8 @@ func _announce_host_lost(a: Actor) -> void:
 		date,
 		"A name falls from the list",
 		body,
-		&"host"
+		&"host",
+		&"high"
 	)
 	EventBus.letter_delivered.emit(letter)
 
@@ -294,6 +353,7 @@ func spawn_actor(kingdom_id: String, role: int, _reason: StringName = &"generate
 	a.kingdom_id  = kingdom_id
 	a.province_id = _default_province(kingdom_id)
 	_randomise_traits(a, role, a.province_id)
+	Languages.seed_for(a)
 	a.relationship = 0
 	add_actor(a)
 	return a
@@ -318,6 +378,7 @@ func spawn_minor_in_province(province_id: String, role: int) -> Actor:
 	a.kingdom_id  = p.owning_kingdom
 	a.province_id = p.id
 	_randomise_traits(a, role, p.id)
+	Languages.seed_for(a)
 	a.relationship = 0
 	add_actor(a)
 	return a
@@ -483,6 +544,14 @@ func _apply_regional_weights(a: Actor, province_id: String) -> void:
 		a.ruthlessness = clampi(a.ruthlessness + 3, 10, 90)
 		a.resilience   = clampi(a.resilience   + 2, 10, 90)
 
+	# Generational drift (§8.11). Current-condition weighting above
+	# reacts to *this year's* state. Generational drift is what the
+	# player's long pressure has done to the kingdom's newborns over
+	# decades — war shaping paranoid children, sustained religious
+	# seeding breeding piety, etc. Applied last so it layers on top.
+	if PopWeights != null:
+		PopWeights.apply_to_newborn(a, k.id)
+
 
 # --- Debug -------------------------------------------------------------------
 
@@ -543,6 +612,6 @@ func _collect(ids: Array) -> Array[Actor]:
 	var out: Array[Actor] = []
 	for id in ids:
 		var a: Actor = actors.get(id, null)
-		if a != null:
+		if a != null and not a.compressed:
 			out.append(a)
 	return out

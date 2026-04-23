@@ -18,6 +18,7 @@ const PublicNewsViewScript: Script      = preload("res://scripts/public_news_vie
 const MapViewScript: Script             = preload("res://scripts/map_view.gd")
 const PurseIndicatorScript: Script      = preload("res://scripts/purse_indicator.gd")
 const SlotsViewScript: Script           = preload("res://scripts/slots_view.gd")
+const PreferencesViewScript: Script     = preload("res://scripts/preferences_view.gd")
 const ArchiveIndicatorScript: Script    = preload("res://scripts/archive_indicator.gd")
 const CodebookViewScript: Script        = preload("res://scripts/codebook_view.gd")
 const MemoirsViewScript: Script         = preload("res://scripts/memoirs_view.gd")
@@ -25,6 +26,7 @@ const RosterViewScript: Script          = preload("res://scripts/roster_view.gd"
 const VaultViewScript: Script           = preload("res://scripts/vault_view.gd")
 const LibraryViewScript: Script         = preload("res://scripts/library_view.gd")
 const LegendIndicatorScript: Script     = preload("res://scripts/legend_indicator.gd")
+const ImmortalDialogueViewScript: Script = preload("res://scripts/immortal_dialogue_view.gd")
 
 # --- Node references ----------------------------------------------------------
 
@@ -94,6 +96,10 @@ func _ready() -> void:
 	Inbox.letters_changed.connect(_refresh_inbox_visual)
 	_refresh_inbox_visual()
 
+	# §C5 open the immortal dialogue overlay when an immortal agrees
+	# to a live exchange (typically after a successful request_contact).
+	Immortals.dialogue_requested.connect(_on_immortal_dialogue_requested)
+
 	_wire_time_dial()
 	_install_pending_tray()
 	_install_exposure_indicator()
@@ -103,6 +109,9 @@ func _ready() -> void:
 	_install_public_news_badge()
 	_install_object_unread_dots()
 	_install_inbox_kind_strip()
+	# §D4 dim gated table objects until the player has something to
+	# read there. Fade each back in when Unlocks signals surface.
+	_install_unlock_gating()
 
 	# If the player arrived here via 'Return to X' on the title screen,
 	# Session carries the slot to load. Apply it after the scene is
@@ -119,10 +128,34 @@ func _ready() -> void:
 func _apply_pending_load() -> void:
 	var slot: String = Session.consume_pending_load()
 	if slot == "":
+		# Fresh campaign — apply §10.6 difficulty modifiers that only
+		# make sense at new game. Loaded saves already carry their
+		# own state so we don't touch them.
+		_apply_new_game_difficulty()
 		return
 	if SaveManager.load_from_slot(slot):
 		_refresh_inbox_visual()
 		_refresh_time_display()
+
+
+func _apply_new_game_difficulty() -> void:
+	var dp: DifficultyProfile = DifficultyProfile.current()
+	var mult: float = dp.starting_purse_multiplier()
+	if mult < 1.0 and Purse != null:
+		var new_silver: int = int(floor(float(Purse.silver) * mult))
+		Purse.silver = maxi(0, new_silver)
+	# §10.8 cross-playthrough persistence: fold in legacy imports
+	# from prior runs. No-op on first ever campaign.
+	if WorldProfile != null:
+		var report: Dictionary = WorldProfile.apply_legacy_imports()
+		var any_import: bool = (
+			int(report.get("entities_imported", 0)) > 0
+			or int(report.get("families_imported", 0)) > 0
+			or int(report.get("fingerprints_revealed", 0)) > 0
+			or bool(report.get("rumour_seeded", false))
+		)
+		if any_import:
+			print("[WorldProfile] legacy import: %s" % report)
 
 
 # --- Pending actions tray ----------------------------------------------------
@@ -298,11 +331,27 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		KEY_F5:
-			SaveManager.save_to_slot()
+			# §10.6 Ironman: manual saves are blocked. Continuous
+			# autosave handles persistence; the player doesn't get
+			# to pick a moment.
+			if Prefs != null and Prefs.ironman:
+				push_warning("[Save] Ironman: manual save disabled")
+			else:
+				SaveManager.save_to_slot()
 			get_viewport().set_input_as_handled()
 			return
 		KEY_F9:
-			if SaveManager.load_from_slot():
+			# §10.6 Ironman: quickload resumes from the latest
+			# autosave slot rather than a player-chosen one.
+			var slot: String = SaveManager.DEFAULT_SLOT
+			if Prefs != null and Prefs.ironman:
+				var latest: String = TimeCtl.latest_autosave_slot()
+				if latest.is_empty():
+					push_warning("[Save] Ironman: no autosave to resume from")
+					get_viewport().set_input_as_handled()
+					return
+				slot = latest
+			if SaveManager.load_from_slot(slot):
 				close_panel()
 				_refresh_inbox_visual()
 				_refresh_time_display()
@@ -312,6 +361,44 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_slots_view()
 			get_viewport().set_input_as_handled()
 			return
+		KEY_COMMA:
+			if event.ctrl_pressed or event.meta_pressed:
+				_open_preferences_view()
+				get_viewport().set_input_as_handled()
+				return
+		KEY_K:
+			# Ctrl+Shift+K drafts a chronicle to disk (§10.8).
+			if event.ctrl_pressed and event.shift_pressed:
+				var path: String = Chronicle.save_to_markdown()
+				if not path.is_empty():
+					print("[Chronicle] written to ", path)
+				get_viewport().set_input_as_handled()
+				return
+		KEY_F12:
+			# Dev-only stress harness (§9.3). F12 = 100 years;
+			# Shift+F12 = 500 years; Ctrl+Shift+F12 = save-reload
+			# round-trip (100y, save, load, 400y).
+			if event.ctrl_pressed and event.shift_pressed:
+				StressTest.run_save_roundtrip(100, 400)
+			elif event.shift_pressed:
+				StressTest.run_years(500)
+			else:
+				StressTest.run_years(100)
+			_refresh_time_display()
+			_refresh_inbox_visual()
+			get_viewport().set_input_as_handled()
+			return
+		KEY_G:
+			# §9.5 automated playtest arc. Ctrl+Shift+G only so it
+			# doesn't collide with the regular G letter shortcut the
+			# bare table reserves for future use.
+			if event.ctrl_pressed and event.shift_pressed:
+				var arc: Dictionary = StressTest.run_growth_arc(500)
+				print("[PlaytestArc] completed: %s" % arc)
+				_refresh_time_display()
+				_refresh_inbox_visual()
+				get_viewport().set_input_as_handled()
+				return
 
 	# Hotkeys below operate on the bare table. Swallow them while any
 	# overlay is open so in-overlay focus/typing isn't hijacked.
@@ -398,6 +485,11 @@ func _hotkey_sheet_text() -> String:
 		+ "  Esc         — close the top overlay\n"
 		+ "  F5 / F9     — quicksave / quickload\n"
 		+ "  F10         — archive of saved seasons\n"
+		+ "  Ctrl + ,    — preferences\n"
+		+ "  Ctrl+Shift+K — write a chronicle of this session to disk\n"
+		+ "  F12         — fast-forward 100 years (dev stress test)\n"
+		+ "  Shift+F12   — fast-forward 500 years\n"
+		+ "  Ctrl+Shift+F12 — save/reload round-trip harness\n"
 		+ "  Shift + ?   — this list\n"
 	)
 
@@ -442,6 +534,9 @@ func _tween_object_scale(obj: Control, target: float) -> void:
 	if _object_tweens.has(obj) and _object_tweens[obj] is Tween:
 		(_object_tweens[obj] as Tween).kill()
 
+	if Prefs.reduced_motion:
+		obj.scale = Vector2(target, target)
+		return
 	var tw: Tween = create_tween()
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(obj, "scale", Vector2(target, target), OBJECT_TWEEN_TIME)
@@ -452,6 +547,9 @@ func _play_open_animation(obj: Control) -> void:
 	if _object_tweens.has(obj) and _object_tweens[obj] is Tween:
 		(_object_tweens[obj] as Tween).kill()
 
+	if Prefs.reduced_motion:
+		obj.scale = Vector2.ONE
+		return
 	var tw: Tween = create_tween()
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(obj, "scale", Vector2(OBJECT_OPEN_SCALE, OBJECT_OPEN_SCALE), OBJECT_TWEEN_TIME)
@@ -504,6 +602,25 @@ func _on_slots_view_closed() -> void:
 	close_panel()
 	_refresh_inbox_visual()
 	_refresh_time_display()
+
+
+# --- Preferences overlay ----------------------------------------------------
+
+func _open_preferences_view() -> void:
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(PreferencesViewScript)
+	view.name = "PreferencesView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	view.closed.connect(_on_preferences_view_closed)
+
+
+func _on_preferences_view_closed() -> void:
+	_overlay_active = false
 
 
 func _on_codebook_clicked() -> void:
@@ -689,6 +806,28 @@ func _on_library_view_closed() -> void:
 	_overlay_active = false
 
 
+func _on_immortal_dialogue_requested(immortal_id: StringName, tree: Dictionary) -> void:
+	# An overlay-within-overlay would be confusing; if something is
+	# already open we drop the dialogue. The peer's opening letter
+	# is still delivered separately, so the event is not lost.
+	if _overlay_active:
+		return
+	_overlay_active = true
+	var view: Control = Control.new()
+	view.set_script(ImmortalDialogueViewScript)
+	view.name = "ImmortalDialogueView"
+	view.anchor_right = 1.0
+	view.anchor_bottom = 1.0
+	add_child(view)
+	if view.has_method("configure"):
+		view.call("configure", immortal_id, tree)
+	view.closed.connect(_on_immortal_dialogue_closed)
+
+
+func _on_immortal_dialogue_closed() -> void:
+	_overlay_active = false
+
+
 func _on_compose_clicked() -> void:
 	_open_compose_view()
 
@@ -780,6 +919,10 @@ func open_panel(title: String, body: String) -> void:
 	_panel.scale = Vector2(0.92, 0.92)
 	_panel.pivot_offset = _panel.size * 0.5
 
+	if Prefs.reduced_motion:
+		_panel_layer.modulate.a = 1.0
+		_panel.scale = Vector2.ONE
+		return
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_panel_layer, "modulate:a", 1.0, PANEL_TWEEN_TIME)
@@ -790,6 +933,13 @@ func close_panel() -> void:
 	if not _panel_layer.visible:
 		return
 
+	if Prefs.reduced_motion:
+		_panel_layer.modulate.a = 0.0
+		_panel.scale = Vector2(0.96, 0.96)
+		_panel_layer.visible = false
+		for obj in _all_objects():
+			_tween_object_scale(obj, 1.0)
+		return
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_property(_panel_layer, "modulate:a", 0.0, PANEL_TWEEN_TIME)
@@ -824,7 +974,7 @@ func _refresh_inbox_visual() -> void:
 		_badge_tween.kill()
 		_badge_tween = null
 
-	if unread > 0:
+	if unread > 0 and not Prefs.reduced_motion:
 		_inbox_badge.pivot_offset = _inbox_badge.size * 0.5
 		_badge_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE)
 		_badge_tween.tween_property(_inbox_badge, "scale", Vector2(1.12, 1.12), BADGE_PULSE_TIME)
@@ -922,6 +1072,14 @@ func _wire_time_dial() -> void:
 
 	GameClock.day_passed.connect(_on_day_passed)
 	GameClock.speed_changed.connect(_on_speed_changed)
+	if Eras != null:
+		Eras.era_changed.connect(_on_era_changed)
+	if Base != null:
+		# Base transitions repaint the date tooltip; the state
+		# shown there drives the player's situational awareness.
+		Base.base_changed.connect(_on_base_state_changed)
+		Base.move_started.connect(_on_base_move_started)
+		Base.transition_ended.connect(_on_base_transition_ended)
 
 	_refresh_time_display()
 	_on_speed_changed(GameClock.speed)
@@ -940,7 +1098,33 @@ func _on_speed_changed(speed: int) -> void:
 
 
 func _refresh_time_display() -> void:
-	_time_date_label.text = GameClock.format_date()
+	var base_date: String = GameClock.format_date()
+	if Eras != null and Eras.current != null:
+		_time_date_label.text = "%s  ·  %s" % [base_date, Eras.current.display_name]
+		var tooltip: String = Eras.current.blurb
+		if Base != null:
+			tooltip = "%s\n\n%s" % [Base.headline(), tooltip]
+		_time_date_label.tooltip_text = tooltip
+	else:
+		_time_date_label.text = base_date
+		if Base != null:
+			_time_date_label.tooltip_text = Base.headline()
+
+
+func _on_era_changed(_prev: StringName, _new_id: StringName) -> void:
+	_refresh_time_display()
+
+
+func _on_base_state_changed(_old_p: String, _new_p: String) -> void:
+	_refresh_time_display()
+
+
+func _on_base_move_started(_dst: String, _days: int) -> void:
+	_refresh_time_display()
+
+
+func _on_base_transition_ended(_kid: String) -> void:
+	_refresh_time_display()
 
 
 # --- Placeholder copy ---------------------------------------------------------
@@ -1043,3 +1227,40 @@ func _refresh_object_unread_dots() -> void:
 		if d == null:
 			continue
 		d.visible = Notifications.has_any(key)
+
+
+# --- §D4 Unlock-gated objects ------------------------------------------------
+#
+# Memoirs, Vault, Library, and Roster are dimmed until the player has
+# something to read there. The gating is a modulate change on the
+# object's root Control; input still passes through so the player can
+# click a dim object — opening it reveals the welcome card.
+
+const _UNLOCK_DIM_ALPHA: float = 0.32
+var _unlock_objects: Dictionary = {}   # StringName -> Control
+
+func _install_unlock_gating() -> void:
+	_unlock_objects[Unlocks.ID_MEMOIRS] = _memoirs
+	_unlock_objects[Unlocks.ID_VAULT]   = _vault
+	_unlock_objects[Unlocks.ID_ROSTER]  = _roster
+	# Library lives on the Dossiers object in this build (same panel
+	# surface). Dim Dossiers' "Library" affordance via its root; if
+	# this layout ever separates them, map the right node here.
+	_unlock_objects[Unlocks.ID_LIBRARY] = _dossiers
+
+	for id_any in _unlock_objects.keys():
+		var id: StringName = id_any
+		var obj: Control = _unlock_objects[id]
+		if obj == null:
+			continue
+		obj.modulate.a = 1.0 if Unlocks.is_surfaced(id) else _UNLOCK_DIM_ALPHA
+
+	Unlocks.surface_unlocked.connect(_on_unlock_surfaced)
+
+
+func _on_unlock_surfaced(id: StringName) -> void:
+	var obj: Control = _unlock_objects.get(id, null)
+	if obj == null:
+		return
+	var tw: Tween = create_tween()
+	tw.tween_property(obj, "modulate:a", 1.0, Prefs.anim_duration(0.32))

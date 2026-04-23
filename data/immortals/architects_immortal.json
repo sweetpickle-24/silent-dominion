@@ -1,0 +1,44 @@
+{
+  "immortal_id": "architects_immortal",
+  "encounter_id": "first_contact",
+  "prompt": "An intermediary arrives. The letter is short, precise, and carries the seal of a household that has not existed for two generations.\n\nThe First Architect writes: 'We have known of each other for some time. I do not pretend otherwise. You have surfaced my work and I have watched yours. Two people who have lived this long do not meet in the square. They send a letter first. Decide what shape ours will have.'",
+  "branches": [
+    {
+      "id": "propose_order",
+      "label": "Propose a division of labour — no acts in each other's strongholds.",
+      "result": "The First Architect replies within the season. 'A frame is easier to defend than an ambition. We can work within this.' A truce takes hold; the society's ops in your known strongholds will slow for two years.",
+      "effects": [
+        { "kind": "set_relationship", "value": "truce" },
+        { "kind": "openness_delta",   "value": 10 },
+        { "kind": "hostility_delta",  "value": -20 }
+      ]
+    },
+    {
+      "id": "offer_intel",
+      "label": "Offer a piece of intelligence they could not have by now.",
+      "result": "The Architect thanks you in prose that could be carved into stone. The channel is now warm — letters flow — but no truce is signed. They have taken the gift and remembered it.",
+      "effects": [
+        { "kind": "set_relationship", "value": "in_contact" },
+        { "kind": "openness_delta",   "value": 20 },
+        { "kind": "exposure_delta",   "value": 2.0 }
+      ]
+    },
+    {
+      "id": "refuse_frame",
+      "label": "Refuse to commit. Insist every encounter be case-by-case.",
+      "result": "The reply is cool. 'Then we are strangers in the same century.' The channel stays open but the tone is winter. No truce; no warmth.",
+      "effects": [
+        { "kind": "set_relationship", "value": "cold" }
+      ]
+    },
+    {
+      "id": "name_mandate",
+      "label": "Name a target: Macedon's succession. Propose joint work.",
+      "result": "A week's silence, then: 'We will move in the same direction from different doors.' An emergent succession mandate opens against Macedon, shaped by the Architects' preferences.",
+      "effects": [
+        { "kind": "set_relationship", "value": "in_contact" },
+        { "kind": "offer_mandate",    "category": "SUCCESSION", "kingdom": "macedon" }
+      ]
+    }
+  ]
+}

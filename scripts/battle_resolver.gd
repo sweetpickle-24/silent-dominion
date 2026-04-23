@@ -60,6 +60,23 @@ func _ready() -> void:
 func _on_month_passed(_y: int, m: int) -> void:
 	if not WorldData.is_loaded():
 		return
+	# Out-of-season attrition (§B7). Before we roll battles, every
+	# warring kingdom whose home provinces are out of campaign season
+	# takes a supply / morale hit — a classical winter stand-down in the
+	# Northern / Temperate kingdoms, which is exactly what the climate
+	# data is supposed to buy us.
+	for k in WorldData.kingdoms.values():
+		var km: Kingdom = k
+		if km == null:
+			continue
+		var army: Army = Armies.get_army(km.id)
+		if army == null or army.size <= 0:
+			continue
+		if _kingdom_in_campaign_season(km, m):
+			continue
+		army.supply = clampi(army.supply - 3, 0, 100)
+		army.morale = clampi(army.morale - 1, 0, 100)
+
 	var seen: Dictionary = {}
 	for pair in Relations.warring_pairs():
 		if pair.size() != 2:
@@ -89,12 +106,35 @@ func _maybe_fight(a_id: String, b_id: String, month: int) -> void:
 		BATTLE_BASE_CHANCE + BATTLE_PER_WAR_MONTH * float(maxi(0, war_months - 1)),
 		0.0, BATTLE_CHANCE_CAP,
 	)
-	if month == 12 or month == 1 or month == 2:
+	# Climate-driven seasonality. If either side is out of campaign
+	# season in their own ground, the chance of a set-piece battle
+	# collapses toward zero — the ancient pattern of waiting out
+	# winter in camp instead of sending men into the snow.
+	var k_a: Kingdom = WorldData.get_kingdom(a_id)
+	var k_b: Kingdom = WorldData.get_kingdom(b_id)
+	var a_in: bool = _kingdom_in_campaign_season(k_a, month)
+	var b_in: bool = _kingdom_in_campaign_season(k_b, month)
+	if not (a_in and b_in):
 		chance *= WINTER_MULTIPLIER
 	if _rng.randf() > chance:
 		return
 
 	_resolve_battle(a_id, b_id, army_a, army_b)
+
+
+## True if *any* province owned by the kingdom is currently in campaign
+## season. Empty / unknown kingdoms are treated as permanently in season
+## so we don't accidentally freeze a simulation on bad data.
+func _kingdom_in_campaign_season(k: Kingdom, month: int) -> bool:
+	if k == null:
+		return true
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p == null:
+			continue
+		if p.campaign_season(month):
+			return true
+	return false
 
 
 # --- Resolution --------------------------------------------------------------
@@ -133,7 +173,9 @@ func _resolve_battle(a_id: String, b_id: String, army_a: Army, army_b: Army) -> 
 	var loser_morale_drop: int = MORALE_CRUSHED if decisive else MORALE_LOSS_DROP
 	loser.morale = clampi(loser.morale - loser_morale_drop, 0, 100)
 
-	winner.supply = clampi(winner.supply - (SUPPLY_BATTLE_DRAIN / 2), 0, 100)
+	@warning_ignore("integer_division")
+	var winner_supply_drain: int = SUPPLY_BATTLE_DRAIN / 2
+	winner.supply = clampi(winner.supply - winner_supply_drain, 0, 100)
 	loser.supply  = clampi(loser.supply  - SUPPLY_BATTLE_DRAIN, 0, 100)
 	loser.loyalty = clampi(loser.loyalty - LOYALTY_LOSS_DROP, 0, 100)
 

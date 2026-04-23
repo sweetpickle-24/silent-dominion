@@ -28,8 +28,16 @@ static func make(p_year: int, p_month: int, p_day: int) -> GameDate:
 
 func format_long() -> String:
 	var idx: int = clampi(month, 1, 12) - 1
-	return "%d %s, %d BCE" % [day, MONTH_NAMES[idx], year]
+	# `year` is stored as positive-BCE (opposite convention from
+	# GameClock.year which is negative-BCE, positive-CE). So a
+	# positive `year` is BCE, a negative or zero `year` has crossed
+	# into the common era.
+	if year > 0:
+		return "%d %s, %d BCE" % [day, MONTH_NAMES[idx], year]
+	return "%d %s, %d CE" % [day, MONTH_NAMES[idx], max(1, -year)]
 
 
 func format_short() -> String:
-	return "%02d.%02d.%d BCE" % [day, month, year]
+	if year > 0:
+		return "%02d.%02d.%d BCE" % [day, month, year]
+	return "%02d.%02d.%d CE" % [day, month, max(1, -year)]

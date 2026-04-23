@@ -45,7 +45,10 @@ func _ready() -> void:
 	_render()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 	Fingerprints.society_identified.connect(_on_identified)
 	Fingerprints.op_level_changed.connect(_on_level_changed)
@@ -67,7 +70,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -307,7 +310,124 @@ func _build_society_row(soc: RivalSociety) -> Control:
 			ln.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vbox.add_child(ln)
 
+	# §C3 inferred chain walk-upward: render as a 3-column grid of
+	# operatives → coordinators → lieutenants. Only the branches
+	# we have evidence for are populated; the rest render as "?".
+	_append_inferred_chain(vbox, soc)
+
 	return row
+
+
+func _append_inferred_chain(vbox: VBoxContainer, soc: RivalSociety) -> void:
+	var chain: Dictionary = Rivals.inferred_chain_for(soc.id)
+	var ops: Array = chain.get("operatives", [])
+	var coords: Array = chain.get("coordinators", [])
+	var lts: Array = chain.get("lieutenants", [])
+	if ops.is_empty() and coords.is_empty() and lts.is_empty():
+		return
+	var chain_heading: Label = Label.new()
+	chain_heading.text = "THE CHAIN, AS FAR AS WE HAVE WALKED IT"
+	chain_heading.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	chain_heading.add_theme_font_size_override("font_size", 10)
+	vbox.add_child(chain_heading)
+
+	var grid: HBoxContainer = HBoxContainer.new()
+	grid.add_theme_constant_override("separation", 12)
+	vbox.add_child(grid)
+
+	grid.add_child(_chain_column("Operatives", _chain_operative_lines(ops)))
+	grid.add_child(_chain_arrow_label())
+	grid.add_child(_chain_column("Coordinators", _chain_coord_lines(coords)))
+	grid.add_child(_chain_arrow_label())
+	grid.add_child(_chain_column("Lieutenants", _chain_lt_lines(lts)))
+
+
+func _chain_operative_lines(ops: Array) -> Array[String]:
+	var out: Array[String] = []
+	if ops.is_empty():
+		out.append("?  (none caught)")
+		return out
+	for e in ops:
+		var name: String = String(e.get("name", "unnamed"))
+		var role: String = String(e.get("cover_role", "trader"))
+		var kid: String = String(e.get("kingdom_id", ""))
+		out.append("· %s (%s, %s)" % [name, role, _kingdom_name(kid)])
+	return out
+
+
+func _chain_coord_lines(coords: Array) -> Array[String]:
+	var out: Array[String] = []
+	if coords.is_empty():
+		out.append("?  (chain broken below)")
+		return out
+	for c in coords:
+		var label: String = "coordinator in %s" % _kingdom_name(String(c.get("kingdom_id", "")))
+		var revealed: String = String(c.get("revealed_by", "inferred"))
+		var cov: int = int(c.get("coverage", 0))
+		var cov_word: String = _coverage_word(cov)
+		var marker: String = "·" if revealed == "evidence" else "?"
+		out.append("%s %s (%s)" % [marker, label, cov_word])
+	return out
+
+
+func _chain_lt_lines(lts: Array) -> Array[String]:
+	var out: Array[String] = []
+	if lts.is_empty():
+		out.append("?  (not yet inferred)")
+		return out
+	for lt in lts:
+		var kingdoms: Array = lt.get("kingdoms", [])
+		var names: Array[String] = []
+		for kid in kingdoms:
+			names.append(_kingdom_name(String(kid)))
+		var where: String = ", ".join(names) if not names.is_empty() else "unknown region"
+		var revealed: String = String(lt.get("revealed_by", "inferred"))
+		var marker: String = "·" if revealed == "evidence" else "?"
+		out.append("%s lieutenant over %s" % [marker, where])
+	return out
+
+
+func _coverage_word(cov: int) -> String:
+	if cov >= 70:
+		return "solid"
+	if cov >= 45:
+		return "under strain"
+	if cov >= 25:
+		return "fraying"
+	return "blown"
+
+
+func _chain_column(title: String, lines: Array[String]) -> Control:
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var th: Label = Label.new()
+	th.text = title
+	th.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	th.add_theme_font_size_override("font_size", 10)
+	col.add_child(th)
+	for line in lines:
+		var ln: Label = Label.new()
+		ln.text = line
+		ln.add_theme_color_override("font_color", COLOR_INK)
+		ln.add_theme_font_size_override("font_size", 11)
+		ln.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(ln)
+	return col
+
+
+func _chain_arrow_label() -> Control:
+	var l: Label = Label.new()
+	l.text = "→"
+	l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	l.add_theme_font_size_override("font_size", 14)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return l
+
+
+func _kingdom_name(kid: String) -> String:
+	var k: Kingdom = WorldData.get_kingdom(kid)
+	return k.kingdom_name if k != null else kid
 
 
 # --- Content helpers --------------------------------------------------------

@@ -19,6 +19,10 @@ extends Node
 @warning_ignore("unused_signal") signal relationship_changed(immortal_id: StringName, relationship: StringName)
 @warning_ignore("unused_signal") signal immortal_killed(immortal_id: StringName)
 @warning_ignore("unused_signal") signal immortal_escaped(immortal_id: StringName)
+## §C5 fired when an immortal has agreed to open a dialogue with the
+## player — typically after a successful `request_contact`. The UI
+## listens and shows the dialogue overlay. Carries the loaded tree.
+@warning_ignore("unused_signal") signal dialogue_requested(immortal_id: StringName, tree: Dictionary)
 
 # id (StringName) -> OtherImmortal
 var _immortals: Dictionary = {}
@@ -176,9 +180,87 @@ func _send_reveal_letter(im: OtherImmortal) -> void:
 	var letter: Letter = Letter.create(
 		"immortal_reveal_%s" % String(im.id),
 		"An intermediary",
-		date, subject, body, &"intel",
+		date, subject, body, &"intel", &"high",
 	)
 	EventBus.letter_delivered.emit(letter)
+
+
+# --- §C5 dialogue trees ---------------------------------------------------
+
+const _DIALOGUE_PATH: String = "res://data/immortals/"
+
+## Load the branching dialogue tree for an immortal. Returns {} if no
+## JSON exists for them (e.g. posthumous founders, or immortals we
+## have not yet written content for).
+func load_dialogue(immortal_id: StringName) -> Dictionary:
+	var path: String = _DIALOGUE_PATH + String(immortal_id) + ".json"
+	if not FileAccess.file_exists(path):
+		return {}
+	var f: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var text: String = f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed is Dictionary:
+		return parsed
+	return {}
+
+
+## Ask the UI to open a branched dialogue with `immortal_id`. If no
+## tree exists for this immortal, silently no-ops (the contact letter
+## already covered the fallback).
+func open_dialogue(immortal_id: StringName) -> void:
+	var tree: Dictionary = load_dialogue(immortal_id)
+	if tree.is_empty():
+		return
+	dialogue_requested.emit(immortal_id, tree)
+
+
+## Resolve a dialogue choice. Applies the branch's effects and returns
+## the branch's prose result for the UI to render. Unknown branches
+## return an empty string and apply nothing.
+func resolve_dialogue_choice(immortal_id: StringName, branch_id: String) -> String:
+	var tree: Dictionary = load_dialogue(immortal_id)
+	if tree.is_empty():
+		return ""
+	var branches: Variant = tree.get("branches", [])
+	if not branches is Array:
+		return ""
+	for b in branches:
+		if not b is Dictionary:
+			continue
+		if String(b.get("id", "")) != branch_id:
+			continue
+		_apply_dialogue_effects(immortal_id, b.get("effects", []))
+		return String(b.get("result", ""))
+	return ""
+
+
+func _apply_dialogue_effects(immortal_id: StringName, effects: Variant) -> void:
+	if not effects is Array:
+		return
+	var im: OtherImmortal = get_by_id(immortal_id)
+	if im == null:
+		return
+	for e in effects:
+		if not e is Dictionary:
+			continue
+		var kind: String = String(e.get("kind", ""))
+		match kind:
+			"set_relationship":
+				set_relationship(immortal_id, StringName(String(e.get("value", "aware"))))
+			"openness_delta":
+				im.openness = clampi(im.openness + int(e.get("value", 0)), 0, 100)
+			"hostility_delta":
+				im.hostility = clampi(im.hostility + int(e.get("value", 0)), 0, 100)
+			"exposure_delta":
+				Exposure.bump(float(e.get("value", 0.0)), "immortal_dialogue")
+			"offer_mandate":
+				var category: String = String(e.get("category", ""))
+				if category != "":
+					var kingdom: String = String(e.get("kingdom", ""))
+					Mandates.offer_from_dialogue(category, kingdom, immortal_id)
 
 
 # --- Seeding --------------------------------------------------------------

@@ -16,7 +16,10 @@ extends Node
 
 const SAVE_DIR: String       = "user://saves"
 const DEFAULT_SLOT: String   = "quicksave"
-const SAVE_VERSION: int      = 1
+## v2 (2026-04): Prefs gains accessibility/audio/difficulty fields,
+## PublicNews gains calibration_*, DifficultyProfile/WorldProfile
+## enter the blob. Loader stays tolerant of v1 via `.get(key, default)`.
+const SAVE_VERSION: int      = 2
 
 ## Slot used for silent autosaves (year rollover, window close).
 ## Kept separate from the named slots so an autosave never overwrites
@@ -67,6 +70,7 @@ func save_to_slot(slot: String = DEFAULT_SLOT) -> bool:
 	f.close()
 
 	print("[Save] Wrote %s (%d bytes)" % [path, json.length()])
+	print_sim_health("save")
 	EventBus.save_completed.emit(path)
 	return true
 
@@ -98,6 +102,7 @@ func load_from_slot(slot: String = DEFAULT_SLOT) -> bool:
 
 	_apply_state(blob)
 	print("[Save] Loaded %s" % path)
+	print_sim_health("load")
 	EventBus.load_completed.emit(path)
 	return true
 
@@ -157,6 +162,7 @@ func _collect_state() -> Dictionary:
 		"exposure":  Exposure.snapshot(),
 		"kingdoms":  KingdomEconomy.snapshot(),
 		"relations": Relations.snapshot(),
+		"inst_relations": InstRelations.snapshot(),
 		"news":      PublicNews.snapshot(),
 		"purse":     Purse.snapshot(),
 		"unrest":    Unrest.snapshot(),
@@ -167,6 +173,14 @@ func _collect_state() -> Dictionary:
 		"religions": Religions.snapshot(),
 		"entities":  Entities.snapshot(),
 		"mandates":  Mandates.snapshot(),
+		"dynasties": Dynasties.snapshot(),
+		"failures":  Failures.snapshot(),
+		"eras":      Eras.snapshot(),
+		"base":      Base.snapshot(),
+		"pop_weights": PopWeights.snapshot(),
+		"languages": Languages.snapshot(),
+		"memoirs":   Memoirs.snapshot(),
+		"automations": Automations.snapshot(),
 		"events":    RandomEvents.snapshot(),
 		"whispers":  Whispers.snapshot(),
 		"org":       Org.snapshot(),
@@ -177,6 +191,9 @@ func _collect_state() -> Dictionary:
 		"shadow":       Shadow.snapshot(),
 		"immortals":    Immortals.snapshot(),
 		"beats":        Beats.snapshot(),
+		"chronicle":    Chronicle.snapshot(),
+		"unlocks":      Unlocks.snapshot(),
+		"world_profile": WorldProfile.snapshot(),
 	}
 
 
@@ -195,6 +212,8 @@ func _apply_state(blob: Dictionary) -> void:
 		KingdomEconomy.restore(blob["kingdoms"])
 	if blob.has("relations"):
 		Relations.restore(blob["relations"])
+	if blob.has("inst_relations"):
+		InstRelations.restore(blob["inst_relations"])
 	if blob.has("news"):
 		PublicNews.restore(blob["news"])
 	if blob.has("purse"):
@@ -215,6 +234,22 @@ func _apply_state(blob: Dictionary) -> void:
 		Entities.restore(blob["entities"])
 	if blob.has("mandates"):
 		Mandates.restore(blob["mandates"])
+	if blob.has("dynasties"):
+		Dynasties.restore(blob["dynasties"])
+	if blob.has("failures"):
+		Failures.restore(blob["failures"])
+	if blob.has("eras"):
+		Eras.restore(blob["eras"])
+	if blob.has("base"):
+		Base.restore(blob["base"])
+	if blob.has("pop_weights"):
+		PopWeights.restore(blob["pop_weights"])
+	if blob.has("languages"):
+		Languages.restore(blob["languages"])
+	if blob.has("memoirs"):
+		Memoirs.restore(blob["memoirs"])
+	if blob.has("automations"):
+		Automations.restore(blob["automations"])
 	if blob.has("events"):
 		RandomEvents.restore(blob["events"])
 	if blob.has("whispers"):
@@ -235,6 +270,39 @@ func _apply_state(blob: Dictionary) -> void:
 		Immortals.restore(blob["immortals"])
 	if blob.has("beats"):
 		Beats.restore(blob["beats"])
+	if blob.has("chronicle"):
+		Chronicle.restore(blob["chronicle"])
+	if blob.has("unlocks"):
+		Unlocks.restore(blob["unlocks"])
+	if blob.has("world_profile"):
+		WorldProfile.restore(blob["world_profile"])
+
+
+# --- Long-run sim health report (§6.5) --------------------------------------
+#
+# Prints a compact summary of the simulation's fat tables after a
+# load or save. Cheap, one-line-per-system. Used during hundred-
+# generation stress tests to spot runaway growth. Public so the
+# StressTest harness can log the same format at checkpoints.
+func print_sim_health(tag: String) -> void:
+	var live: int = Actors.all_actors().size()
+	var total: int = Actors.all_actors_including_compressed().size()
+	var compressed: int = total - live
+	var patterns: int = 0
+	if Memoirs != null and "patterns" in Memoirs:
+		patterns = (Memoirs.patterns as Dictionary).size()
+	var rules: int = 0
+	if Automations != null and "rules" in Automations:
+		rules = (Automations.rules as Dictionary).size()
+	var letters: int = 0
+	if Inbox != null and "letters" in Inbox:
+		letters = (Inbox.letters as Array).size()
+	var scheduled: int = 0
+	if Scheduler != null and "_tasks" in Scheduler:
+		scheduled = (Scheduler._tasks as Array).size()
+	print("[SimHealth:%s] actors=%d (live=%d, compressed=%d)  patterns=%d  rules=%d  letters=%d  scheduled=%d" % [
+		tag, total, live, compressed, patterns, rules, letters, scheduled,
+	])
 
 
 # --- Clock -------------------------------------------------------------------
@@ -262,7 +330,10 @@ func _clock_restore(d: Dictionary) -> void:
 
 func _actors_snapshot() -> Array:
 	var out: Array = []
-	for a in Actors.all_actors():
+	# Must include compressed/long-dead actors — memoirs, family
+	# trees, and old letters still reference them by id, so they
+	# have to round-trip through the save file.
+	for a in Actors.all_actors_including_compressed():
 		out.append(a.to_dict())
 	return out
 
@@ -297,20 +368,25 @@ func _inbox_restore(arr: Array) -> void:
 		if typeof(d) != TYPE_DICTIONARY:
 			continue
 		Inbox.letters.append(_letter_from_dict(d))
+	if Inbox.has_method("rebuild_index"):
+		Inbox.call("rebuild_index")
 	Inbox.letters_changed.emit()
 
 
 func _letter_to_dict(l: Letter) -> Dictionary:
 	return {
-		"id":      String(l.id),
-		"sender":  l.sender,
-		"year":    l.date.year if l.date != null else 0,
-		"month":   l.date.month if l.date != null else 1,
-		"day":     l.date.day if l.date != null else 1,
-		"subject": l.subject,
-		"body":    l.body,
-		"is_read": l.is_read,
-		"kind":    String(l.kind),
+		"id":       String(l.id),
+		"sender":   l.sender,
+		"year":     l.date.year if l.date != null else 0,
+		"month":    l.date.month if l.date != null else 1,
+		"day":      l.date.day if l.date != null else 1,
+		"subject":  l.subject,
+		"body":     l.body,
+		"is_read":  l.is_read,
+		"kind":     String(l.kind),
+		"priority": String(l.priority),
+		"confidence":  l.confidence,
+		"reporter_id": String(l.reporter_id),
 	}
 
 
@@ -327,6 +403,9 @@ func _letter_from_dict(d: Dictionary) -> Letter:
 		String(d.get("subject", "")),
 		String(d.get("body", "")),
 		StringName(String(d.get("kind", "misc"))),
+		StringName(String(d.get("priority", "normal"))),
+		int(d.get("confidence", -1)),
+		StringName(String(d.get("reporter_id", ""))),
 	)
 	l.is_read = bool(d.get("is_read", false))
 	return l

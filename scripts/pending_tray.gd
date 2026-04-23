@@ -226,6 +226,10 @@ func _make_seal() -> Panel:
 
 func _lift(envelope: Panel, seal: Panel, up: bool) -> void:
 	var target_offset: float = -3.0 if up else 0.0
+	if Prefs.reduced_motion:
+		envelope.position.y = target_offset
+		seal.position.y = ENVELOPE_SIZE.y * 0.5 - 8.0 + target_offset
+		return
 	var t: Tween = create_tween().set_parallel(true)
 	t.tween_property(envelope, "position:y", target_offset, 0.12) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)

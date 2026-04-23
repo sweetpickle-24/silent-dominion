@@ -25,13 +25,21 @@ extends Resource
 ## Seeded at creation; not dynamic.
 @export var house_kind: String = ""              # "merchant consortium", "temple treasury", ...
 
-## Current spendable capacity, 0..max_capacity. Consumed by every
-## funded operation in proportion to the amount moved.
+## Current spendable silver capacity, 0..max_capacity. Consumed by every
+## silver-denominated funded operation in proportion to the amount moved.
 @export var capacity: int = 40
 
-## Soft ceiling on capacity. Grows slowly with tenure; pulled down
+## Soft ceiling on silver capacity. Grows slowly with tenure; pulled down
 ## when a relationship is overdrawn. Hard capped at 100.
 @export var max_capacity: int = 50
+
+## Gold capacity — a separately tracked reserve (§16 / docs §32.4).
+## Gold moves slower but is denser: one point of gold capacity funds
+## substantially more silver-equivalent value than one point of silver
+## capacity. Houses that specialise in gold (temple treasuries) open
+## with a non-zero gold pool; merchant consortiums start at 0.
+@export var gold_capacity: int = 0
+@export var gold_max_capacity: int = 0
 
 ## Rate at which capacity refills each month in-game, as a % of
 ## max_capacity. Chosen so a healthy house refills a spent chunk
@@ -92,21 +100,75 @@ func effective_discretion() -> int:
 
 
 func capacity_band() -> StringName:
-	if dissolved:            return &"closed"
-	if capacity <= 0:        return &"tapped_out"
-	if capacity * 4 < max_capacity:  return &"strained"
-	if capacity * 2 < max_capacity:  return &"cautious"
-	return &"ample"
+	return _band_for(capacity, max_capacity)
 
 
 func capacity_band_label() -> String:
-	match capacity_band():
+	return _band_label(capacity_band())
+
+
+## Qualitative band for the gold reserve. Mirrors `capacity_band` but
+## reads the gold pool. Houses with no gold reserve report &"none".
+func gold_capacity_band() -> StringName:
+	if dissolved:                 return &"closed"
+	if gold_max_capacity <= 0:    return &"none"
+	return _band_for(gold_capacity, gold_max_capacity)
+
+
+func gold_capacity_band_label() -> String:
+	var b: StringName = gold_capacity_band()
+	if b == &"none":
+		return "No gold"
+	return _band_label(b)
+
+
+func _band_for(current: int, ceiling: int) -> StringName:
+	if dissolved:                         return &"closed"
+	if current <= 0:                      return &"tapped_out"
+	if current * 4 < ceiling:             return &"strained"
+	if current * 2 < ceiling:             return &"cautious"
+	return &"ample"
+
+
+func _band_label(b: StringName) -> String:
+	match b:
 		&"closed":     return "Shuttered"
 		&"tapped_out": return "Tapped out"
 		&"strained":   return "Strained"
 		&"cautious":   return "Cautious"
 		&"ample":      return "Ample"
 	return "Unknown"
+
+
+## Capacity remaining for the given currency. Currencies: &"silver", &"gold".
+## Unknown currencies fall back to silver for legacy callers.
+func capacity_for(currency: StringName) -> int:
+	match currency:
+		&"gold":   return gold_capacity
+	return capacity
+
+
+## Soft ceiling for the given currency.
+func max_capacity_for(currency: StringName) -> int:
+	match currency:
+		&"gold":   return gold_max_capacity
+	return max_capacity
+
+
+func spend_capacity(currency: StringName, amount: int) -> void:
+	match currency:
+		&"gold":
+			gold_capacity = maxi(0, gold_capacity - amount)
+		_:
+			capacity = maxi(0, capacity - amount)
+
+
+func refund_capacity(currency: StringName, amount: int) -> void:
+	match currency:
+		&"gold":
+			gold_capacity = mini(gold_max_capacity, gold_capacity + amount)
+		_:
+			capacity = mini(max_capacity, capacity + amount)
 
 
 func discretion_band() -> StringName:
@@ -140,6 +202,8 @@ static func from_dict(d: Dictionary) -> BankingHouse:
 	h.house_kind        = String(d.get("house_kind", ""))
 	h.capacity          = int(d.get("capacity", 40))
 	h.max_capacity      = int(d.get("max_capacity", 50))
+	h.gold_capacity     = int(d.get("gold_capacity", 0))
+	h.gold_max_capacity = int(d.get("gold_max_capacity", 0))
 	h.monthly_regen_pct = int(d.get("monthly_regen_pct", 25))
 	h.discretion        = int(d.get("discretion", 45))
 
@@ -167,6 +231,8 @@ func to_dict() -> Dictionary:
 		"house_kind":        house_kind,
 		"capacity":          capacity,
 		"max_capacity":      max_capacity,
+		"gold_capacity":     gold_capacity,
+		"gold_max_capacity": gold_max_capacity,
 		"monthly_regen_pct": monthly_regen_pct,
 		"discretion":        discretion,
 		"reach":             reach.duplicate(),

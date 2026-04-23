@@ -87,6 +87,7 @@ func _on_month_passed(_y: int, _m: int) -> void:
 	if not WorldData.is_loaded():
 		return
 
+	_refresh_cold_sim_cache()
 	_roll_ruler_decrees()
 	_roll_treasury_crises()
 	_roll_natural_deaths()
@@ -94,6 +95,45 @@ func _on_month_passed(_y: int, _m: int) -> void:
 	_roll_host_defections()
 	_roll_regency_resolutions()
 	_roll_war_declaration()
+
+
+# --- Cold-sim gate (§6.5 long-run perf) -------------------------------------
+#
+# A kingdom is "cold" when the player has no operative on the ground,
+# no coordinator, and no fresh picture of the place. In those regions
+# we fast-forward the noisy plot engine: plotter loops still iterate,
+# but we skip the per-actor roll math because the player would neither
+# see nor care about the attempt. Rulers can still die of old age.
+#
+# Rebuilt once per month-tick so `_roll_*` can read it in O(1).
+var _cold_sim_kingdoms: Dictionary = {}
+
+
+func _refresh_cold_sim_cache() -> void:
+	_cold_sim_kingdoms.clear()
+	# Kingdoms with any org presence are "warm" regardless of picture
+	# state — we're on the ground there and things should be resolved
+	# at full fidelity.
+	var warm: Dictionary = {}
+	if Org != null:
+		for m in Org.all_members():
+			if m.burned:
+				continue
+			if not m.region_id.is_empty():
+				warm[String(m.region_id)] = true
+	for kid in WorldData.kingdoms.keys():
+		var kid_s: String = String(kid)
+		if warm.has(kid_s):
+			continue
+		if Picture == null or not Picture.is_cold(kid_s):
+			continue
+		if Fidelity != null and not Fidelity.is_low(kid_s):
+			continue
+		_cold_sim_kingdoms[kid_s] = true
+
+
+func _is_cold_sim(kingdom_id: String) -> bool:
+	return _cold_sim_kingdoms.has(kingdom_id)
 
 
 # --- Event generators --------------------------------------------------------
@@ -148,6 +188,12 @@ func _roll_assassination_attempts() -> void:
 		if not (a.role in COUP_ROLES):
 			continue
 		if a.ambition < COUP_AMBITION_FLOOR or a.loyalty > COUP_LOYALTY_CEILING:
+			continue
+		# §6.5 low-fidelity AI: in kingdoms the player has no eyes,
+		# ears, or memory on, the plot engine goes quiet. Keeps
+		# hundred-generation runs from wasting cycles rolling dice
+		# about courts the player has never once touched.
+		if _is_cold_sim(a.kingdom_id):
 			continue
 		var ruler: Actor = Actors.ruler_of(a.kingdom_id)
 		if ruler == null or not ruler.is_alive():
@@ -245,7 +291,8 @@ func _maybe_deliver_host_plot_warning(plotter: Actor, ruler: Actor, kname: Strin
 		date,
 		"A name in the wrong mouths",
 		body,
-		&"host"
+		&"host",
+		&"high"
 	)
 	EventBus.letter_delivered.emit(letter)
 
@@ -325,7 +372,8 @@ func _emit_host_defection(a: Actor) -> void:
 		date,
 		"A hand turned",
 		body,
-		&"host"
+		&"host",
+		&"high"
 	)
 	EventBus.letter_delivered.emit(letter)
 
@@ -367,7 +415,26 @@ func _roll_war_declaration() -> void:
 		if a_id == b_id:
 			return
 
-	_emit_war_declaration(a_id, b_id)
+	_emit_war_declaration(a_id, b_id, _pick_casus_belli(a_id, b_id))
+
+
+## Heuristic casus-belli picker. The declaration event needs *some*
+## justification on the record:
+##   - either side in regency           -> SUCCESSION_CLAIM
+##   - already HOSTILE                  -> REVENGE
+##   - otherwise                        -> BORDER_DISPUTE / OPPORTUNISM
+## TRADE_INSULT and RELIGIOUS are held back for §B9 work that actually
+## tracks those flashpoints.
+func _pick_casus_belli(a_id: String, b_id: String) -> int:
+	var a: Kingdom = WorldData.get_kingdom(a_id)
+	var b: Kingdom = WorldData.get_kingdom(b_id)
+	if a != null and b != null and (a.in_regency or b.in_regency):
+		return int(Relations.CasusBelli.SUCCESSION_CLAIM)
+	if Relations.state_between(a_id, b_id) == int(Relations.RelationState.HOSTILE):
+		return int(Relations.CasusBelli.REVENGE)
+	if _rng.randf() < 0.6:
+		return int(Relations.CasusBelli.BORDER_DISPUTE)
+	return int(Relations.CasusBelli.OPPORTUNISM)
 
 
 # --- Event authors -----------------------------------------------------------
@@ -616,18 +683,37 @@ func _pick_successor(kingdom_id: String, roles: Array) -> Actor:
 	return best
 
 
-func _emit_war_declaration(a_id: String, b_id: String) -> void:
+func _emit_war_declaration(a_id: String, b_id: String, casus_belli: int = int(Relations.CasusBelli.OPPORTUNISM)) -> void:
 	var a: Kingdom = WorldData.get_kingdom(a_id)
 	var b: Kingdom = WorldData.get_kingdom(b_id)
 	if a == null or b == null:
 		return
-	Relations.set_at_war(a_id, b_id)
+	Relations.set_at_war(a_id, b_id, casus_belli)
+	var cb_tail: String
+	match casus_belli:
+		int(Relations.CasusBelli.BORDER_DISPUTE):
+			cb_tail = "The pretext is a border the two sides were never going to agree on."
+		int(Relations.CasusBelli.SUCCESSION_CLAIM):
+			cb_tail = "The pretext is a claim on the neighbouring throne that no one outside the court finds credible."
+		int(Relations.CasusBelli.TRADE_INSULT):
+			cb_tail = "The pretext is an insult on the docks that both sides will repeat until it sounds like a war."
+		int(Relations.CasusBelli.RELIGIOUS):
+			cb_tail = "The pretext is a quarrel of temples; the answer will be made of iron."
+		int(Relations.CasusBelli.REVENGE):
+			cb_tail = "The pretext is old blood. The new blood is being counted out now."
+		_:
+			cb_tail = "The pretext is thin. The opportunity is not."
 	_publish({
 		"kind":       &"war_declaration",
 		"kingdom_id": a.id,
 		"actors":     [],
-		"headline":   "%s declares war upon %s" % [a.kingdom_name, b.kingdom_name],
-		"body":       "Envoys have crossed the border bearing the formal demand, and returned with nothing. By next season, columns of men will be moving. Every crown nearby is now choosing a side, whether they admit it or not.",
+		"casus_belli": casus_belli,
+		"casus_belli_name": Relations.casus_belli_name(casus_belli),
+		"headline":   "%s declares war upon %s (%s)" % [a.kingdom_name, b.kingdom_name, Relations.casus_belli_name(casus_belli)],
+		"body":       ("Envoys have crossed the border bearing the formal demand, and returned with nothing. "
+			+ "By next season, columns of men will be moving. "
+			+ cb_tail + " "
+			+ "Every crown nearby is now choosing a side, whether they admit it or not."),
 	})
 
 

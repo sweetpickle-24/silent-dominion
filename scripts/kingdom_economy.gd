@@ -133,12 +133,7 @@ func _monthly_income(k: Kingdom) -> float:
 		var p: Province = WorldData.get_province(pid)
 		if p == null:
 			continue
-		var province_total: float = (
-			p.grain_production
-			+ p.silver_production
-			+ p.iron_production
-			+ p.timber_production
-		)
+		var province_total: float = p.total_production()
 		# Infrastructure lifts production once built.
 		#   road_network : +8% on everything it carries
 		#   harbour      : +15% on silver (coastal trade)
@@ -147,7 +142,10 @@ func _monthly_income(k: Kingdom) -> float:
 		if p.has_building(&"harbour"):
 			province_total += p.silver_production * 0.15
 		var unrest_mult: float = float(UNREST_YIELD_MULTIPLIER.get(p.unrest_band(), 1.0))
-		annual += province_total * unrest_mult
+		# Trade/season throughput (§B7). Winter in Northern / Temperate
+		# and summer monsoon in Tropical gently compress monthly take.
+		var season_mult: float = p.trade_season_multiplier(GameClock.month)
+		annual += province_total * unrest_mult * season_mult
 	var mult: float = float(TAX_LEVEL_MULTIPLIER.get(k.tax_level, 1.0))
 	# A regency loses roughly a fifth of what the crown would have
 	# collected to the council's own pockets and to provincial magnates
@@ -451,6 +449,23 @@ func trajectory_phrase(kingdom_id: String) -> String:
 	if delta == -1:
 		return "A small recovery — the ground is firmer than it was."
 	return "The crown has climbed out of the hole. Whoever advised them knew what they were doing."
+
+
+## Sum of raw yearly production for a given commodity across all
+## provinces owned by the kingdom. Unmodified by unrest or tax — this
+## is the geographic potential, useful for letters ("Kush has gold"),
+## the Ledger's resource strip, and emergent mandate heuristics.
+func total_resource(kingdom_id: String, kind: StringName) -> float:
+	var k: Kingdom = WorldData.get_kingdom(kingdom_id)
+	if k == null:
+		return 0.0
+	var total: float = 0.0
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p == null:
+			continue
+		total += p.production_of(kind)
+	return total
 
 
 func _record_history(k: Kingdom) -> void:

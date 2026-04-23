@@ -15,11 +15,38 @@ extends Resource
 ## greed, charisma, intellect) whenever we need them. Abstract operatives
 ## spawned by a Coordinator don't have a source actor; their names and
 ## stats are generated directly on the OrgMember.
+##
+## §C1 design decision — single-class, per-layer Ops modules.
+## The docs spec reads as if each layer should be a distinct class.
+## We keep `OrgMember` as a single resource because:
+##   - save/load stays a single serialisation path;
+##   - the Roster view can iterate a single typed array;
+##   - promotions move between layers without reconstructing a
+##     different class.
+## The per-layer *behaviour* lives in three sibling modules under
+## `scripts/org/`: `OperativeOps`, `CoordinatorOps`, `LieutenantOps`.
+## `OrgMember` is pure data and serialisation; the modules are pure
+## functions that take an `OrgMember` and any external context. This
+## gives us the benefits the docs were asking for — each layer's
+## rules in one place — without the downsides of class splitting.
 
 enum Layer {
 	LIEUTENANT,   # 3-6 of these, each covers a region or domain
 	COORDINATOR,  # handful per lieutenant, covers one kingdom/city
 	OPERATIVE,    # ground crew, abstracted in bulk under a coordinator
+}
+
+## §21.5 functional specialisations. Only meaningful on Lieutenants
+## — coordinators and operatives leave this at NONE. The mapping to
+## ideal family backgrounds drives the natural-authority bonus when a
+## lieutenant is drawn from a matching dynasty.
+enum Specialisation {
+	NONE,
+	FINANCIAL,     # banking / merchant dynasties
+	INTELLIGENCE,  # administrative / diplomatic backgrounds
+	IDEOLOGICAL,   # scholarly / clerical lineages
+	SECURITY,      # military / hard-loyalty lines
+	POLITICAL,     # noble / courtier houses
 }
 
 @export var id: StringName = &""
@@ -90,6 +117,19 @@ enum Layer {
 # reports carry our chosen noise — and they steadily bleed exposure.
 @export var double_agent: bool = false
 
+## Where the suspected / confirmed corruption is coming from. Tagged at
+## the moment `suspected_compromised` (or `double_agent`) is raised so
+## that audit letters, roster hints, and downstream dialogue can speak
+## to the real source. UNKNOWN is the default while flags are clean.
+enum CorruptionSource {
+	UNKNOWN,  # no current flag
+	GREED,    # drift from within — bribes, side dealings, tenure rot
+	RIVAL,    # the member has been turned / fed by a rival network
+}
+@export var corruption_source: CorruptionSource = CorruptionSource.UNKNOWN
+
+@export var specialisation: Specialisation = Specialisation.NONE
+
 
 func layer_name() -> String:
 	match layer:
@@ -97,6 +137,35 @@ func layer_name() -> String:
 		Layer.COORDINATOR: return "Coordinator"
 		Layer.OPERATIVE:   return "Operative"
 	return "?"
+
+
+func specialisation_label() -> String:
+	match specialisation:
+		Specialisation.FINANCIAL:    return "Financial"
+		Specialisation.INTELLIGENCE: return "Intelligence"
+		Specialisation.IDEOLOGICAL:  return "Ideological"
+		Specialisation.SECURITY:     return "Security"
+		Specialisation.POLITICAL:    return "Political"
+		_:                           return ""
+
+
+## Returns the recommended specialisation based on the origin
+## family's domain, or NONE if no family is tracked. Used by the
+## Roster UI to suggest the natural posting for a promotion.
+func recommended_specialisation_from_family(f) -> Specialisation:
+	if f == null:
+		return Specialisation.NONE
+	match int(f.domain):
+		int(Family.Domain.BANKING), int(Family.Domain.MERCHANT):
+			return Specialisation.FINANCIAL
+		int(Family.Domain.SCHOLARLY), int(Family.Domain.RELIGIOUS):
+			return Specialisation.IDEOLOGICAL
+		int(Family.Domain.MILITARY):
+			return Specialisation.SECURITY
+		int(Family.Domain.COURT):
+			return Specialisation.POLITICAL
+		_:
+			return Specialisation.NONE
 
 
 # --- Serialisation -----------------------------------------------------------
@@ -120,6 +189,8 @@ static func from_dict(d: Dictionary) -> OrgMember:
 	m.months_since_audit    = int(d.get("months_since_audit", 0))
 	m.suspected_compromised = bool(d.get("suspected_compromised", false))
 	m.double_agent          = bool(d.get("double_agent", false))
+	m.corruption_source     = _corr_from_string(String(d.get("corruption_source", "UNKNOWN")))
+	m.specialisation        = _spec_from_string(String(d.get("specialisation", "NONE")))
 	return m
 
 
@@ -142,6 +213,8 @@ func to_dict() -> Dictionary:
 		"months_since_audit":    months_since_audit,
 		"suspected_compromised": suspected_compromised,
 		"double_agent":          double_agent,
+		"corruption_source":     CorruptionSource.keys()[corruption_source],
+		"specialisation":        Specialisation.keys()[specialisation],
 	}
 
 
@@ -151,3 +224,27 @@ static func _layer_from_string(s: String) -> Layer:
 		"COORDINATOR": return Layer.COORDINATOR
 		"OPERATIVE":   return Layer.OPERATIVE
 	return Layer.OPERATIVE
+
+
+static func _corr_from_string(s: String) -> CorruptionSource:
+	match s.to_upper():
+		"GREED": return CorruptionSource.GREED
+		"RIVAL": return CorruptionSource.RIVAL
+		_:       return CorruptionSource.UNKNOWN
+
+
+func corruption_source_label() -> String:
+	match corruption_source:
+		CorruptionSource.GREED: return "greed"
+		CorruptionSource.RIVAL: return "rival hand"
+		_:                      return ""
+
+
+static func _spec_from_string(s: String) -> Specialisation:
+	match s.to_upper():
+		"FINANCIAL":    return Specialisation.FINANCIAL
+		"INTELLIGENCE": return Specialisation.INTELLIGENCE
+		"IDEOLOGICAL":  return Specialisation.IDEOLOGICAL
+		"SECURITY":     return Specialisation.SECURITY
+		"POLITICAL":    return Specialisation.POLITICAL
+		_:              return Specialisation.NONE

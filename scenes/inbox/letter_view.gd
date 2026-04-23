@@ -19,6 +19,7 @@ signal codebook_link_clicked(anchor: StringName)
 @onready var _date_label: Label         = $LetterRoot/Paper/Margin/VBox/Header/Date
 @onready var _subject_label: Label      = $LetterRoot/Paper/Margin/VBox/Subject
 @onready var _body_label: RichTextLabel = $LetterRoot/Paper/Margin/VBox/Body
+@onready var _vbox: VBoxContainer       = $LetterRoot/Paper/Margin/VBox
 @onready var _seal_whole: Panel         = $LetterRoot/SealWhole
 @onready var _seal_pieces: Control      = $LetterRoot/SealPieces
 @onready var _seal_left: Panel          = $LetterRoot/SealPieces/SealLeft
@@ -39,6 +40,7 @@ const UNREAD_MODULATE: Color = Color(1.0, 0.98, 0.92, 1.0)
 var _letter: Letter
 var _was_unread: bool = false
 var _is_closing: bool = false
+var _confidence_band: PanelContainer = null
 
 
 func _ready() -> void:
@@ -87,7 +89,71 @@ func display(letter: Letter) -> void:
 	# Worn paper tint for already-read letters.
 	_paper.self_modulate = UNREAD_MODULATE if _was_unread else READ_MODULATE
 
+	_render_confidence_band()
+
 	_play_open_sequence()
+
+
+# --- Confidence band (§18 fog-of-intel) -------------------------------------
+
+func _render_confidence_band() -> void:
+	if _confidence_band != null and is_instance_valid(_confidence_band):
+		_confidence_band.queue_free()
+		_confidence_band = null
+	if _letter == null or not _letter.has_confidence_band():
+		return
+
+	var tier: StringName = _letter.confidence_tier()
+	var bg: Color
+	var fg: Color
+	var label: String
+	var suffix: String
+	match tier:
+		&"high":
+			bg = Color(0.80, 0.78, 0.52, 0.55)   # aged parchment gold
+			fg = Color(0.22, 0.18, 0.08, 1.0)
+			label = "Confidence: high"
+			suffix = " — corroborated or first-hand."
+		&"medium":
+			bg = Color(0.78, 0.64, 0.28, 0.55)
+			fg = Color(0.26, 0.18, 0.08, 1.0)
+			label = "Confidence: medium"
+			suffix = " — plausible, not yet cross-referenced."
+		_:
+			bg = Color(0.62, 0.18, 0.12, 0.55)
+			fg = Color(0.28, 0.10, 0.06, 1.0)
+			label = "Confidence: low"
+			suffix = " — single unverified source. Treat what follows as their claim, not yours."
+
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_width_left = 3
+	sb.border_color = fg
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var lbl: Label = Label.new()
+	lbl.text = "%s  (%d/100)%s" % [label, _letter.confidence, suffix]
+	lbl.add_theme_color_override("font_color", fg)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	panel.add_child(lbl)
+
+	# Insert directly above the body (after subject).
+	_vbox.add_child(panel)
+	var body_idx: int = _body_label.get_index()
+	_vbox.move_child(panel, body_idx)
+	_confidence_band = panel
 
 
 # --- Animation ----------------------------------------------------------------
@@ -124,7 +190,7 @@ func _play_open_sequence() -> void:
 
 	# Fade the whole overlay in.
 	var fade: Tween = create_tween()
-	fade.tween_property(self, "modulate:a", 1.0, FADE_IN_TIME)
+	fade.tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(FADE_IN_TIME))
 
 	if _was_unread:
 		await _animate_seal_break()
@@ -136,6 +202,16 @@ func _play_open_sequence() -> void:
 
 
 func _animate_seal_break() -> void:
+	# Reduced motion: jump straight to the broken-seal final state.
+	if Prefs.reduced_motion:
+		_seal_whole.visible = false
+		_seal_pieces.visible = true
+		_seal_pieces.modulate.a = 0.75
+		_seal_left.position = Vector2(-36, 10)
+		_seal_left.rotation = -0.7
+		_seal_right.position = Vector2(36, 10)
+		_seal_right.rotation = 0.7
+		return
 	# Tiny wobble, then the seal splits and the pieces fly apart.
 	var flex: Tween = create_tween()
 	flex.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -159,6 +235,10 @@ func _animate_seal_break() -> void:
 
 
 func _animate_unfold() -> void:
+	if Prefs.reduced_motion:
+		_letter_root.scale = Vector2.ONE
+		_paper.modulate.a = 1.0
+		return
 	var unfold: Tween = create_tween().set_parallel(true)
 	unfold.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	unfold.tween_property(_letter_root, "scale", Vector2.ONE, UNFOLD_TIME)
@@ -174,8 +254,9 @@ func close() -> void:
 
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_property(self, "modulate:a", 0.0, CLOSE_TWEEN_TIME)
-	tw.tween_property(_letter_root, "scale", FOLDED_SCALE, CLOSE_TWEEN_TIME)
+	var close_t: float = Prefs.anim_duration(CLOSE_TWEEN_TIME)
+	tw.tween_property(self, "modulate:a", 0.0, close_t)
+	tw.tween_property(_letter_root, "scale", FOLDED_SCALE, close_t)
 	await tw.finished
 
 	closed.emit()
@@ -193,6 +274,38 @@ func _on_dimmer_input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
-			close()
-			get_viewport().set_input_as_handled()
+		match event.keycode:
+			KEY_ESCAPE:
+				close()
+				get_viewport().set_input_as_handled()
+			KEY_J, KEY_DOWN:
+				_step_letter(1)
+				get_viewport().set_input_as_handled()
+			KEY_K, KEY_UP:
+				_step_letter(-1)
+				get_viewport().set_input_as_handled()
+
+
+## §10.9 keyboard nav: J/K (or down/up) walks the inbox in place
+## without closing and re-opening the view. Wraps at both ends.
+func _step_letter(direction: int) -> void:
+	if Inbox == null or _letter == null:
+		return
+	var letters: Array = Inbox.letters
+	if letters.is_empty():
+		return
+	var idx: int = -1
+	for i in range(letters.size()):
+		var l: Letter = letters[i]
+		if l != null and l.id == _letter.id:
+			idx = i
+			break
+	if idx < 0:
+		return
+	var next: int = posmod(idx + direction, letters.size())
+	var target: Letter = letters[next]
+	if target == null:
+		return
+	if _was_unread and _letter != null:
+		Inbox.mark_read(_letter.id)
+	display(target)

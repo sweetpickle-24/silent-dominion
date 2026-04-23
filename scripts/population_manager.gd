@@ -59,16 +59,43 @@ func seed_for(province_id: String) -> int:
 	return int(_seed_population.get(province_id, 0))
 
 
+## §D3 Current population/seed ratio for a province. 1.0 ≈ steady,
+## < COLLAPSE_RATIO = emptying, > BOOM_RATIO = swelling. Returns 1.0
+## on unknown ids so callers can safely lerp without a null check.
+## Used by the map renderer's famine overlay.
+func population_ratio(province_id: String) -> float:
+	var p: Province = WorldData.get_province(province_id)
+	if p == null or p.population <= 0:
+		return 1.0
+	var base: int = seed_for(province_id)
+	if base <= 0:
+		return 1.0
+	return float(p.population) / float(base)
+
+
+## §D3 True when the province has been tagged with a hard famine
+## event by the simulation (UnrestManager / random_events set
+## `prod_modifier.cause = "famine"` on the province meta).
+func is_famine(province_id: String) -> bool:
+	var p: Province = WorldData.get_province(province_id)
+	if p == null:
+		return false
+	if not p.has_meta("prod_modifier"):
+		return false
+	var m: Dictionary = p.get_meta("prod_modifier")
+	return String(m.get("cause", "")) == "famine"
+
+
 ## Qualitative description of the current population state relative to
 ## its seed. The player never sees the raw number.
 func phrase_for(province_id: String) -> String:
 	var p: Province = WorldData.get_province(province_id)
 	if p == null or p.population <= 0:
 		return ""
-	var seed: int = seed_for(province_id)
-	if seed <= 0:
-		seed = p.population
-	var ratio: float = float(p.population) / float(seed)
+	var base: int = seed_for(province_id)
+	if base <= 0:
+		base = p.population
+	var ratio: float = float(p.population) / float(base)
 	if ratio <= 0.60:
 		return "half-empty by the standards of the elders"
 	if ratio <= COLLAPSE_RATIO:
@@ -86,7 +113,11 @@ func snapshot() -> Dictionary:
 	var pops: Array = []
 	if WorldData.is_loaded():
 		for p in WorldData.provinces.values():
-			pops.append({"id": p.id, "population": p.population})
+			pops.append({
+				"id":                 p.id,
+				"population":         p.population,
+				"manpower_fraction":  p.manpower_fraction,
+			})
 	return {
 		"pops":      pops,
 		"seed":      _seed_population.duplicate(),
@@ -104,10 +135,11 @@ func restore(d: Dictionary) -> void:
 		if p == null:
 			continue
 		p.population = int(entry.get("population", p.population))
+		p.manpower_fraction = clampf(float(entry.get("manpower_fraction", 1.0)), 0.0, 1.0)
 	_seed_population.clear()
-	var seed: Dictionary = d.get("seed", {})
-	for k in seed.keys():
-		_seed_population[String(k)] = int(seed[k])
+	var seeded: Dictionary = d.get("seed", {})
+	for k in seeded.keys():
+		_seed_population[String(k)] = int(seeded[k])
 	_last_band.clear()
 	var last: Dictionary = d.get("last_band", {})
 	for k in last.keys():
@@ -131,6 +163,22 @@ func _on_month_passed(_y: int, _m: int) -> void:
 		if p.population <= 0:
 			continue
 		_tick_province(p)
+		_tick_manpower_recovery(p)
+
+
+## §B10 manpower pool regenerates slowly in peace and a touch slower
+## in war. A fully drained province takes ~6 years to come back up —
+## long enough that repeated wars visibly dry the villages out.
+func _tick_manpower_recovery(p: Province) -> void:
+	if p.manpower_fraction >= 1.0:
+		return
+	var at_war: bool = false
+	if p.owning_kingdom != "":
+		at_war = Relations.ids_in_state(
+			p.owning_kingdom, int(Relations.RelationState.AT_WAR)
+		).size() > 0
+	var recover: float = 0.015 if not at_war else 0.005
+	p.manpower_fraction = clampf(p.manpower_fraction + recover, 0.0, 1.0)
 
 
 func _tick_province(p: Province) -> void:
@@ -187,11 +235,10 @@ func _tick_province(p: Province) -> void:
 
 
 func _maybe_announce(p: Province) -> void:
-	@warning_ignore("integer_division")
-	var seed: int = int(_seed_population.get(p.id, p.population))
-	if seed < ANNOUNCE_MIN_POP:
+	var base: int = int(_seed_population.get(p.id, p.population))
+	if base < ANNOUNCE_MIN_POP:
 		return
-	var ratio: float = float(p.population) / float(seed)
+	var ratio: float = float(p.population) / float(base)
 	var new_band: StringName = &"steady"
 	if ratio <= COLLAPSE_RATIO:
 		new_band = &"collapse"

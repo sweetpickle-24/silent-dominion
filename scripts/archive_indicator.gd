@@ -78,7 +78,8 @@ func _build() -> void:
 
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var tw: Tween = create_tween()
-		tw.tween_property(_panel, "scale", Vector2(0.96, 0.96), 0.06)
-		tw.tween_property(_panel, "scale", Vector2.ONE, 0.10)
+		if not Prefs.reduced_motion:
+			var tw: Tween = create_tween()
+			tw.tween_property(_panel, "scale", Vector2(0.96, 0.96), 0.06)
+			tw.tween_property(_panel, "scale", Vector2.ONE, 0.10)
 		pressed.emit()

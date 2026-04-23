@@ -56,6 +56,21 @@ enum Tempo {
 # whether there is enough material to match.
 @export var ops_count: int = 0
 
+# §C2 four-layer internal org, mirroring the player's structure:
+#   lieutenants → coordinators → operatives (operatives live in
+#   RivalRegistry.operatives keyed by id and carry coordinator_id).
+# Hidden from the player by default; only `sweep_for_rivals` and the
+# library's chain-walk UI (§C3) reveal inferred structure.
+#
+# Each lieutenant entry:
+#   id: String, kingdoms: Array[String], coverage: int 0-100,
+#   reassigned_day: int
+# Each coordinator entry:
+#   id: String, parent_lt: String, kingdom_id: String,
+#   coverage: int 0-100, reassigned_day: int
+@export var org_lieutenants: Dictionary = {}
+@export var org_coordinators: Dictionary = {}
+
 
 func foothold_in(kingdom_id: String) -> int:
 	return int(footholds.get(kingdom_id, 0))
@@ -81,6 +96,8 @@ func to_dict() -> Dictionary:
 		"preferred_methods":   _string_names_to_strings(preferred_methods),
 		"footholds":           footholds.duplicate(true),
 		"ops_count":           ops_count,
+		"org_lieutenants":     org_lieutenants.duplicate(true),
+		"org_coordinators":    org_coordinators.duplicate(true),
 	}
 
 
@@ -104,6 +121,14 @@ static func from_dict(d: Dictionary) -> RivalSociety:
 		for k in fh:
 			s.footholds[String(k)] = int(fh[k])
 	s.ops_count = int(d.get("ops_count", 0))
+	var lt_v: Variant = d.get("org_lieutenants", {})
+	if lt_v is Dictionary:
+		for k in lt_v:
+			s.org_lieutenants[String(k)] = (lt_v[k] as Dictionary).duplicate(true)
+	var co_v: Variant = d.get("org_coordinators", {})
+	if co_v is Dictionary:
+		for k in co_v:
+			s.org_coordinators[String(k)] = (co_v[k] as Dictionary).duplicate(true)
 	return s
 
 

@@ -87,6 +87,26 @@ var _legend: HBoxContainer
 var _cartouche: PanelContainer
 var _cartouche_vbox: VBoxContainer
 
+# Intelligence layer toolbar (§10.3). Holds one pill per overlay
+# plus the default political view.
+var _layers_row: HBoxContainer = null
+var _layer_buttons: Dictionary = {}  # StringName -> Button
+var _overlay_mode: StringName = &"political"
+
+const LAYER_DEFS: Array = [
+	{ "id": &"political",  "label": "Political",  "hint": "Kingdoms by crown." },
+	{ "id": &"unrest",     "label": "Unrest",     "hint": "Calm to riot." },
+	{ "id": &"prosperity", "label": "Prosperity", "hint": "Treasury condition." },
+	{ "id": &"cover",      "label": "Cover",      "hint": "Fidelity of your picture." },
+	{ "id": &"religion",   "label": "Religion",   "hint": "Dominant faith per land." },
+	{ "id": &"rivals",     "label": "Rivals",     "hint": "Known rival-society heat." },
+	{ "id": &"military",   "label": "Military",   "hint": "Army size weighted by quality." },
+	{ "id": &"famine",     "label": "Famine",     "hint": "Hunger and emptying villages." },
+]
+
+var _opacity_slider: HSlider = null
+var _search_edit: LineEdit = null
+
 # --- State ------------------------------------------------------------------
 
 var _selected_cell_id: int = 0
@@ -115,7 +135,13 @@ func _ready() -> void:
 	_render_legend()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.20)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.20))
+
+	# §10.1/§10.2 era tinting. EraTheme nudges the view's modulate on
+	# era transitions so the whole map shifts tone subtly between
+	# ages without bespoke art per era.
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 	if MapData.is_ready():
 		_on_map_ready()
@@ -125,6 +151,41 @@ func _ready() -> void:
 	KingdomEconomy.tick.connect(_on_economy_tick)
 	Relations.relation_changed.connect(_on_relation_changed)
 	Unrest.province_unrest_changed.connect(_on_unrest_changed)
+	if Base != null:
+		Base.base_changed.connect(_on_base_changed)
+		Base.move_started.connect(_on_base_move_started)
+		Base.transition_ended.connect(_on_base_transition_ended)
+	# Repaint the pin layer during travel so the pin creeps along
+	# the road (§22.5). Outside of travel this is a noop; the
+	# `is_traveling()` gate keeps the per-day cost at one check.
+	GameClock.day_passed.connect(_on_day_passed_for_pin)
+
+
+func _on_base_changed(_old_p: String, _new_p: String) -> void:
+	_rerender_selected()
+
+
+func _on_base_move_started(_dst: String, _days: int) -> void:
+	_rerender_selected()
+
+
+func _on_base_transition_ended(_kid: String) -> void:
+	_rerender_selected()
+
+
+func _on_day_passed_for_pin(_y: int, _m: int, _d: int) -> void:
+	if Base == null or not Base.is_traveling():
+		return
+	if _labels_layer != null:
+		_labels_layer.queue_redraw()
+
+
+func _rerender_selected() -> void:
+	if _selected_province_id.is_empty():
+		return
+	var p: Province = WorldData.get_province(_selected_province_id)
+	if p != null:
+		_render_detail(p)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -140,7 +201,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -215,6 +276,8 @@ func _build_sheet() -> void:
 	sub.add_theme_font_size_override("font_size", 11)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	header.add_child(sub)
+
+	_build_layers_row(col)
 
 	# Body row: canvas + detail.
 	var row: HBoxContainer = HBoxContainer.new()
@@ -377,23 +440,146 @@ func _render_detail(p: Province) -> void:
 		_detail_vbox.add_child(_make_line(infra))
 
 	var faiths: Array = Religions.all_in(p.id)
+	var only_ideas: bool = true
+	var any_faith: bool = false
+	for entry_chk in faiths:
+		if not (entry_chk["religion"] as Religion).is_ideology:
+			only_ideas = false
+			any_faith = true
+			break
+		any_faith = true
 	if not faiths.is_empty():
-		_detail_vbox.add_child(_make_heading("WHAT THEY HOLD SACRED"))
+		var heading: String = "WHAT THEY HOLD SACRED"
+		if only_ideas:
+			heading = "WHAT THEIR LEARNED HOLD TRUE"
+		_detail_vbox.add_child(_make_heading(heading))
 		var top: int = mini(faiths.size(), 3)
 		for i in range(top):
 			var entry: Dictionary = faiths[i]
 			var rel: Religion = entry["religion"]
 			var share: int = int(entry["share"])
+			var share_text: String = _share_phrase(share)
+			if rel.is_ideology:
+				share_text = "a quiet circle of " + share_text if share < 20 else share_text + " adhere to it"
+			var gate_suffix: String = ""
+			match Religions.engagement_status(rel.id):
+				&"opaque":
+					gate_suffix = " · opaque — walk it by hand"
+				&"stale":
+					gate_suffix = " · notes grown stale"
+				_:
+					gate_suffix = ""
 			_detail_vbox.add_child(_make_line(
-				"•  %s — %s, %s"
-				% [rel.religion_name, _share_phrase(share), rel.phase_name().to_lower()]
+				"•  %s — %s, %s%s"
+				% [rel.religion_name, share_text, rel.phase_name().to_lower(), gate_suffix]
 			))
+	# keep the "no faiths" branch silent — some provinces are empty
+	# on purpose (steppe, desert). The `any_faith` flag is kept so a
+	# future pass can show a neutral line where meaningful.
+	var _unused_any_faith: bool = any_faith
 
 	if k != null:
 		_detail_vbox.add_child(_make_divider())
 		_detail_vbox.add_child(_make_heading("THE CROWN IT FEEDS"))
 		_detail_vbox.add_child(_make_line("%s — %s" % [k.kingdom_name, k.treasury_condition_name()]))
 		_detail_vbox.add_child(_make_line(k.tax_level_phrase() + "."))
+
+		# Generational drift on the local population (§8.11). Only
+		# render when drift is meaningful; the headline function
+		# returns empty otherwise.
+		if PopWeights != null:
+			var pop_headline: String = PopWeights.headline_for(k.id)
+			if pop_headline != "":
+				_detail_vbox.add_child(_make_line("The generation that came of age here: " + pop_headline + "."))
+
+	# Base of operations (§22). Always render so the player can see
+	# where the table currently sits; offer the move UI when this
+	# province is a plausible destination.
+	_render_base_block(p)
+
+	# §D2 Zoom level past province: if this province hosts a city
+	# (Athens, Sparta, …), render its districts with per-quarter fog
+	# descriptions. Only a non-burned coordinator in the holding
+	# kingdom lifts the fog — outside coverage the city stays as
+	# "a name on the map, nothing more".
+	if p.city != null:
+		_render_city_block(p)
+
+
+func _render_city_block(p: Province) -> void:
+	var c: City = p.city
+	_detail_vbox.add_child(_make_divider())
+	_detail_vbox.add_child(_make_heading("THE CITY — %s" % c.display_name.to_upper()))
+	var cov: OrgMember = Org.coverage_for(p.owning_kingdom) if Org != null else null
+	if cov == null:
+		_detail_vbox.add_child(_make_line(
+			"No hand of yours in %s. The quarters are rumour." % c.display_name
+		))
+		return
+	for d in c.districts:
+		var kind: int = int(d.get("kind", 0))
+		var fog: int = int(d.get("fog", 100))
+		var line: String = _district_phrase(c.district_kind_name(kind), fog)
+		_detail_vbox.add_child(_make_line("•  %s" % line))
+
+
+func _district_phrase(kind_name: String, fog: int) -> String:
+	var state: String = ""
+	if fog >= 80:
+		state = "a rumour, no more"
+	elif fog >= 50:
+		state = "walked at a distance"
+	elif fog >= 25:
+		state = "known well enough to move through"
+	else:
+		state = "quarters you could name a man in"
+	return "%s — %s" % [kind_name.capitalize(), state]
+
+
+func _render_base_block(p: Province) -> void:
+	if Base == null:
+		return
+	_detail_vbox.add_child(_make_divider())
+	_detail_vbox.add_child(_make_heading("THE TABLE"))
+	_detail_vbox.add_child(_make_line(Base.headline()))
+
+	if Base.province_id == p.id:
+		# Player is already here — nothing to offer.
+		return
+	if not Base.is_idle():
+		# Already mid-move; no destination switching until it's done.
+		return
+
+	var checklist: Dictionary = Base.recompute_checklist(p.id)
+	_detail_vbox.add_child(_make_heading("PRE-MOVE — WALK THE LIST"))
+	for key in [Base.K_SAFEHOUSE, Base.K_COURIER, Base.K_COORDINATOR, Base.K_OLD_BASE]:
+		var entry: Dictionary = checklist.get(key, {})
+		var ok: bool = bool(entry.get("ok", false))
+		var glyph: String = "✓" if ok else "✗"
+		_detail_vbox.add_child(_make_line("%s  %s" % [glyph, String(entry.get("note", ""))]))
+
+	var btn: Button = Button.new()
+	if Base.checklist_cleared():
+		btn.text = "Move the table to %s" % p.province_name
+		btn.disabled = false
+	else:
+		btn.text = "Cannot move — groundwork incomplete"
+		btn.disabled = true
+	btn.pressed.connect(_on_move_pressed.bind(p.id))
+	_detail_vbox.add_child(btn)
+
+
+func _on_move_pressed(dst_province_id: String) -> void:
+	if Base == null:
+		return
+	if not Base.prepare_move(dst_province_id):
+		return
+	if not Base.begin_move():
+		return
+	# Re-render so the detail panel shows the new travel state.
+	var p: Province = WorldData.get_province(_selected_province_id)
+	if p != null:
+		_render_detail(p)
 
 
 func _clear_detail() -> void:
@@ -406,11 +592,223 @@ func _clear_detail() -> void:
 func _render_legend() -> void:
 	for c in _legend.get_children():
 		c.queue_free()
-	for id in LEGEND_KINGDOMS:
-		var k: Kingdom = WorldData.get_kingdom(String(id))
-		if k == null:
+	match _overlay_mode:
+		&"political":
+			for id in LEGEND_KINGDOMS:
+				var k: Kingdom = WorldData.get_kingdom(String(id))
+				if k == null:
+					continue
+				_legend.add_child(_build_legend_swatch(k))
+		&"unrest":
+			_legend.add_child(_build_swatch_label(Color(0.55, 0.72, 0.48), "calm"))
+			_legend.add_child(_build_swatch_label(Color(0.80, 0.74, 0.42), "restive"))
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.22, 0.22), "in revolt"))
+		&"prosperity":
+			_legend.add_child(_build_swatch_label(Color(0.28, 0.58, 0.88), "flush"))
+			_legend.add_child(_build_swatch_label(Color(0.48, 0.72, 0.62), "stable"))
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.78, 0.32), "strained"))
+			_legend.add_child(_build_swatch_label(Color(0.85, 0.55, 0.28), "indebted"))
+			_legend.add_child(_build_swatch_label(Color(0.70, 0.20, 0.22), "broke"))
+		&"cover":
+			_legend.add_child(_build_swatch_label(Color(0.48, 0.78, 0.56), "current"))
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.78, 0.38), "aging"))
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.52, 0.28), "stale"))
+			_legend.add_child(_build_swatch_label(Color(0.40, 0.40, 0.44), "cold"))
+		&"rivals":
+			_legend.add_child(_build_swatch_label(Color(0.30, 0.38, 0.52), "quiet"))
+			_legend.add_child(_build_swatch_label(Color(0.56, 0.30, 0.60), "active"))
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.22, 0.68), "hot"))
+		&"military":
+			_legend.add_child(_build_swatch_label(Color(0.50, 0.52, 0.58), "modest"))
+			_legend.add_child(_build_swatch_label(Color(0.64, 0.44, 0.40), "fielded"))
+			_legend.add_child(_build_swatch_label(Color(0.78, 0.35, 0.22), "formidable"))
+		&"famine":
+			_legend.add_child(_build_swatch_label(Color(0.82, 0.74, 0.44), "fed"))
+			_legend.add_child(_build_swatch_label(Color(0.70, 0.66, 0.52), "thinning"))
+			_legend.add_child(_build_swatch_label(Color(0.78, 0.24, 0.18), "hunger"))
+		&"religion":
+			var seen: Dictionary = {}
+			for p_id in WorldData.provinces.keys():
+				var p: Province = WorldData.provinces[p_id]
+				if p == null or Religions == null:
+					continue
+				var r: Religion = Religions.dominant_in(p.id)
+				if r == null or seen.has(r.id):
+					continue
+				seen[r.id] = true
+				var h: int = String(r.id).hash()
+				var hue: float = fposmod(float(h & 0xffffff) / float(0xffffff), 1.0)
+				_legend.add_child(_build_swatch_label(Color.from_hsv(hue, 0.55, 0.80), r.religion_name))
+				if seen.size() >= 6:
+					break
+
+
+func _build_layers_row(parent: Container) -> void:
+	_layers_row = HBoxContainer.new()
+	_layers_row.add_theme_constant_override("separation", 6)
+	parent.add_child(_layers_row)
+
+	var label: Label = Label.new()
+	label.text = "Layer"
+	label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	label.add_theme_font_size_override("font_size", 11)
+	_layers_row.add_child(label)
+
+	for def_any in LAYER_DEFS:
+		var def: Dictionary = def_any
+		var b: Button = Button.new()
+		b.text = String(def.get("label", "?"))
+		b.tooltip_text = String(def.get("hint", ""))
+		b.toggle_mode = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size.y = 22.0
+		b.add_theme_color_override("font_color", COLOR_INK)
+		b.add_theme_font_size_override("font_size", 11)
+		var mode_id: StringName = def.get("id", &"political")
+		b.pressed.connect(func() -> void: _set_overlay_mode(mode_id))
+		_layer_buttons[mode_id] = b
+		_layers_row.add_child(b)
+
+	# Opacity slider controls how aggressively the overlay tints the
+	# base political map. Hidden while the political layer is active
+	# because it does nothing there.
+	var op_label: Label = Label.new()
+	op_label.text = "  Opacity"
+	op_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	op_label.add_theme_font_size_override("font_size", 11)
+	_layers_row.add_child(op_label)
+	_opacity_slider = HSlider.new()
+	_opacity_slider.min_value = 0.0
+	_opacity_slider.max_value = 1.0
+	_opacity_slider.step = 0.05
+	_opacity_slider.value = 0.65
+	_opacity_slider.custom_minimum_size = Vector2(100, 20)
+	_opacity_slider.focus_mode = Control.FOCUS_NONE
+	_opacity_slider.tooltip_text = "How strongly the overlay tints the political map."
+	_opacity_slider.value_changed.connect(_on_opacity_changed)
+	_layers_row.add_child(_opacity_slider)
+
+	# Spacer to push search to the right edge of the toolbar.
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_layers_row.add_child(spacer)
+
+	_search_edit = LineEdit.new()
+	_search_edit.placeholder_text = "Find a land…"
+	_search_edit.custom_minimum_size = Vector2(180, 22)
+	_search_edit.add_theme_color_override("font_color", COLOR_INK)
+	_search_edit.add_theme_font_size_override("font_size", 11)
+	_search_edit.text_submitted.connect(_on_search_submitted)
+	_layers_row.add_child(_search_edit)
+
+	_refresh_layer_buttons()
+
+
+func _set_overlay_mode(mode: StringName) -> void:
+	if _overlay_mode == mode:
+		_refresh_layer_buttons()
+		return
+	_overlay_mode = mode
+	if _renderer != null:
+		_renderer.set_overlay_mode(mode)
+	_refresh_layer_buttons()
+	_render_legend()
+
+
+func _refresh_layer_buttons() -> void:
+	for id_any in _layer_buttons.keys():
+		var id: StringName = id_any
+		var b: Button = _layer_buttons[id]
+		b.button_pressed = (id == _overlay_mode)
+	if _opacity_slider != null:
+		# The political layer has no metric to mix in, so dim the
+		# slider rather than let it pretend to do something.
+		var is_political: bool = (_overlay_mode == &"political")
+		_opacity_slider.editable = not is_political
+		_opacity_slider.modulate.a = 0.45 if is_political else 1.0
+
+
+func _on_opacity_changed(v: float) -> void:
+	if _renderer != null:
+		_renderer.set_overlay_mix(v)
+
+
+## Lightweight province search: substring-match on display name (and
+## id as a fallback), then select + centre + zoom-in. Press Enter in
+## the field to run it; submit-on-focus-lost would fight typing.
+func _on_search_submitted(query: String) -> void:
+	var q: String = query.strip_edges().to_lower()
+	if q.is_empty():
+		return
+	var match_p: Province = _find_province_by_query(q)
+	if match_p == null:
+		return
+	# Find a cell that belongs to this province to select it.
+	var cid: int = _cell_id_for_province(match_p.id)
+	if cid <= 0:
+		return
+	_select_cell(cid)
+	_centre_on_cell(cid)
+	if _search_edit != null:
+		_search_edit.release_focus()
+
+
+func _find_province_by_query(q: String) -> Province:
+	var best: Province = null
+	var best_score: int = 9999
+	for p_any in WorldData.provinces.values():
+		var p: Province = p_any
+		if p == null:
 			continue
-		_legend.add_child(_build_legend_swatch(k))
+		var hay_name: String = p.province_name.to_lower()
+		var hay_id:   String = p.id.to_lower()
+		# Prefer prefix hits over generic substring hits; prefer
+		# shorter names so "rome" beats "rome-and-ostia-road".
+		if hay_name.begins_with(q) or hay_id.begins_with(q):
+			var score: int = hay_name.length()
+			if score < best_score:
+				best_score = score
+				best = p
+		elif best == null and (hay_name.find(q) >= 0 or hay_id.find(q) >= 0):
+			best = p
+			best_score = hay_name.length() + 1000
+	return best
+
+
+func _cell_id_for_province(province_id: String) -> int:
+	if not MapData.is_ready():
+		return 0
+	for cid in MapData.cells.keys():
+		var cell: MapCell = MapData.cells[cid]
+		if cell != null and cell.region_id == province_id:
+			return int(cid)
+	return 0
+
+
+func _build_swatch_label(col: Color, text: String) -> Control:
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	var sw: Panel = Panel.new()
+	sw.custom_minimum_size = Vector2(10, 10)
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = col
+	sb.border_color = col.darkened(0.45)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 2
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 2
+	sw.add_theme_stylebox_override("panel", sb)
+	h.add_child(sw)
+	var l: Label = Label.new()
+	l.text = text
+	l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	l.add_theme_font_size_override("font_size", 10)
+	h.add_child(l)
+	return h
 
 
 func _build_legend_swatch(k: Kingdom) -> Control:
@@ -675,6 +1073,13 @@ func _handle_click(canvas_pt: Vector2) -> void:
 	var cid: int = MapData.cell_id_at_uv(uv)
 	if cid == 0:
 		return
+	_select_cell(cid)
+
+
+## Shared selection path used by both clicks and programmatic picks
+## (search, bookmarks, debug). Kept private; callers outside this
+## file should go through `_select_cell` via a search query.
+func _select_cell(cid: int) -> void:
 	var cell: MapCell = MapData.get_cell(cid)
 	if cell == null:
 		return
@@ -683,8 +1088,28 @@ func _handle_click(canvas_pt: Vector2) -> void:
 		return
 	_selected_cell_id = cid
 	_selected_province_id = p.id
-	_renderer.set_selected_cell(cid)
+	if _renderer != null:
+		_renderer.set_selected_cell(cid)
 	_render_detail(p)
+
+
+## Pan the map so the given cell sits in the canvas centre. Zoom is
+## bumped to regional LOD if the user is currently zoomed all the
+## way out, so the targeted land actually fills a readable area.
+func _centre_on_cell(cid: int) -> void:
+	if _renderer == null:
+		return
+	var cell: MapCell = MapData.get_cell(cid)
+	if cell == null:
+		return
+	if _zoom_user < 2.0:
+		_zoom_user = 2.2
+	var bs: Vector2 = _renderer.bitmap_size()
+	var eff: float = _fit_zoom * _zoom_user
+	var c: Vector2 = _canvas.size
+	_map_offset = c * 0.5 - cell.center_uv * bs * eff
+	_clamp_offset()
+	_apply_transform()
 
 
 # --- Signal hooks -----------------------------------------------------------
@@ -751,6 +1176,92 @@ func _draw_labels(_c: Control = null) -> void:
 	_draw_cities()
 	if _zoom_user >= LOD_CITY:
 		_draw_city_districts()
+	_draw_base_pin()
+
+
+# --- Base pin (§22.5 travel-animation visual) -------------------------------
+#
+# A small pin marks the player's table on the world. While idle or in
+# transition it sits on the current province; while traveling it
+# interpolates along a straight line between origin and destination,
+# driven by `Base.travel_progress()`. A dashed "road" draws the
+# remaining path so the player can see how far they still are from the
+# new seat.
+func _draw_base_pin() -> void:
+	if Base == null:
+		return
+	var anchor_id: String = Base.province_id
+	var dest_id: String = Base.destination_province_id
+	var origin_id: String = Base.origin_province_id
+
+	if Base.is_traveling():
+		var a: Vector2 = _province_pin_pos(origin_id)
+		var b: Vector2 = _province_pin_pos(dest_id)
+		if a == Vector2.ZERO or b == Vector2.ZERO:
+			return
+		var t: float = Base.travel_progress()
+		var px: Vector2 = a.lerp(b, t)
+		# Remaining road: dashed line from the pin to the destination.
+		_draw_dashed_line(px, b, Color(0.95, 0.85, 0.55, 0.55), 2.0, 6.0, 4.0)
+		# Ghost of the origin so the player can see where they left.
+		_draw_pin(a, Color(0.55, 0.50, 0.40, 0.55), false)
+		_draw_pin(px, Color(0.98, 0.80, 0.32, 0.95), true)
+	else:
+		if anchor_id.is_empty():
+			return
+		var p: Vector2 = _province_pin_pos(anchor_id)
+		if p == Vector2.ZERO:
+			return
+		var col: Color = Color(0.98, 0.80, 0.32, 0.95)
+		if Base.is_in_transition():
+			# Settling in: softer, pulsing-warm orange.
+			col = Color(0.98, 0.72, 0.40, 0.85)
+		_draw_pin(p, col, true)
+
+
+func _draw_pin(pos: Vector2, col: Color, with_ring: bool) -> void:
+	if with_ring:
+		_labels_layer.draw_circle(pos, 8.0, Color(0, 0, 0, 0.40))
+		_labels_layer.draw_circle(pos, 6.0, Color(0, 0, 0, 0.85))
+	_labels_layer.draw_circle(pos, 4.5, col)
+	_labels_layer.draw_circle(pos, 1.6, Color(1.0, 0.96, 0.88, 0.95))
+
+
+func _draw_dashed_line(a: Vector2, b: Vector2, col: Color, width: float, dash_len: float, gap_len: float) -> void:
+	var total: float = a.distance_to(b)
+	if total <= 0.5:
+		return
+	var dir: Vector2 = (b - a).normalized()
+	var step: float = dash_len + gap_len
+	var d: float = 0.0
+	while d < total:
+		var p1: Vector2 = a + dir * d
+		var p2: Vector2 = a + dir * min(d + dash_len, total)
+		_labels_layer.draw_line(p1, p2, col, width)
+		d += step
+
+
+func _province_pin_pos(province_id: String) -> Vector2:
+	if province_id.is_empty() or _renderer == null:
+		return Vector2.ZERO
+	var cell_ids: Array = MapData.cells_in_region(province_id)
+	if cell_ids.is_empty():
+		return Vector2.ZERO
+	var biggest: MapCell = null
+	for cid in cell_ids:
+		var c: MapCell = MapData.get_cell(int(cid))
+		if c == null:
+			continue
+		if biggest == null or c.pixel_count > biggest.pixel_count:
+			biggest = c
+	if biggest == null:
+		return Vector2.ZERO
+	var bs: Vector2 = _renderer.bitmap_size()
+	var eff: float = _fit_zoom * _zoom_user
+	return Vector2(
+		biggest.center_uv.x * bs.x * eff + _map_offset.x,
+		biggest.center_uv.y * bs.y * eff + _map_offset.y,
+	)
 
 
 func _draw_region_labels() -> void:

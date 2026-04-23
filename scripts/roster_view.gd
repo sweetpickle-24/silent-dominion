@@ -41,7 +41,10 @@ func _ready() -> void:
 	_render()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 	Org.roster_changed.connect(_on_roster_changed)
 	Org.member_updated.connect(_on_member_updated)
@@ -66,7 +69,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -387,11 +390,16 @@ func _build_row(m: OrgMember) -> Control:
 			+ "Monthly handler upkeep; all their reporting is our fiction."
 		))
 	elif m.suspected_compromised:
+		var tip: String = "A cross-reference or audit has flagged them. Decide soon: cut, leverage, or run them as a double."
+		match m.corruption_source:
+			OrgMember.CorruptionSource.GREED:
+				tip += "\nAttributed source: personal drift (greed / tenure rot)."
+			OrgMember.CorruptionSource.RIVAL:
+				tip += "\nAttributed source: a rival hand is shaping what they report."
 		hbox.add_child(_build_status_badge(
 			"SUSPECT",
 			Color(0.68, 0.46, 0.10, 1.0),
-			"A cross-reference or audit has flagged them. Decide soon: "
-			+ "cut, leverage, or run them as a double."
+			tip
 		))
 	elif m.layer != OrgMember.Layer.OPERATIVE and m.months_since_audit >= 18:
 		hbox.add_child(_build_status_badge(

@@ -69,7 +69,10 @@ func _ready() -> void:
 	_render_list()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 	PublicNews.news_changed.connect(_render_list)
 	PublicNews.mark_all_read()
@@ -84,7 +87,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -252,7 +255,111 @@ func _build_dispatch(event: Dictionary) -> Control:
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW))
 	col.add_child(body)
 
+	# §10.5 Badge strip: tier + narrator + calibration.
+	var badges: HBoxContainer = _build_badges(event)
+	if badges != null:
+		col.add_child(badges)
+
 	return hb
+
+
+func _build_badges(event: Dictionary) -> HBoxContainer:
+	var tier: int = int(event.get("tier", -1))
+	var narrator: String = String(event.get("narrator_id", ""))
+	var verdict: StringName = StringName(String(event.get("calibration_verdict", "")))
+	var has_tier: bool = tier >= 0
+	var has_narrator: bool = narrator != ""
+	var has_cal: bool = verdict != &"" and verdict != &"no_reference"
+	if not (has_tier or has_narrator or has_cal):
+		return null
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	if has_tier:
+		h.add_child(_tier_badge(tier))
+	if has_narrator:
+		h.add_child(_narrator_badge(narrator))
+	if has_cal:
+		h.add_child(_calibration_band(verdict, float(event.get("calibration_score", 0.0))))
+	return h
+
+
+const _TIER_COLORS: Dictionary = {
+	0: Color(0.58, 0.22, 0.12, 1.0), # WORLDWIDE
+	1: Color(0.44, 0.36, 0.14, 1.0), # STATE
+	2: Color(0.28, 0.46, 0.30, 1.0), # FACTIONAL
+	3: Color(0.40, 0.40, 0.44, 1.0), # LOCAL
+}
+
+
+func _tier_badge(tier: int) -> Control:
+	var p: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = _TIER_COLORS.get(tier, COLOR_INK_MUTED)
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", sb)
+	var l: Label = Label.new()
+	l.text = PublicNews.tier_name(tier).to_upper()
+	l.add_theme_color_override("font_color", COLOR_PARCHMENT)
+	l.add_theme_font_size_override("font_size", 10)
+	p.add_child(l)
+	return p
+
+
+func _narrator_badge(narrator_id: String) -> Control:
+	var p: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.44, 0.36, 0.70, 1.0)
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", sb)
+	var actor: Actor = Actors.get_actor(StringName(narrator_id)) if Actors != null else null
+	var label: String = "told through " + (actor.given_name if actor != null else narrator_id)
+	var l: Label = Label.new()
+	l.text = label
+	l.add_theme_color_override("font_color", COLOR_PARCHMENT)
+	l.add_theme_font_size_override("font_size", 10)
+	p.add_child(l)
+	return p
+
+
+func _calibration_band(verdict: StringName, score: float) -> Control:
+	var p: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	var bg: Color
+	match verdict:
+		&"matches":      bg = Color(0.18, 0.42, 0.24, 1.0)
+		&"partial":      bg = Color(0.62, 0.45, 0.10, 1.0)
+		&"contradicts":  bg = Color(0.72, 0.22, 0.16, 1.0)
+		_:               bg = COLOR_INK_MUTED
+	sb.bg_color = bg
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", sb)
+	var l: Label = Label.new()
+	l.text = "%s (%.2f)" % [PublicNews.calibration_phrase(verdict), score]
+	l.add_theme_color_override("font_color", COLOR_PARCHMENT)
+	l.add_theme_font_size_override("font_size", 10)
+	p.add_child(l)
+	return p
 
 
 func _lag_suffix(channel: String, lag_days: int) -> String:

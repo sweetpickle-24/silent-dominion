@@ -18,6 +18,7 @@ signal religion_phase_changed(id: StringName, prev_phase: int, new_phase: int)
 signal religion_share_changed(religion_id: StringName, province_id: String)
 
 const RELIGION_DATA_PATH: String = "res://data/religions_500bce.json"
+const IDEOLOGY_DATA_PATH: String = "res://data/ideologies_500bce.json"
 
 # Phase transition thresholds.
 const EMERGE_TO_CONS_DEPTH:       int = 25
@@ -66,6 +67,7 @@ func _ready() -> void:
 	else:
 		_seed()
 	GameClock.month_passed.connect(_on_month_passed)
+	EventBus.action_resolved.connect(_on_action_resolved)
 
 
 # --- Public API --------------------------------------------------------------
@@ -109,6 +111,113 @@ func all_in(province_id: String) -> Array:
 ## Average piety bias contributed by all religions present in a
 ## province, weighted by share. Used by ActorRegistry's regional
 ## weighting to nudge piety in newly generated minor characters.
+## §13.4 — can the player automate work against this religion?
+## Hard no until they've done it by hand at least once. Also
+## opens back up as "yes with caveat" if the religion drifted
+## significantly since engagement — caller decides what to do
+## with the stale signal.
+func can_automate(religion_id: StringName) -> bool:
+	var r: Religion = get_religion(religion_id)
+	if r == null:
+		return false
+	return r.engaged_manually
+
+
+func engagement_status(religion_id: StringName) -> StringName:
+	var r: Religion = get_religion(religion_id)
+	if r == null:
+		return &"unknown"
+	if not r.engaged_manually:
+		return &"opaque"
+	if r.engagement_stale():
+		return &"stale"
+	return &"current"
+
+
+## Record that the player has worked through this religion manually.
+## Latches `engaged_manually` true and snapshots the current doctrinal
+## attributes so drift can be measured later.
+func mark_engaged(religion_id: StringName) -> void:
+	var r: Religion = get_religion(religion_id)
+	if r == null:
+		return
+	if r.engaged_manually and not r.engagement_stale():
+		return
+	var was_stale: bool = r.engagement_stale()
+	r.snapshot_engagement(GameClock.year)
+	_announce_engaged(r, was_stale)
+
+
+func _announce_engaged(r: Religion, was_refresh: bool) -> void:
+	var subject: String
+	var body: String
+	if was_refresh:
+		subject = "%s — the notes are current again" % r.name
+		body = "You revisited %s after the drift. The old library entry is refreshed; automation on this %s is safe once more." % [r.name, r.kind_label()]
+	else:
+		subject = "%s — now in the library" % r.name
+		body = "Having worked through %s by your own hand, you may now dispatch this kind of work against it without leaning over every step." % r.name
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter: Letter = Letter.create(
+		StringName("religion_engaged_%s_%d_%d" % [String(r.id), GameClock.year, Time.get_ticks_msec()]),
+		"Your own hand",
+		date,
+		subject,
+		body,
+		&"operative"
+	)
+	EventBus.letter_delivered.emit(letter)
+
+
+func _on_action_resolved(action_id: StringName, result: Dictionary) -> void:
+	if not bool(result.get("success", false)):
+		return
+	# §13.4 — only player-issued hands-on work teaches the library.
+	# Dispatched automations don't count; that's the whole point.
+	if bool(result.get("auto", false)):
+		return
+	var target_id_raw = result.get("target_id", "")
+	if String(target_id_raw) == "":
+		return
+	if not _is_religion_targeting_action(action_id):
+		return
+	var target: Actor = Actors.get_actor(StringName(String(target_id_raw)))
+	if target == null:
+		return
+	var pid: String = String(target.kingdom_id)
+	if pid == "":
+		return
+	var r: Religion = dominant_in(pid)
+	if r == null:
+		return
+	# Only count engagements that actually plausibly touched
+	# doctrine — a priest or a philosopher in a province where
+	# this faith is at least lightly present.
+	if int(r.presence.get(pid, 0)) < 10:
+		return
+	if target.role != Actor.Role.PRIEST and target.role != Actor.Role.PHILOSOPHER:
+		return
+	mark_engaged(r.id)
+
+
+# §13.4 whitelist. These are the action ids that the player running
+# by hand counts as "working through a religion" for the manual gate.
+# Keep conservative — bribe_gift does not teach you anything about
+# doctrine, plant_idea does.
+const RELIGION_TARGETING_ACTIONS: Array[StringName] = [
+	&"observe",
+	&"cultivate",
+	&"plant_idea",
+	&"seed_rumour",
+	&"host_sway_court",
+	&"host_agitate",
+]
+
+
+func _is_religion_targeting_action(action_id: StringName) -> bool:
+	return RELIGION_TARGETING_ACTIONS.has(action_id)
+
+
 func piety_bias_for(province_id: String) -> int:
 	var bias: float = 0.0
 	for r in religions.values():
@@ -127,14 +236,19 @@ func piety_bias_for(province_id: String) -> int:
 func _seed() -> void:
 	if not religions.is_empty():
 		return
-	var f: FileAccess = FileAccess.open(RELIGION_DATA_PATH, FileAccess.READ)
+	_load_seed_file(RELIGION_DATA_PATH, false)
+	_load_seed_file(IDEOLOGY_DATA_PATH, true)
+
+
+func _load_seed_file(path: String, ideology_default: bool) -> void:
+	var f: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		push_warning("Religions: could not open %s" % RELIGION_DATA_PATH)
+		push_warning("Religions: could not open %s" % path)
 		return
 	var blob: Variant = JSON.parse_string(f.get_as_text())
 	f.close()
 	if typeof(blob) != TYPE_DICTIONARY:
-		push_warning("Religions: malformed seed file")
+		push_warning("Religions: malformed seed file %s" % path)
 		return
 	for entry in blob.get("religions", []):
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -142,6 +256,10 @@ func _seed() -> void:
 		var r: Religion = Religion.from_dict(entry)
 		if r.id == &"":
 			continue
+		# If the seed file didn't specify is_ideology, use the file's
+		# default. Religions file -> false, ideologies file -> true.
+		if not (entry as Dictionary).has("is_ideology"):
+			r.is_ideology = ideology_default
 		religions[r.id] = r
 		religion_added.emit(r.id)
 
@@ -208,7 +326,10 @@ func _check_phase_transition(r: Religion) -> void:
 			):
 				r.phase = Religion.Phase.DOMINANCE
 		Religion.Phase.DOMINANCE:
-			if r.reform_potential >= DOM_TO_FRACTURE_REFORM:
+			# Ideologies fracture earlier than religions do — debates
+			# in academies move faster than schisms between bishops.
+			var fracture_gate: int = DOM_TO_FRACTURE_REFORM - (15 if r.is_ideology else 0)
+			if r.reform_potential >= fracture_gate:
 				r.phase = Religion.Phase.FRACTURE
 				_fracture_months[r.id] = 0
 		Religion.Phase.FRACTURE:

@@ -19,6 +19,7 @@ enum Kind {
 	MONASTERY,         # permanent intelligence node + correspondence
 	GUILD,             # urban intelligence + craft control
 	ESTATE,            # rural revenue + provincial access
+	BANKING_HOUSE,     # wraps a BankingHouse resource into the entity graph
 }
 
 @export var id: StringName = &""
@@ -72,12 +73,84 @@ enum Kind {
 @export var dissolved_reason: StringName = &""
 
 
+# --- Longevity (§20.4) -------------------------------------------------------
+#
+# Accumulated standing: decades of archives, contacts, contracts.
+# Rises one point per year tenure up to INSTITUTIONAL_MEMORY_CAP.
+# Feeds a small but real intelligence/visibility bonus in the
+# registry that newcomers simply cannot match.
+@export_range(0, 200) var institutional_memory: int = 0
+
+# Beneficial control is "live" when a proxy answers to the chain of
+# loyal actors the registry understands. Major political shocks —
+# the ruler of the home kingdom falls, the province flips hands —
+# knock this off, at which point the entity survives but yields
+# nothing to the player until control is re-established through a
+# new proxy arrangement.
+@export var control_disrupted: bool = false
+@export var control_disrupted_reason: StringName = &""
+@export var control_disrupted_year: int = 0
+
+
+# --- §20 beneficial-ownership paperwork -------------------------------------
+#
+# The official record does not name the player and never will. What
+# investigators see when they open the archive is the `nominal_owner`
+# — a respectable figurehead whose paperwork the proxy forged — and
+# if they lean harder, `proxy_chain`: the sequence of names the money
+# actually routes through before anyone connected to the player sees
+# silver. Each extra hop in the chain dampens the visibility hit
+# when the entity is scrutinised.
+#
+# `papers_founding_year` tracks when the current paperwork was
+# notarised. Regimes changing, wars, dynastic successions — any of
+# these plausibly invalidate old charters. When the gap between
+# papers_founding_year and current year grows past PAPERS_STALE_YEARS
+# the entity flags "papers thin" and an investigator will land much
+# harder if they hit.
+@export var nominal_owner_name: String = ""
+@export var nominal_owner_role: String = ""
+@export var proxy_chain: Array[StringName] = []
+@export var papers_founding_year: int = 0
+
+## When `kind == BANKING_HOUSE` this is the StringName id of the
+## underlying `BankingHouse` resource owned by `Finance`. Empty for
+## all other kinds. The two records are paired by
+## `EntityRegistry.found_banking_house` and never diverge.
+@export var banking_house_id: StringName = &""
+
+
+const PAPERS_STALE_YEARS: int = 120
+
+
 const CORRUPTION_LEAK_THRESHOLD: int = 40
 const CORRUPTION_LOSS_THRESHOLD: int = 80
+
+const INSTITUTIONAL_MEMORY_CAP: int = 200
+
+## Tenure (years) at which "accumulated archives" starts to pay a
+## bonus. Everything under this is still a young house.
+const MEMORY_BONUS_FLOOR: int = 40
 
 
 func is_active() -> bool:
 	return not dissolved and not compromised
+
+
+func control_live() -> bool:
+	return is_active() and not control_disrupted
+
+
+func memory_phrase() -> String:
+	if institutional_memory >= 150:
+		return "six centuries of paper speak through them"
+	if institutional_memory >= 100:
+		return "an archive the continent has forgotten is still theirs"
+	if institutional_memory >= MEMORY_BONUS_FLOOR:
+		return "long-enough memory to name their own grandfathers' creditors"
+	if institutional_memory >= 15:
+		return "a thickening stack of ledgers"
+	return "too young to have records worth the name"
 
 
 func tenure_years(now_year: int) -> int:
@@ -92,6 +165,43 @@ func corruption_band() -> StringName:
 	if corruption >= CORRUPTION_LEAK_THRESHOLD:  return &"leaking"
 	if corruption >= 20:                          return &"frayed"
 	return &"sound"
+
+
+## §20 — headline that would appear if an investigator pulled the
+## entity's filings today. "Mnesarkhos son of Euphronos, shipper" —
+## never the player's name.
+func papers_headline() -> String:
+	if nominal_owner_name == "":
+		return "no name on the charter that anyone can still read"
+	if nominal_owner_role == "":
+		return nominal_owner_name
+	return "%s, %s" % [nominal_owner_name, nominal_owner_role]
+
+
+func papers_depth() -> int:
+	return proxy_chain.size()
+
+
+func papers_are_stale(now_year: int) -> bool:
+	if papers_founding_year == 0:
+		return false
+	return (now_year - papers_founding_year) > PAPERS_STALE_YEARS
+
+
+func papers_phrase(now_year: int) -> String:
+	var depth: int = papers_depth()
+	var depth_bit: String = ""
+	match depth:
+		0:
+			depth_bit = "one thin veil"
+		1:
+			depth_bit = "two names between us and the ink"
+		2:
+			depth_bit = "three hands between us and the ink"
+		_:
+			depth_bit = "%d hands between us and the ink" % (depth + 1)
+	var stale_bit: String = ", papers thin with age" if papers_are_stale(now_year) else ""
+	return "%s — %s%s" % [papers_headline(), depth_bit, stale_bit]
 
 
 func corruption_phrase() -> String:
@@ -112,6 +222,7 @@ func kind_label() -> String:
 		Kind.MONASTERY:       return "Monastery"
 		Kind.GUILD:           return "Guild"
 		Kind.ESTATE:          return "Estate"
+		Kind.BANKING_HOUSE:   return "Banking house"
 	return "Institution"
 
 
@@ -135,6 +246,17 @@ static func from_dict(d: Dictionary) -> OwnedEntity:
 	e.compromised      = bool(d.get("compromised", false))
 	e.dissolved        = bool(d.get("dissolved", false))
 	e.dissolved_reason = StringName(String(d.get("dissolved_reason", "")))
+	e.institutional_memory    = clampi(int(d.get("institutional_memory", 0)), 0, INSTITUTIONAL_MEMORY_CAP)
+	e.control_disrupted       = bool(d.get("control_disrupted", false))
+	e.control_disrupted_reason = StringName(String(d.get("control_disrupted_reason", "")))
+	e.control_disrupted_year  = int(d.get("control_disrupted_year", 0))
+	e.nominal_owner_name    = String(d.get("nominal_owner_name", ""))
+	e.nominal_owner_role    = String(d.get("nominal_owner_role", ""))
+	e.proxy_chain = []
+	for v in d.get("proxy_chain", []):
+		e.proxy_chain.append(StringName(String(v)))
+	e.papers_founding_year  = int(d.get("papers_founding_year", 0))
+	e.banking_house_id      = StringName(String(d.get("banking_house_id", "")))
 	return e
 
 
@@ -154,7 +276,23 @@ func to_dict() -> Dictionary:
 		"compromised":              compromised,
 		"dissolved":                dissolved,
 		"dissolved_reason":         String(dissolved_reason),
+		"institutional_memory":     institutional_memory,
+		"control_disrupted":        control_disrupted,
+		"control_disrupted_reason": String(control_disrupted_reason),
+		"control_disrupted_year":   control_disrupted_year,
+		"nominal_owner_name":       nominal_owner_name,
+		"nominal_owner_role":       nominal_owner_role,
+		"proxy_chain":              _proxy_chain_as_strings(),
+		"papers_founding_year":     papers_founding_year,
+		"banking_house_id":         String(banking_house_id),
 	}
+
+
+func _proxy_chain_as_strings() -> Array:
+	var out: Array = []
+	for v in proxy_chain:
+		out.append(String(v))
+	return out
 
 
 static func _kind_from_string(s: String) -> Kind:
@@ -164,4 +302,5 @@ static func _kind_from_string(s: String) -> Kind:
 		"MONASTERY":       return Kind.MONASTERY
 		"GUILD":           return Kind.GUILD
 		"ESTATE":          return Kind.ESTATE
+		"BANKING_HOUSE":   return Kind.BANKING_HOUSE
 		_:                  return Kind.TRADING_COMPANY

@@ -1,0 +1,44 @@
+{
+  "immortal_id": "weavers_immortal",
+  "encounter_id": "first_contact",
+  "prompt": "The Loom-Keeper writes on thin paper and pays their own courier. The letter is long, friendly, and full of metaphors about thread.\n\n'We trade in marriages and inheritance; you trade in whoever is most useful. These are not incompatible trades. I have a proposal for a small exchange, and a much larger one if the first goes well.'",
+  "branches": [
+    {
+      "id": "accept_small",
+      "label": "Accept the small trade. A family's name in exchange for a discreet loan.",
+      "result": "The trade is made by the end of the month. A banking house you did not previously have goodwill with opens a channel. Openness rises; the larger exchange hangs in the air, unanswered.",
+      "effects": [
+        { "kind": "set_relationship", "value": "in_contact" },
+        { "kind": "openness_delta",   "value": 15 }
+      ]
+    },
+    {
+      "id": "accept_large",
+      "label": "Skip the small trade. Propose the larger directly: a succession.",
+      "result": "The Loom-Keeper's reply is measured: 'I do not mind haste if the haste is paid for.' A succession mandate opens, shaped by Weaver hands. The price of refusal, later, will be steep.",
+      "effects": [
+        { "kind": "set_relationship", "value": "truce" },
+        { "kind": "offer_mandate",    "category": "SUCCESSION" },
+        { "kind": "exposure_delta",   "value": 3.0 }
+      ]
+    },
+    {
+      "id": "decline_polite",
+      "label": "Decline politely. Preserve the channel for a later need.",
+      "result": "The Loom-Keeper accepts the refusal without edge. 'A door declined today opens more easily tomorrow.' The channel is kept warm, no commitments made.",
+      "effects": [
+        { "kind": "set_relationship", "value": "in_contact" },
+        { "kind": "openness_delta",   "value": 5 }
+      ]
+    },
+    {
+      "id": "counter_offer",
+      "label": "Counter-offer: propose a formal truce instead of a trade.",
+      "result": "The Loom-Keeper considers it for a season. The return letter is brief: 'We are not a sort that signs truces. We are a sort that sells them. But we will not move against you this year.' An informal non-aggression.",
+      "effects": [
+        { "kind": "set_relationship", "value": "truce" },
+        { "kind": "hostility_delta",  "value": -10 }
+      ]
+    }
+  ]
+}

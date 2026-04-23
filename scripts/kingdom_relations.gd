@@ -22,6 +22,18 @@ enum RelationState {
 	ALLIED,
 }
 
+## Why a war was declared. Stored per active war (key "a|b"), used to
+## modulate both the narrative of the declaration and the monthly
+## peace-chance (opportunism wars fizzle; religious wars grind).
+enum CasusBelli {
+	BORDER_DISPUTE,
+	SUCCESSION_CLAIM,
+	TRADE_INSULT,
+	RELIGIOUS,
+	REVENGE,
+	OPPORTUNISM,
+}
+
 # Flat keyed dict: "alpha|beta" (sorted) -> int (RelationState). Missing
 # keys are treated as NEUTRAL.
 var _edges: Dictionary = {}
@@ -31,12 +43,25 @@ var _edges: Dictionary = {}
 # Drives both the rising peace chance and the one-shot weariness dispatch.
 var _war_months: Dictionary = {}     # key "a|b" -> int
 var _war_weariness_emitted: Dictionary = {}   # key "a|b" -> bool
+var _casus_belli: Dictionary = {}    # key "a|b" -> int (CasusBelli)
 
 # --- War lifecycle tuning ----------------------------------------------------
 const WAR_PEACE_BASE:          float = 0.02
 const WAR_PEACE_PER_MONTH:     float = 0.004
 const WAR_PEACE_CAP:           float = 0.15
 const WAR_WEARINESS_THRESHOLD: int   = 18
+
+# Casus-belli peace-chance modifiers. 1.0 is neutral; <1.0 grinds longer,
+# >1.0 ends sooner. Sizes chosen so the qualitative shape is visible over
+# a multi-decade run without distorting short wars.
+const CB_PEACE_MULT: Dictionary = {
+	int(CasusBelli.BORDER_DISPUTE):   1.10,
+	int(CasusBelli.SUCCESSION_CLAIM): 0.80,
+	int(CasusBelli.TRADE_INSULT):     1.25,
+	int(CasusBelli.RELIGIOUS):        0.50,
+	int(CasusBelli.REVENGE):          0.75,
+	int(CasusBelli.OPPORTUNISM):      1.60,
+}
 
 
 func _ready() -> void:
@@ -72,10 +97,13 @@ func set_state(a_id: String, b_id: String, state: int) -> void:
 	relation_changed.emit(a_id, b_id, state)
 
 
-func set_at_war(a_id: String, b_id: String) -> void:
+## Mark a pair as at war. `casus_belli` records the justification on
+## record; callers that don't know it get OPPORTUNISM.
+func set_at_war(a_id: String, b_id: String, casus_belli: int = int(CasusBelli.OPPORTUNISM)) -> void:
 	var key: String = _key(a_id, b_id)
 	_war_months[key] = 0
 	_war_weariness_emitted.erase(key)
+	_casus_belli[key] = casus_belli
 	set_state(a_id, b_id, int(RelationState.AT_WAR))
 	_cascade_coalition(a_id, b_id)
 
@@ -85,7 +113,25 @@ func set_peace(a_id: String, b_id: String) -> void:
 	var key: String = _key(a_id, b_id)
 	_war_months.erase(key)
 	_war_weariness_emitted.erase(key)
+	_casus_belli.erase(key)
 	set_state(a_id, b_id, int(RelationState.HOSTILE))
+
+
+## Casus belli on record for an active war. Returns OPPORTUNISM when
+## the pair isn't at war or the declaration predates CB tracking.
+func casus_belli_between(a_id: String, b_id: String) -> int:
+	return int(_casus_belli.get(_key(a_id, b_id), int(CasusBelli.OPPORTUNISM)))
+
+
+func casus_belli_name(cb: int) -> String:
+	match cb:
+		int(CasusBelli.BORDER_DISPUTE):   return "border dispute"
+		int(CasusBelli.SUCCESSION_CLAIM): return "succession claim"
+		int(CasusBelli.TRADE_INSULT):     return "trade insult"
+		int(CasusBelli.RELIGIOUS):        return "religious quarrel"
+		int(CasusBelli.REVENGE):          return "revenge"
+		int(CasusBelli.OPPORTUNISM):      return "opportunism"
+	return "unknown"
 
 
 ## Move a single pair one step toward war on the ladder
@@ -193,10 +239,15 @@ func _tick_war(key: String) -> void:
 		WAR_PEACE_BASE,
 		WAR_PEACE_CAP,
 	)
+	# Casus belli skews how quickly the war can end (§B8).
+	var cb_mult: float = float(CB_PEACE_MULT.get(
+		int(_casus_belli.get(key, int(CasusBelli.OPPORTUNISM))), 1.0))
+	chance = clampf(chance * cb_mult, 0.0, WAR_PEACE_CAP * 2.0)
 	if randf() < chance:
 		_edges[key] = int(RelationState.HOSTILE)
 		_war_months.erase(key)
 		_war_weariness_emitted.erase(key)
+		_casus_belli.erase(key)
 		_emit_peace(pair[0], pair[1])
 		_emit_changed(key, int(RelationState.HOSTILE))
 
@@ -207,6 +258,7 @@ func _cascade_coalition(a_id: String, b_id: String) -> void:
 	# Friends of A become HOSTILE to B, and vice versa. Allies become
 	# AT_WAR with the other side on entry. Kept modest so wars don't
 	# snowball into world-ending alliance dominoes.
+	var primary_cb: int = casus_belli_between(a_id, b_id)
 	for side_a in [a_id, b_id]:
 		var other: String = b_id if side_a == a_id else a_id
 		for friend_id in ids_in_state(side_a, int(RelationState.FRIENDLY)):
@@ -216,6 +268,10 @@ func _cascade_coalition(a_id: String, b_id: String) -> void:
 		for ally_id in ids_in_state(side_a, int(RelationState.ALLIED)):
 			if state_between(ally_id, other) == int(RelationState.AT_WAR):
 				continue
+			# Allies drag into war with the same casus belli of record.
+			var key: String = _key(ally_id, other)
+			_war_months[key] = 0
+			_casus_belli[key] = primary_cb
 			set_state(ally_id, other, int(RelationState.AT_WAR))
 
 
@@ -268,6 +324,7 @@ func snapshot() -> Dictionary:
 		"edges":             _edges.duplicate(),
 		"war_months":        _war_months.duplicate(),
 		"war_weariness":     _war_weariness_emitted.duplicate(),
+		"casus_belli":       _casus_belli.duplicate(),
 	}
 
 
@@ -275,6 +332,7 @@ func restore(d: Dictionary) -> void:
 	_edges.clear()
 	_war_months.clear()
 	_war_weariness_emitted.clear()
+	_casus_belli.clear()
 	var edges: Dictionary = d.get("edges", {})
 	for k in edges.keys():
 		_edges[String(k)] = int(edges[k])
@@ -284,3 +342,6 @@ func restore(d: Dictionary) -> void:
 	var weary: Dictionary = d.get("war_weariness", {})
 	for k in weary.keys():
 		_war_weariness_emitted[String(k)] = bool(weary[k])
+	var cbs: Dictionary = d.get("casus_belli", {})
+	for k in cbs.keys():
+		_casus_belli[String(k)] = int(cbs[k])

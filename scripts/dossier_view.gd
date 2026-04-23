@@ -40,6 +40,9 @@ var _body_margin: MarginContainer
 var _body_vbox: VBoxContainer
 var _kingdom_filter: OptionButton
 var _current_kingdom_filter: String = ALL_KINGDOMS_KEY
+# §D1 live text search combined with the kingdom filter as AND.
+var _search_input: LineEdit
+var _current_search: String = ""
 
 ## A child LetterView spawned when the player clicks a linked letter
 ## from the detail page. While it's set we suppress dossier close on
@@ -67,7 +70,10 @@ func _ready() -> void:
 		_render_list()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
+
+	if EraTheme != null:
+		EraTheme.register_view(self)
 
 
 ## Public: open the view directly on a specific actor's dossier. Safe to
@@ -97,7 +103,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -209,6 +215,21 @@ func _render_list() -> void:
 			break
 	filter_bar.add_child(_kingdom_filter)
 
+	# §D1 live text search, AND-combined with the kingdom filter.
+	var search_label: Label = Label.new()
+	search_label.text = "Search:"
+	search_label.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	search_label.add_theme_font_size_override("font_size", 12)
+	filter_bar.add_child(search_label)
+
+	_search_input = LineEdit.new()
+	_search_input.placeholder_text = "by name"
+	_search_input.add_theme_font_size_override("font_size", 12)
+	_search_input.custom_minimum_size.x = 160.0
+	_search_input.text = _current_search
+	_search_input.text_changed.connect(_on_search_text_changed)
+	filter_bar.add_child(_search_input)
+
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -245,14 +266,22 @@ func _on_kingdom_filter_changed(idx: int) -> void:
 	call_deferred("_render_list")
 
 
+func _on_search_text_changed(new_text: String) -> void:
+	_current_search = new_text
+	call_deferred("_render_list")
+
+
 func _filtered_actors() -> Array[Actor]:
 	var all: Array[Actor] = Actors.all_actors()
 	var filtered: Array[Actor] = []
+	var needle: String = _current_search.strip_edges().to_lower()
 	for a in all:
 		if not a.is_alive():
 			continue
 		if _current_kingdom_filter != ALL_KINGDOMS_KEY \
 				and a.kingdom_id != _current_kingdom_filter:
+			continue
+		if needle != "" and not a.display_name().to_lower().contains(needle):
 			continue
 		filtered.append(a)
 	filtered.sort_custom(func(x, y):
@@ -463,9 +492,18 @@ func _show_detail(actor: Actor) -> void:
 
 	# Age line
 	var age: int = actor.age_in(GameClock.year)
-	var birth_bce: int = -actor.birth_year
+	# Actor.birth_year uses GameClock's negative-BCE / positive-CE
+	# convention. Label flips once we're past year 1.
+	var by: int = actor.birth_year
+	var born_phrase: String = ""
+	if by < 0:
+		born_phrase = "%d BCE" % -by
+	elif by == 0:
+		born_phrase = "1 BCE"
+	else:
+		born_phrase = "%d CE" % by
 	var age_line: Label = _make_body_line(
-		"Born %d BCE — some %d winters old at this hand." % [birth_bce, max(0, age)]
+		"Born %s — some %d winters old at this hand." % [born_phrase, max(0, age)]
 	)
 	_body_vbox.add_child(age_line)
 
@@ -536,12 +574,19 @@ func _show_detail(actor: Actor) -> void:
 
 	_body_vbox.add_child(_make_divider())
 
+	_maybe_build_languages_section(actor)
+
+	_maybe_build_dynasty_section(actor)
+
 	_maybe_build_org_section(actor)
 
 	_maybe_build_mandate_section(actor)
 
-	_body_vbox.add_child(_make_section_heading("LETTERS ON THIS NAME"))
+	_body_vbox.add_child(_make_section_heading("WHAT THE LETTERS SAY"))
 	var linked: Array[Letter] = _letters_mentioning(actor)
+	_build_cross_reference_panel(linked)
+
+	_body_vbox.add_child(_make_section_heading("LETTERS ON THIS NAME"))
 	if linked.is_empty():
 		_body_vbox.add_child(_make_body_line(
 			"No letter on the table yet names them. The world has not written them down."
@@ -589,6 +634,170 @@ func _show_detail(actor: Actor) -> void:
 #     trusted coordinator. Issues `promote_lieutenant`.
 # If the actor is already in the org, shows their current posting
 # instead. If they're a ruler, shows nothing — rulers are not tools.
+
+func _maybe_build_dynasty_section(actor: Actor) -> void:
+	var f: Family = Dynasties.family_of(actor)
+
+	# If no family is tracked yet, offer to found one on host-tier
+	# non-ruler actors so the player can explicitly adopt a dynasty.
+	if f == null:
+		if not actor.is_alive():
+			return
+		if actor.role == Actor.Role.RULER:
+			return
+		if actor.relationship < 40:
+			return
+		_body_vbox.add_child(_make_section_heading("THEIR HOUSE"))
+		_body_vbox.add_child(_make_body_line(
+			"They are the first of their line to deal with you. You could begin tracking the family itself — if you mean to serve with them across generations."
+		))
+		var found_btn: Button = Button.new()
+		found_btn.text = "Begin tracking this house"
+		found_btn.flat = false
+		found_btn.focus_mode = Control.FOCUS_NONE
+		found_btn.custom_minimum_size.y = 30.0
+		var actor_ref: Actor = actor
+		found_btn.pressed.connect(func() -> void:
+			var domain: int = _domain_guess(actor_ref)
+			Dynasties.found_family(actor_ref.id, domain)
+			_show_detail(actor_ref))
+		_body_vbox.add_child(found_btn)
+		_body_vbox.add_child(_make_divider())
+		return
+
+	_body_vbox.add_child(_make_section_heading("THEIR HOUSE"))
+
+	var head_label: String = ""
+	if f.head_id == actor.id:
+		head_label = "They are the head of %s — %s, %s." % [
+			f.family_name, f.generation_phrase(), f.culture_phrase()
+		]
+	else:
+		var head: Actor = Actors.get_actor(f.head_id)
+		var head_name: String = head.display_name() if head != null else "the current head"
+		head_label = "They belong to %s. The head is %s — %s, %s." % [
+			f.family_name, head_name, f.generation_phrase(), f.culture_phrase()
+		]
+	_body_vbox.add_child(_make_body_line(head_label))
+
+	if f.decline_score >= 55:
+		var warn: Label = _make_body_line(
+			"The line is tired. Quiet scandals and thin heirs. They will not carry another generation without care."
+		)
+		warn.add_theme_color_override("font_color", Color(0.58, 0.22, 0.12, 1.0))
+		_body_vbox.add_child(warn)
+
+	if f.has_open_need():
+		var need_line: Label = _make_body_line(
+			"They have written: %s. They are waiting to see whether you answer." % f.need_label()
+		)
+		need_line.add_theme_color_override("font_color", Color(0.58, 0.22, 0.12, 1.0))
+		_body_vbox.add_child(need_line)
+
+		var need_row: HBoxContainer = HBoxContainer.new()
+		need_row.add_theme_constant_override("separation", 8)
+		_body_vbox.add_child(need_row)
+
+		var protect_btn: Button = Button.new()
+		protect_btn.text = "Stand with them"
+		protect_btn.focus_mode = Control.FOCUS_NONE
+		protect_btn.custom_minimum_size.y = 28.0
+		var fid_p: StringName = f.id
+		protect_btn.pressed.connect(func() -> void:
+			Dynasties.note_crisis_response(fid_p, true)
+			_show_detail(actor))
+		need_row.add_child(protect_btn)
+
+		var ignore_btn: Button = Button.new()
+		ignore_btn.text = "Let them manage"
+		ignore_btn.focus_mode = Control.FOCUS_NONE
+		ignore_btn.custom_minimum_size.y = 28.0
+		var fid_i: StringName = f.id
+		ignore_btn.pressed.connect(func() -> void:
+			Dynasties.note_crisis_response(fid_i, false)
+			_show_detail(actor))
+		need_row.add_child(ignore_btn)
+
+	var invest_btn: Button = Button.new()
+	invest_btn.text = "Invest in the next generation"
+	invest_btn.flat = false
+	invest_btn.focus_mode = Control.FOCUS_NONE
+	invest_btn.custom_minimum_size.y = 28.0
+	var fid: StringName = f.id
+	invest_btn.pressed.connect(func() -> void:
+		Dynasties.invest_in_children(fid)
+		_show_detail(actor))
+	_body_vbox.add_child(invest_btn)
+
+	_body_vbox.add_child(_make_divider())
+
+
+func _domain_guess(actor: Actor) -> int:
+	match actor.role:
+		Actor.Role.MERCHANT:    return int(Family.Domain.MERCHANT)
+		Actor.Role.GENERAL:     return int(Family.Domain.MILITARY)
+		Actor.Role.PRIEST:      return int(Family.Domain.RELIGIOUS)
+		Actor.Role.PHILOSOPHER: return int(Family.Domain.SCHOLARLY)
+		Actor.Role.ADVISOR:     return int(Family.Domain.COURT)
+		_:                      return int(Family.Domain.GENERIC)
+
+
+func _maybe_build_languages_section(actor: Actor) -> void:
+	if actor.languages.is_empty():
+		return
+
+	_body_vbox.add_child(_make_section_heading("TONGUES THEY SPEAK"))
+
+	var lines: Array[String] = []
+	var native_line: String = ""
+	var other_lines: Array[String] = []
+	for lang_id_v in actor.known_languages():
+		var lang_id: StringName = lang_id_v
+		var level: int = actor.language_level(lang_id)
+		if level <= Actor.LANG_NONE:
+			continue
+		var label: String = Languages.display_name(lang_id)
+		var phrase: String = ""
+		match level:
+			Actor.LANG_BASIC:
+				phrase = "a few words of %s" % label
+			Actor.LANG_FUNCTIONAL:
+				phrase = "workable %s" % label
+			Actor.LANG_FLUENT:
+				phrase = "fluent %s" % label
+			_:
+				phrase = label
+		if String(lang_id) == String(Languages.native_of(actor.kingdom_id)):
+			native_line = "Their mother tongue is %s." % label
+		else:
+			other_lines.append(phrase)
+
+	if native_line != "":
+		lines.append(native_line)
+	if not other_lines.is_empty():
+		lines.append("Beyond that, they have %s." % _join_and(other_lines))
+
+	if lines.is_empty():
+		_body_vbox.add_child(_make_body_line(
+			"They speak only their own people's tongue."
+		))
+	else:
+		for l in lines:
+			_body_vbox.add_child(_make_body_line(l))
+
+	_body_vbox.add_child(_make_divider())
+
+
+func _join_and(items: Array) -> String:
+	if items.is_empty():
+		return ""
+	if items.size() == 1:
+		return String(items[0])
+	if items.size() == 2:
+		return "%s and %s" % [items[0], items[1]]
+	var head: Array = items.slice(0, items.size() - 1)
+	return "%s, and %s" % [", ".join(head), items[items.size() - 1]]
+
 
 func _maybe_build_org_section(actor: Actor) -> void:
 	if actor.role == Actor.Role.RULER:
@@ -695,7 +904,7 @@ func _kingdom_name_of(kid: String) -> String:
 # are only offered against figures holding a crown.
 
 func _maybe_build_mandate_section(actor: Actor) -> void:
-	if actor.dead:
+	if not actor.is_alive():
 		return
 	var active: Mandate = _active_removal_for(actor.id)
 	if active == null and actor.role != Actor.Role.RULER:
@@ -811,12 +1020,26 @@ func _make_close_button(on_press: Callable) -> Button:
 # actor is the voice, not a reference).
 
 func _letters_mentioning(actor: Actor) -> Array[Letter]:
-	var id_token: String = "actor:%s" % String(actor.id)
-	var display: String = actor.display_name()
 	var out: Array[Letter] = []
-	for l in Inbox.letters:
-		if l.body.find(id_token) >= 0 or l.sender == display:
+	# Fast path: the actor-index maintained by Inbox.
+	if Inbox.has_method("letters_about"):
+		var indexed: Array[Letter] = Inbox.call("letters_about", actor.id) as Array[Letter]
+		for l in indexed:
 			out.append(l)
+	# Fall-back scan: also catch letters where the actor is the *sender*
+	# (host-authored correspondence) or where the body links them with
+	# plain text rather than BBCode (legacy). De-dup by identity.
+	var seen: Dictionary = {}
+	for l in out:
+		seen[l] = true
+	var display: String = actor.display_name()
+	var id_token: String = "actor:%s" % String(actor.id)
+	for l in Inbox.letters:
+		if seen.has(l):
+			continue
+		if l.sender == display or l.body.find(id_token) >= 0:
+			out.append(l)
+			seen[l] = true
 	out.sort_custom(_sort_letters_newest_first)
 	return out
 
@@ -834,6 +1057,198 @@ func _sort_letters_newest_first(a: Letter, b: Letter) -> bool:
 	var ad: int = a.date.day if a.date != null else 0
 	var bd: int = b.date.day if b.date != null else 0
 	return ad > bd
+
+
+## Three most recent letters about this actor as stacked "report cards".
+## Each card shows the reporter, the subject line, and a confidence pill.
+## When at least two cards carry confidence bands and their gap is wide
+## (≥ 30 points) OR they come from different reporters, a small
+## "Sources disagree" chip is surfaced on the panel — the player's cue to
+## reach for cross_reference_pattern / intel_reinvestigate.
+func _build_cross_reference_panel(all_linked: Array[Letter]) -> void:
+	if all_linked.is_empty():
+		return
+
+	var band_letters: Array[Letter] = []
+	for l in all_linked:
+		if l != null and l.has_confidence_band():
+			band_letters.append(l)
+
+	if band_letters.is_empty():
+		_body_vbox.add_child(_make_body_line(
+			"No banded reports yet. Nothing on the table carries a source we have measured against itself."
+		))
+		return
+
+	# Header row with optional contradiction chip.
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	_body_vbox.add_child(header)
+
+	var caption: Label = Label.new()
+	caption.text = "Latest %d report%s on this name" % [
+		min(3, band_letters.size()),
+		"" if band_letters.size() == 1 else "s",
+	]
+	caption.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	caption.add_theme_font_size_override("font_size", 11)
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(caption)
+
+	var top3: Array[Letter] = []
+	for i in range(min(3, band_letters.size())):
+		top3.append(band_letters[i])
+
+	if _crossref_has_contradiction(top3):
+		header.add_child(_build_contradiction_chip())
+
+	for l in top3:
+		_body_vbox.add_child(_build_cross_ref_card(l))
+
+
+func _crossref_has_contradiction(top3: Array[Letter]) -> bool:
+	if top3.size() < 2:
+		return false
+	var min_c: int = 1000
+	var max_c: int = -1
+	var reporters: Dictionary = {}
+	for l in top3:
+		min_c = mini(min_c, l.confidence)
+		max_c = maxi(max_c, l.confidence)
+		if l.reporter_id != &"":
+			reporters[l.reporter_id] = true
+	if max_c - min_c >= 30:
+		return true
+	if reporters.size() >= 2 and max_c - min_c >= 15:
+		return true
+	return false
+
+
+func _build_contradiction_chip() -> Control:
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.62, 0.18, 0.12, 0.28)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.border_color = Color(0.62, 0.18, 0.12, 0.85)
+	sb.corner_radius_top_left = 10
+	sb.corner_radius_top_right = 10
+	sb.corner_radius_bottom_left = 10
+	sb.corner_radius_bottom_right = 10
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	var p: PanelContainer = PanelContainer.new()
+	p.add_theme_stylebox_override("panel", sb)
+	var lbl: Label = Label.new()
+	lbl.text = "SOURCES DISAGREE"
+	lbl.add_theme_color_override("font_color", Color(0.32, 0.08, 0.04, 1.0))
+	lbl.add_theme_font_size_override("font_size", 10)
+	p.add_child(lbl)
+	return p
+
+
+func _build_cross_ref_card(letter: Letter) -> Control:
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0.92, 0.87, 0.72, 0.60)
+	sb.border_width_left = 2
+	sb.border_color = _confidence_accent(letter)
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var vb: VBoxContainer = VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	panel.add_child(vb)
+
+	var row1: HBoxContainer = HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 8)
+	vb.add_child(row1)
+
+	var date_l: Label = Label.new()
+	date_l.text = _format_letter_short_date(letter.date)
+	date_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	date_l.add_theme_font_size_override("font_size", 11)
+	date_l.custom_minimum_size.x = 90.0
+	row1.add_child(date_l)
+
+	var sender_l: Label = Label.new()
+	var reporter_name: String = letter.sender
+	if letter.reporter_id != &"":
+		var m: OrgMember = Org.get_member(letter.reporter_id)
+		if m != null:
+			reporter_name = m.display_name
+	sender_l.text = reporter_name
+	sender_l.add_theme_color_override("font_color", COLOR_INK)
+	sender_l.add_theme_font_size_override("font_size", 12)
+	sender_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sender_l.clip_text = true
+	row1.add_child(sender_l)
+
+	row1.add_child(_build_confidence_pill(letter))
+
+	var subject_l: Label = Label.new()
+	subject_l.text = letter.subject
+	subject_l.add_theme_color_override("font_color", COLOR_INK_MUTED)
+	subject_l.add_theme_font_size_override("font_size", 11)
+	subject_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(subject_l)
+
+	# Clicking a card opens the letter — same contract as the
+	# existing letters-list rows.
+	panel.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_open_linked_letter(letter))
+
+	return panel
+
+
+func _confidence_accent(letter: Letter) -> Color:
+	match letter.confidence_tier():
+		&"high":   return Color(0.24, 0.44, 0.20, 0.85)
+		&"medium": return Color(0.58, 0.44, 0.18, 0.85)
+		&"low":    return Color(0.62, 0.18, 0.12, 0.85)
+	return Color(0.30, 0.22, 0.12, 0.6)
+
+
+func _build_confidence_pill(letter: Letter) -> Control:
+	var accent: Color = _confidence_accent(letter)
+	var bg: Color = accent
+	bg.a = 0.28
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = accent
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 10
+	sb.corner_radius_top_right = 10
+	sb.corner_radius_bottom_left = 10
+	sb.corner_radius_bottom_right = 10
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	var p: PanelContainer = PanelContainer.new()
+	p.add_theme_stylebox_override("panel", sb)
+	var lbl: Label = Label.new()
+	lbl.text = "%s %d" % [String(letter.confidence_tier()).to_upper(), letter.confidence]
+	lbl.add_theme_color_override("font_color", accent)
+	lbl.add_theme_font_size_override("font_size", 10)
+	p.add_child(lbl)
+	return p
 
 
 func _build_letter_row(letter: Letter) -> Control:

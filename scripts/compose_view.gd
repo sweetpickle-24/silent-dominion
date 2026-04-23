@@ -63,7 +63,7 @@ func _ready() -> void:
 	_render_action_picker()
 
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.18)
+	create_tween().tween_property(self, "modulate:a", 1.0, Prefs.anim_duration(0.18))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -80,7 +80,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func close() -> void:
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.15)
+	tw.tween_property(self, "modulate:a", 0.0, Prefs.anim_duration(0.15))
 	tw.tween_callback(func() -> void:
 		closed.emit()
 		queue_free())
@@ -475,8 +475,84 @@ func _build_actor_target_row(actor: Actor) -> Control:
 		host_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hbox.add_child(host_tag)
 
+	var gap: String = _language_gap_phrase(actor)
+	if gap != "":
+		var warn: Label = Label.new()
+		warn.text = gap
+		warn.add_theme_color_override("font_color", Color(0.58, 0.38, 0.16, 1.0))
+		warn.add_theme_font_size_override("font_size", 11)
+		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hbox.add_child(warn)
+
+	# §13 — Memoirs hint. If we've done this before on someone like
+	# them, surface the pattern as a small chip. Unverified patterns
+	# come through in a warmer hue.
+	var match_p: MemoirPattern = null
+	if _selected_action != null:
+		match_p = Memoirs.match_for(_selected_action.id, actor)
+	if match_p != null:
+		var hint: Label = Label.new()
+		hint.text = "◈ memoir" + ("·stale" if match_p.unverified else "")
+		var hint_color: Color = Color(0.18, 0.34, 0.22, 1.0)
+		if match_p.unverified:
+			hint_color = Color(0.58, 0.38, 0.16, 1.0)
+		hint.add_theme_color_override("font_color", hint_color)
+		hint.add_theme_font_size_override("font_size", 11)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hint.tooltip_text = Memoirs.match_offer_phrase(match_p)
+		hbox.add_child(hint)
+
+		# §13.2 — Automation adopt button. Only when we already have a
+		# strong pattern and there's no existing rule for exactly this
+		# action+target. Clicking enters a standing order and does not
+		# fire the action now — firing is the tick's job.
+		if _selected_action != null and not _rule_exists_for(_selected_action.id, actor.id):
+			var adopt_btn: Button = Button.new()
+			adopt_btn.text = "+ standing"
+			adopt_btn.focus_mode = Control.FOCUS_NONE
+			adopt_btn.custom_minimum_size.y = 22.0
+			adopt_btn.tooltip_text = "Enter this as a standing order — your hands will run it on their own."
+			adopt_btn.add_theme_font_size_override("font_size", 11)
+			var aid: StringName = _selected_action.id
+			var tid: StringName = actor.id
+			adopt_btn.pressed.connect(func() -> void:
+				Automations.create_actor_rule(aid, tid, 6))
+			hbox.add_child(adopt_btn)
+
 	row.pressed.connect(func() -> void: _issue_action(String(actor.id)))
 	return row
+
+
+func _rule_exists_for(action_id: StringName, target_id: StringName) -> bool:
+	for r in Automations.all_rules():
+		if r.action_id == action_id \
+				and r.scope == AutomationRule.Scope.ACTOR \
+				and r.target_actor_id == target_id:
+			return true
+	return false
+
+
+## Best available operator for approaching `target` — a host in the
+## same kingdom if we have one, else any host, else the target itself
+## (e.g. direct gifts where the target is the host). Used only for
+## surfacing language-gap warnings in the target picker.
+func _best_operator_for(target: Actor) -> Actor:
+	if target.is_host():
+		return target
+	var same_kingdom: Array[Actor] = Actors.hosts_in(target.kingdom_id)
+	if not same_kingdom.is_empty():
+		return same_kingdom[0]
+	var any_host: Array[Actor] = Actors.hosts()
+	if not any_host.is_empty():
+		return any_host[0]
+	return null
+
+
+func _language_gap_phrase(target: Actor) -> String:
+	var op: Actor = _best_operator_for(target)
+	if op == null or op == target:
+		return ""
+	return Languages.gap_phrase(op, target)
 
 
 func _render_kingdom_target_list() -> void:

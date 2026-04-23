@@ -72,7 +72,7 @@ static func from_dict(d: Dictionary) -> OtherImmortal:
 	o.society_id      = StringName(String(d.get("society_id", "")))
 	o.epithet         = String(d.get("epithet", ""))
 	o.disposition     = String(d.get("disposition", ""))
-	o.kill_state      = int(d.get("kill_state", KillState.ALIVE))
+	o.kill_state      = int(d.get("kill_state", KillState.ALIVE)) as KillState
 	o.relationship    = StringName(String(d.get("relationship", "unknown")))
 	o.known_by_player = bool(d.get("known_by_player", false))
 	o.openness        = int(d.get("openness", 50))

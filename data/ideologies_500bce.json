@@ -1,0 +1,66 @@
+{
+  "_meta": {
+    "era": "500 BCE",
+    "notes": "Ideologies use the religion data model with is_ideology=true. Shares track the intellectual class that adheres to them, not the population at large — hence modest province shares."
+  },
+  "religions": [
+    {
+      "id": "pythagoreanism",
+      "name": "Pythagoreanism",
+      "is_ideology": true,
+      "phase": "CONSOLIDATION",
+      "doctrinal_rigidity": 55,
+      "institutional_strength": 30,
+      "popular_depth": 10,
+      "reform_potential": 15,
+      "ecumenical_openness": 40,
+      "founded_year": -530,
+      "presence": {
+        "magna_graecia": 20, "calabria": 12, "syracusa": 10,
+        "attica": 8, "ionia": 10
+      }
+    },
+    {
+      "id": "pre_socratic_natural_philosophy",
+      "name": "Natural philosophy of Ionia",
+      "is_ideology": true,
+      "phase": "CONSOLIDATION",
+      "doctrinal_rigidity": 25,
+      "institutional_strength": 15,
+      "popular_depth": 8,
+      "reform_potential": 55,
+      "ecumenical_openness": 70,
+      "founded_year": -600,
+      "presence": {
+        "ionia": 22, "caria": 10, "attica": 12, "euboea": 8
+      }
+    },
+    {
+      "id": "ruist_proto_confucian",
+      "name": "Ruist proto-Confucianism",
+      "is_ideology": true,
+      "phase": "EMERGENCE",
+      "doctrinal_rigidity": 45,
+      "institutional_strength": 20,
+      "popular_depth": 6,
+      "reform_potential": 40,
+      "ecumenical_openness": 35,
+      "founded_year": -551
+    },
+    {
+      "id": "egyptian_ma_at",
+      "name": "Ma'at — the order of things",
+      "is_ideology": true,
+      "phase": "DOMINANCE",
+      "doctrinal_rigidity": 60,
+      "institutional_strength": 55,
+      "popular_depth": 20,
+      "reform_potential": 5,
+      "ecumenical_openness": 40,
+      "founded_year": -2500,
+      "presence": {
+        "lower_egypt": 35, "upper_egypt": 40, "delta": 30
+      }
+    }
+  ]
+}

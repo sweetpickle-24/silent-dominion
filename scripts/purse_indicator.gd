@@ -100,6 +100,8 @@ func _refresh() -> void:
 
 func _on_band_changed(_band: StringName) -> void:
 	_refresh()
+	if Prefs.reduced_motion:
+		return
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_panel, "scale", Vector2(1.06, 1.06), 0.10)
 	tw.chain().tween_property(_panel, "scale", Vector2.ONE, 0.18) \

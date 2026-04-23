@@ -14,6 +14,15 @@ extends Node
 
 const ACTION_DATA_PATH: String = "res://data/actions.json"
 const TASK_KIND: StringName = &"action_resolution"
+# Intermediate dispatch-chain task kinds (§14.2 expanded). An action
+# flows operative <- coordinator <- host (or equivalent) before its
+# resolution task fires. Each handoff is a short scheduler beat that
+# checks the relevant member is alive and not burned; if it isn't,
+# the action dies with a distinct letter.
+const TASK_KIND_HANDOFF_COORD: StringName    = &"action_handoff_coordinator"
+const TASK_KIND_HANDOFF_OPERATIVE: StringName = &"action_handoff_operative"
+const HANDOFF_MIN_DAYS: int = 1
+const HANDOFF_MAX_DAYS: int = 3
 
 ## The five outcomes of a bribery attempt (§17.4). These are richer
 ## than the generic pass/fail axis and have distinct side effects:
@@ -64,7 +73,7 @@ func all_definitions() -> Array[ActionDefinition]:
 
 ## Queue an action. `target_id` may be empty for NONE-target actions.
 ## Returns the scheduler handle or Scheduler.INVALID_HANDLE on failure.
-func issue(action_id: StringName, target_id: String = "") -> int:
+func issue(action_id: StringName, target_id: String = "", auto: bool = false) -> int:
 	var def: ActionDefinition = get_definition(action_id)
 	if def == null:
 		push_warning("[Actions] Unknown action: %s" % action_id)
@@ -96,6 +105,16 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		var am: OrgMember = Org.get_member(StringName(target_id))
 		if am == null or am.burned or am.layer == OrgMember.Layer.OPERATIVE:
 			push_warning("[Actions] audit_cell: '%s' is not an auditable member." % target_id)
+			return Scheduler.INVALID_HANDLE
+	elif action_id == &"rotate_roles":
+		var rm: OrgMember = Org.get_member(StringName(target_id))
+		if rm == null or rm.burned or rm.layer != OrgMember.Layer.COORDINATOR:
+			push_warning("[Actions] rotate_roles: '%s' is not an active coordinator." % target_id)
+			return Scheduler.INVALID_HANDLE
+	elif action_id == &"audit_entity":
+		var e: OwnedEntity = Entities.get_entity(StringName(target_id))
+		if e == null or e.dissolved or e.compromised:
+			push_warning("[Actions] audit_entity: '%s' is not an auditable entity." % target_id)
 			return Scheduler.INVALID_HANDLE
 	elif action_id == &"run_double_agent":
 		var dm: OrgMember = Org.get_member(StringName(target_id))
@@ -157,12 +176,26 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 	# Funded routes add their own latency on top of dispatch delay.
 	var funding_delay: int = int(funding.get("delay_days", 0))
 
-	var delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve) \
+	var raw_delay: int = _rng.randi_range(def.min_days_to_resolve, def.max_days_to_resolve) \
 			+ dispatch_delay + funding_delay
+	# Era-scaled latency (§6.2, §22.5). Classical roads are slow;
+	# early-modern postal networks and modern rail compress
+	# everything. `communication_multiplier` is 1.0 in the Ancient
+	# World and drops as low as ~0.55 by the Modern Era.
+	var era_mult: float = 1.0
+	if Eras != null:
+		era_mult = Eras.communication_multiplier()
+	var delay: int = max(1, int(round(float(raw_delay) * era_mult)))
+	# Transition window (§22.4): actions into the kingdom the
+	# player has just moved into run slower while the courier web
+	# reroutes.
+	if Base != null:
+		var tgt_kingdom: String = _kingdom_of_target(def, target_id)
+		if tgt_kingdom != "":
+			delay += Base.dispatch_extra_days_for(tgt_kingdom)
 	var fire_day: int = GameClock.absolute_day() + delay
 
-	var descriptor: Dictionary = {
-		"kind":          String(TASK_KIND),
+	var base_descriptor: Dictionary = {
 		"action_id":     String(action_id),
 		"target_id":     target_id,
 		"issued_day":    GameClock.absolute_day(),
@@ -173,10 +206,26 @@ func issue(action_id: StringName, target_id: String = "") -> int:
 		"funded_via":    String(funding.get("house_id", "")),
 		"funded_route":  int(funding.get("_route_option", _default_route_for(def))),
 		"used_purse":    used_purse,
+		"auto":          auto,
 	}
 
-	var handle: int = Scheduler.schedule_task_on_day(fire_day, descriptor)
-	EventBus.action_issued.emit(action_id, descriptor.duplicate(true))
+	var handle: int = Scheduler.INVALID_HANDLE
+	if coord != null:
+		# Dispatch chain: operative <- coordinator <- resolution.
+		# We schedule only the first handoff now; each handler
+		# schedules the next stage so we can re-check burned/alive
+		# status at every step.
+		var handoff_c_day: int = GameClock.absolute_day() + _rng.randi_range(HANDOFF_MIN_DAYS, HANDOFF_MAX_DAYS)
+		var chain_desc: Dictionary = base_descriptor.duplicate(true)
+		chain_desc["kind"] = String(TASK_KIND_HANDOFF_COORD)
+		chain_desc["resolution_day"] = fire_day
+		handle = Scheduler.schedule_task_on_day(handoff_c_day, chain_desc)
+	else:
+		var solo_desc: Dictionary = base_descriptor.duplicate(true)
+		solo_desc["kind"] = String(TASK_KIND)
+		handle = Scheduler.schedule_task_on_day(fire_day, solo_desc)
+
+	EventBus.action_issued.emit(action_id, base_descriptor.duplicate(true))
 	print("[Actions] Issued '%s' vs '%s'; resolves in %d days (day %d)%s." %
 		[action_id, target_id, delay, fire_day,
 		"" if coord == null else " via %s" % coord.display_name])
@@ -224,6 +273,9 @@ func _kingdom_of_target(def: ActionDefinition, target_id: String) -> String:
 		ActionDefinition.TargetKind.ORG_MEMBER:
 			var m: OrgMember = Org.get_member(StringName(target_id))
 			return m.region_id if m != null else ""
+		ActionDefinition.TargetKind.ENTITY:
+			var e: OwnedEntity = Entities.get_entity(StringName(target_id))
+			return e.home_kingdom if e != null else ""
 		_:
 			return ""
 
@@ -242,16 +294,9 @@ func _valid_coordinator_candidate(target_id: String) -> bool:
 
 
 func _valid_lieutenant_candidate(target_id: String) -> bool:
-	var m: OrgMember = Org.member_for_actor(StringName(target_id))
-	if m == null or m.burned:
-		return false
-	if m.layer != OrgMember.Layer.COORDINATOR:
-		return false
-	if m.trust < 70:
-		return false
-	if m.tenure_days < 365:
-		return false
-	return true
+	# §C1 delegate to LieutenantOps so the promotion rules live next
+	# to the rest of the lieutenant-layer behaviour.
+	return LieutenantOps.is_promotable(Org.member_for_actor(StringName(target_id)))
 
 
 ## Voluntarily burn a coordinator's cell (§14.2 rollback). Unlike a
@@ -315,10 +360,15 @@ func sever_cell(coord_id: StringName) -> bool:
 
 func pending_count() -> int:
 	# Scheduler is the single source of truth for queued action resolutions.
+	# Count all three chain stages — from the player's point of view a
+	# handoff-in-flight is an in-flight action.
 	var count: int = 0
 	for task in Scheduler.snapshot():
 		var desc: Dictionary = task.get("descriptor", {})
-		if String(desc.get("kind", "")) == String(TASK_KIND):
+		var k: String = String(desc.get("kind", ""))
+		if k == String(TASK_KIND) \
+				or k == String(TASK_KIND_HANDOFF_COORD) \
+				or k == String(TASK_KIND_HANDOFF_OPERATIVE):
 			count += 1
 	return count
 
@@ -326,9 +376,113 @@ func pending_count() -> int:
 # --- Scheduler hook ----------------------------------------------------------
 
 func _on_task_due(descriptor: Dictionary) -> void:
-	if String(descriptor.get("kind", "")) != String(TASK_KIND):
+	match String(descriptor.get("kind", "")):
+		String(TASK_KIND):
+			_resolve(descriptor)
+		String(TASK_KIND_HANDOFF_COORD):
+			_handle_handoff_coordinator(descriptor)
+		String(TASK_KIND_HANDOFF_OPERATIVE):
+			_handle_handoff_operative(descriptor)
+
+
+## The coordinator stage. If the coordinator is burned or gone, the
+## action dies before it reaches an operative — distinct letter
+## cites the coordinator by name and kingdom.
+func _handle_handoff_coordinator(descriptor: Dictionary) -> void:
+	var coord_id: StringName = StringName(String(descriptor.get("coordinator_id", "")))
+	var coord: OrgMember = Org.get_member(coord_id)
+	if coord == null or coord.burned:
+		_emit_dispatch_failure(descriptor, "coordinator")
 		return
-	_resolve(descriptor)
+	# Tiny heat bump — every order handed down leaves a mark.
+	coord.heat = clampi(coord.heat + 1, 0, 100)
+	# Chain on: schedule the operative handoff.
+	var handoff_op_day: int = GameClock.absolute_day() + _rng.randi_range(HANDOFF_MIN_DAYS, HANDOFF_MAX_DAYS)
+	var next_desc: Dictionary = descriptor.duplicate(true)
+	next_desc["kind"] = String(TASK_KIND_HANDOFF_OPERATIVE)
+	# Pick an operative under the coord now, so later inspection is
+	# meaningful. If no operatives exist, the coord absorbs the job.
+	var op: OrgMember = _pick_operative_under(coord_id)
+	if op != null:
+		next_desc["operative_id"] = String(op.id)
+	Scheduler.schedule_task_on_day(handoff_op_day, next_desc)
+
+
+## The operative stage. If the chosen operative has been burned in
+## the meantime, fail loudly — the same distinctive letter applies.
+func _handle_handoff_operative(descriptor: Dictionary) -> void:
+	var op_id: StringName = StringName(String(descriptor.get("operative_id", "")))
+	if op_id != &"":
+		var op: OrgMember = Org.get_member(op_id)
+		if op == null or op.burned:
+			_emit_dispatch_failure(descriptor, "operative")
+			return
+		op.heat = clampi(op.heat + 1, 0, 100)
+	# Final stage: schedule the resolution for the ORIGINAL fire day.
+	var res_day: int = int(descriptor.get("resolution_day", descriptor.get("fire_day", GameClock.absolute_day())))
+	if res_day < GameClock.absolute_day():
+		res_day = GameClock.absolute_day() + 1
+	var final_desc: Dictionary = descriptor.duplicate(true)
+	final_desc["kind"] = String(TASK_KIND)
+	Scheduler.schedule_task_on_day(res_day, final_desc)
+
+
+func _pick_operative_under(coord_id: StringName) -> OrgMember:
+	for m in Org.all_members():
+		if m.burned:
+			continue
+		if m.layer != OrgMember.Layer.OPERATIVE:
+			continue
+		if m.superior_id == coord_id:
+			return m
+	return null
+
+
+## The "your coordinator/operative is gone" letter path. Fires the
+## action_resolved signal as a failure so downstream systems (mandate
+## tracking etc.) don't hang waiting for a resolution that never comes.
+func _emit_dispatch_failure(descriptor: Dictionary, broken_stage: String) -> void:
+	var action_id: StringName = StringName(String(descriptor.get("action_id", "")))
+	var target_id: String     = String(descriptor.get("target_id", ""))
+	var coord_id:  StringName = StringName(String(descriptor.get("coordinator_id", "")))
+	var coord: OrgMember = Org.get_member(coord_id)
+	var region: String = coord.region_id if coord != null else ""
+	var k: Kingdom = WorldData.get_kingdom(region)
+	var region_name: String = k.kingdom_name if k != null else region
+	var coord_name: String = coord.display_name if coord != null else "Your coordinator"
+	var body: String
+	match broken_stage:
+		"coordinator":
+			body = ("The order never reached its hand. %s is gone — burned, or silent "
+				+ "beyond reach — and the dispatch has died on the road to %s.\n\n"
+				+ "No silver is refunded. The work was paid for; the hand was not there "
+				+ "to do it.") % [coord_name, region_name if region_name != "" else "the target"]
+		_:
+			body = ("The coordinator passed the order on, but by the time it reached the "
+				+ "operative's hand, that hand was already cold. The dispatch is dead. "
+				+ "Rebuild the cell before you try again.")
+	var subject: String = "Your %s in %s is gone; the order never reached its hand." % [
+		broken_stage, region_name if region_name != "" else "the target region",
+	]
+	var date: GameDate = GameDate.make(-GameClock.year, GameClock.month, GameClock.day)
+	var letter: Letter = Letter.create(
+		StringName("dispatch_fail_%s_%d" % [String(action_id), Time.get_ticks_msec()]),
+		"Your factotum",
+		date,
+		subject,
+		body,
+		&"action",
+	)
+	EventBus.letter_delivered.emit(letter)
+	EventBus.action_resolved.emit(action_id, {
+		"success":   false,
+		"target_id": target_id,
+		"summary":   subject,
+		"rel_delta": 0,
+		"routed_via": String(coord_id),
+		"auto":       bool(descriptor.get("auto", false)),
+		"dispatch_failure": broken_stage,
+	})
 
 
 func _resolve(descriptor: Dictionary) -> void:
@@ -385,6 +539,7 @@ func _resolve(descriptor: Dictionary) -> void:
 		extras["coordinator_id"]   = String(coord.id)
 
 	var report: Letter = _build_report(def, target_id, success, extras)
+	_stamp_report_confidence(report, def, coord, target_id, extras)
 	EventBus.letter_delivered.emit(report)
 
 	if success:
@@ -405,6 +560,7 @@ func _resolve(descriptor: Dictionary) -> void:
 		"summary":        report.subject,
 		"rel_delta":      rel_delta,
 		"routed_via":     String(coord.id) if coord != null else "",
+		"auto":           bool(descriptor.get("auto", false)),
 	})
 
 
@@ -678,6 +834,10 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_reinvestigate(target_id, success, out)
 		&"audit_cell":
 			_apply_audit_cell(target_id, success, out)
+		&"rotate_roles":
+			_apply_rotate_roles(target_id, success, out)
+		&"audit_entity":
+			_apply_audit_entity(target_id, success, out)
 		&"run_double_agent":
 			_apply_run_double_agent(target_id, success, out)
 		&"investigate_anomaly":
@@ -696,6 +856,8 @@ func _apply_special_effects(def: ActionDefinition, target_id: String, success: b
 			_apply_quiet_the_legend(target_id, success, out)
 		&"discredit_hunter":
 			_apply_discredit_hunter(target_id, success, out)
+		&"destroy_archive":
+			_apply_destroy_archive(target_id, success, out)
 		&"false_flag_operation":
 			_apply_false_flag(target_id, success, out)
 		&"request_contact":
@@ -772,10 +934,16 @@ func _apply_cross_reference(target_id: String, success: bool, out: Dictionary) -
 		var drop: int = _rng.randi_range(10, 25)
 		m.confidence = clampi(m.confidence - drop, 0, 100)
 		m.suspected_compromised = m.confidence <= 35 or m.double_agent
+		if m.suspected_compromised and m.corruption_source == OrgMember.CorruptionSource.UNKNOWN:
+			# Contradictions in reporting almost always mean their words
+			# are being shaped somewhere upstream — a rival hand, not
+			# straight personal greed.
+			m.corruption_source = OrgMember.CorruptionSource.RIVAL
 		Org.member_updated.emit(m)
 		out["verdict"] = &"contradictions"
 		out["confidence_delta"] = -drop
 		out["now_suspected"] = m.suspected_compromised
+		out["corruption_source"] = OrgMember.CorruptionSource.keys()[m.corruption_source]
 		return
 	out["verdict"] = &"consistent"
 
@@ -801,9 +969,16 @@ func _apply_source_audit(target_id: String, success: bool, out: Dictionary) -> v
 		if truly_compromised:
 			m.suspected_compromised = true
 			m.confidence = mini(m.confidence, 25)
+			# Source audit confirms a rival hand unless a prior greed
+			# tag was already sticking — leave that as-is so the player
+			# sees the first attributed cause.
+			if m.corruption_source == OrgMember.CorruptionSource.UNKNOWN:
+				m.corruption_source = OrgMember.CorruptionSource.RIVAL
 			out["verdict"] = &"compromised_confirmed"
+			out["corruption_source"] = OrgMember.CorruptionSource.keys()[m.corruption_source]
 		else:
 			m.suspected_compromised = false
+			m.corruption_source = OrgMember.CorruptionSource.UNKNOWN
 			m.confidence = clampi(m.confidence + 15, 0, 100)
 			m.months_since_audit = 0
 			out["verdict"] = &"clean"
@@ -854,6 +1029,9 @@ func _apply_reinvestigate(target_id: String, success: bool, out: Dictionary) -> 
 		var drop: int = _rng.randi_range(25, 45)
 		best.confidence = clampi(best.confidence - drop, 0, 100)
 		best.suspected_compromised = true
+		if best.corruption_source == OrgMember.CorruptionSource.UNKNOWN:
+			best.corruption_source = OrgMember.CorruptionSource.RIVAL
+		out["corruption_source"] = OrgMember.CorruptionSource.keys()[best.corruption_source]
 		Org.member_updated.emit(best)
 		out["verdict"] = &"divergence"
 		out["confidence_delta"] = -drop
@@ -889,13 +1067,83 @@ func _apply_audit_cell(target_id: String, success: bool, out: Dictionary) -> voi
 	if m.double_agent or m.suspected_compromised:
 		out["verdict"] = &"drift_confirmed"
 		m.confidence = mini(m.confidence, 30)
+		# A prior cross-reference / source audit may already have
+		# attributed the rot. If not — and we got here via confession of
+		# a compromise that slipped through earlier checks — call it
+		# rival: the member did not voluntarily show up this dirty.
+		if m.corruption_source == OrgMember.CorruptionSource.UNKNOWN:
+			m.corruption_source = OrgMember.CorruptionSource.RIVAL
 	elif risk >= 60:
 		m.suspected_compromised = true
 		m.confidence = clampi(m.confidence - 15, 0, 100)
+		# Risk here is built from greed / loyalty traits and long tenure
+		# without oversight — attribute to personal drift, not an
+		# enemy. Source audit / cross-reference can upgrade this later.
+		m.corruption_source = OrgMember.CorruptionSource.GREED
 		out["verdict"] = &"drift_detected"
 	else:
+		m.corruption_source = OrgMember.CorruptionSource.UNKNOWN
 		out["verdict"] = &"clean"
+	out["corruption_source"] = OrgMember.CorruptionSource.keys()[m.corruption_source]
 	Org.member_updated.emit(m)
+
+
+## Rotate every operative under a coordinator to new duties.
+## Resets individual heat and the coordinator's cell-level heat; does
+## not repair suspected_compromised (that is the audit's job).
+func _apply_rotate_roles(target_id: String, success: bool, out: Dictionary) -> void:
+	var coord: OrgMember = Org.get_member(StringName(target_id))
+	if coord == null:
+		return
+	out["member_name"] = coord.display_name
+	out["member_layer"] = coord.layer_name()
+	if not success:
+		out["verdict"] = &"rotate_inconclusive"
+		return
+	var rotated: int = 0
+	var before_heat: int = coord.heat
+	for m in Org.all_members():
+		if m.burned:
+			continue
+		if m.layer != OrgMember.Layer.OPERATIVE:
+			continue
+		if m.superior_id != coord.id:
+			continue
+		m.heat = 0
+		m.months_since_audit = 0
+		Org.member_updated.emit(m)
+		rotated += 1
+	coord.heat = maxi(0, coord.heat - 40)
+	Org.member_updated.emit(coord)
+	out["rotated_count"] = rotated
+	out["heat_before"]   = before_heat
+	out["heat_after"]    = coord.heat
+	out["verdict"] = &"rotate_success"
+
+
+## §B15 Audit an owned entity. Pulls back the proxy's drift and
+## stamps the report with before/after corruption so the letter
+## can talk about how much was recovered.
+func _apply_audit_entity(target_id: String, success: bool, out: Dictionary) -> void:
+	var e: OwnedEntity = Entities.get_entity(StringName(target_id))
+	if e == null:
+		return
+	out["entity_name"] = e.display_name
+	out["entity_id"] = String(e.id)
+	out["corruption_before"] = e.corruption
+	if e.proxy_actor_id != &"":
+		var proxy: Actor = Actors.get_actor(e.proxy_actor_id)
+		if proxy != null:
+			out["director_name"] = proxy.display_name()
+			out["director_id"] = String(e.proxy_actor_id)
+	if not success:
+		out["verdict"] = &"audit_entity_inconclusive"
+		return
+	if Entities.audit_entity(e.id):
+		out["corruption_after"] = e.corruption
+		out["verdict"] = &"audit_entity_success"
+	else:
+		out["verdict"] = &"audit_entity_blocked"
 
 
 ## §18.5 Run a confirmed compromised source as a double agent. Setup
@@ -914,6 +1162,9 @@ func _apply_run_double_agent(target_id: String, success: bool, out: Dictionary) 
 	if success:
 		m.double_agent = true
 		m.suspected_compromised = true
+		# Confirmed rival attribution: we only run a double agent when
+		# there is a rival network on the other end of them.
+		m.corruption_source = OrgMember.CorruptionSource.RIVAL
 		# Trust is operational — we still trust them to do what we say.
 		# Confidence stays low because what they report is our fiction.
 		m.confidence = clampi(m.confidence, 0, 30)
@@ -939,6 +1190,19 @@ func _apply_investigate_anomaly(target_id: String, success: bool, out: Dictionar
 
 	if not success:
 		out["verdict"] = &"no_trail"
+		return
+
+	# §C4 if there is a still-standing false-flag accusation against
+	# the player in this kingdom, investigation resolves that first.
+	# The in-world logic: an investigator walking the ground under
+	# "the last strange thing" is exactly the tool that clears a
+	# public accusation you didn't do.
+	var cleared: Dictionary = Rivals.clear_false_flag_in(target_id)
+	if not cleared.is_empty():
+		out["verdict"]        = &"false_flag_cleared"
+		out["op_id"]          = String(cleared.get("op_id", ""))
+		out["op_headline"]    = String(cleared.get("headline", ""))
+		out["framed_society_id"] = String(cleared.get("rival_signature", ""))
 		return
 
 	var op: Dictionary = Fingerprints.advance_one_in(target_id, Fingerprints.LEVEL_SIGNAL)
@@ -1135,6 +1399,31 @@ func _apply_quiet_the_legend(target_id: String, success: bool, out: Dictionary) 
 	out["heat_after"] = Shadow.awareness_heat_in(target_id)
 
 
+## §B16 destroy archive. Targets a kingdom where a historian has
+## emerged; success removes the historian and burns some of the
+## kingdom's institutional memory with them. Also bumps exposure —
+## archives do not burn quietly.
+func _apply_destroy_archive(target_id: String, success: bool, out: Dictionary) -> void:
+	var k: Kingdom = WorldData.get_kingdom(target_id)
+	out["kingdom_name"] = k.kingdom_name if k != null else target_id
+	if not Shadow.has_historian_in(target_id):
+		out["verdict"] = &"no_historian"
+		return
+	var historian_id: String = Shadow.first_historian_in(target_id)
+	var a: Actor = Actors.get_actor(StringName(historian_id))
+	if a != null:
+		out["historian_name"] = a.display_name()
+	if not success:
+		# The arsonists were caught, the archive still stands, and
+		# now the historian has proof someone is afraid of them.
+		Exposure.bump(8.0, "destroy_archive_failed")
+		Shadow.bump_awareness(target_id, 12, "destroy_archive_failed")
+		out["verdict"] = &"arson_failed"
+		return
+	Shadow.destroy_archive_for_historian(historian_id)
+	out["verdict"] = &"archive_destroyed"
+
+
 ## §10.5 hunter discredit. Removes hunter status on the target actor.
 ## Target must actually be a hunter; failure leaves them alive and
 ## louder than before.
@@ -1256,6 +1545,11 @@ func _apply_request_contact(target_id: String, success: bool, out: Dictionary) -
 
 	Immortals.set_relationship(im.id, &"in_contact")
 	out["verdict"] = &"contact_open"
+	# §C5 open a branched dialogue overlay. The UI listens to
+	# `Immortals.dialogue_requested` and surfaces the tree; if no
+	# tree exists for this peer, the call is a silent no-op and the
+	# contact-open letter remains the only surface.
+	Immortals.open_dialogue(im.id)
 
 
 ## §5.5 propose-truce. Requires an `in_contact` relationship and
@@ -1499,9 +1793,36 @@ func _modified_success_chance(def: ActionDefinition, target_id: String) -> float
 		var char_bias: float    = (float(actor.charisma) - 50.0) / 150.0     # ~ +/- 0.33
 		var rel_bias_h: float   = (float(actor.relationship) - 60.0) / 200.0 # small extra tilt above the threshold
 		var par_bias: float     = -(float(actor.paranoia) - 50.0) / 300.0
-		return clampf(def.base_success_chance + char_bias + rel_bias_h + par_bias, 0.05, 0.95)
+		# §10.6 Hostile-hosts modifier: flat resistance floor, converted
+		# to a success-chance penalty of roughly -0.15 at +15 bonus.
+		var resist_bonus: int   = DifficultyProfile.current().host_resistance_bonus()
+		var resist_bias: float  = -float(resist_bonus) / 100.0
+		return clampf(def.base_success_chance + char_bias + rel_bias_h + par_bias + resist_bias, 0.05, 0.95)
+
+	# Social actions on a named actor take a language-gap penalty when
+	# the operator (a host in-kingdom) does not speak the target's
+	# native tongue fluently. Diplomatic friction is real; a translator
+	# at your elbow halves the intimacy of a conversation.
+	if actor != null:
+		var op: Actor = _best_operator_for(actor)
+		if op != null and op != actor:
+			var eff: float = Languages.effectiveness(op, actor)   # 0.5 .. 1.0
+			var lang_mult: float = 0.6 + 0.4 * eff                # 0.8 .. 1.0
+			return clampf(def.base_success_chance * lang_mult, 0.05, 0.97)
 
 	return def.base_success_chance
+
+
+func _best_operator_for(target: Actor) -> Actor:
+	if target.is_host():
+		return target
+	var same_kingdom: Array[Actor] = Actors.hosts_in(target.kingdom_id)
+	if not same_kingdom.is_empty():
+		return same_kingdom[0]
+	var any_host: Array[Actor] = Actors.hosts()
+	if not any_host.is_empty():
+		return any_host[0]
+	return null
 
 
 # --- Relationship effects ----------------------------------------------------
@@ -1616,6 +1937,19 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"clean":               subject = "%s's cell is in order" % target_name
 			&"audit_inconclusive":  subject = "Audit on %s's cell was inconclusive" % target_name
 			_:                      subject = "Internal audit on %s" % target_name
+	elif def.id == &"rotate_roles":
+		var rv: StringName = StringName(String(extras.get("verdict", "")))
+		match rv:
+			&"rotate_success":       subject = "%s's operatives have been rotated" % target_name
+			&"rotate_inconclusive":  subject = "Rotation of %s's cell stumbled" % target_name
+			_:                       subject = "Role rotation in %s's cell" % target_name
+	elif def.id == &"audit_entity":
+		var ev: StringName = StringName(String(extras.get("verdict", "")))
+		match ev:
+			&"audit_entity_success":      subject = "Audit closed on %s" % target_name
+			&"audit_entity_inconclusive": subject = "Audit on %s was inconclusive" % target_name
+			&"audit_entity_blocked":      subject = "Audit on %s could not proceed" % target_name
+			_:                            subject = "Audit on %s" % target_name
 	elif def.id == &"run_double_agent":
 		var dv: StringName = StringName(String(extras.get("verdict", "")))
 		match dv:
@@ -1626,10 +1960,11 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 	elif def.id == &"investigate_anomaly":
 		var iv: StringName = StringName(String(extras.get("verdict", "")))
 		match iv:
-			&"advanced":           subject = "A hand shows in %s" % target_name
-			&"nothing_anomalous":  subject = "Nothing unnatural in %s" % target_name
-			&"no_trail":           subject = "The trail in %s went cold" % target_name
-			_:                     subject = "Investigation in %s" % target_name
+			&"advanced":             subject = "A hand shows in %s" % target_name
+			&"nothing_anomalous":    subject = "Nothing unnatural in %s" % target_name
+			&"no_trail":             subject = "The trail in %s went cold" % target_name
+			&"false_flag_cleared":   subject = "The accusation in %s is dismantled" % target_name
+			_:                       subject = "Investigation in %s" % target_name
 	elif def.id == &"cross_reference_pattern":
 		var pv: StringName = StringName(String(extras.get("verdict", "")))
 		match pv:
@@ -1679,6 +2014,13 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 			&"made_worse":    subject = "%s is worse than before" % target_name
 			&"not_a_hunter":  subject = "%s was not the hunter you feared" % target_name
 			_:                subject = "On %s, and the stories they tell" % target_name
+	elif def.id == &"destroy_archive":
+		var av: StringName = StringName(String(extras.get("verdict", "")))
+		match av:
+			&"archive_destroyed": subject = "The archive in %s has burned" % target_name
+			&"arson_failed":      subject = "The archive in %s still stands" % target_name
+			&"no_historian":      subject = "No historian to act against in %s" % target_name
+			_:                    subject = "On the archive in %s" % target_name
 	elif def.id == &"false_flag_operation":
 		var fv: StringName = StringName(String(extras.get("verdict", "")))
 		match fv:
@@ -1723,6 +2065,45 @@ func _build_report(def: ActionDefinition, target_id: String, success: bool, extr
 	var body: String = _body_for(def, linked_name, success, extras)
 
 	return Letter.create(letter_id, def.report_sender, date, subject, body, &"action")
+
+
+## Stamp a letter with its per-report confidence band (§18 fog-of-intel).
+## Rules:
+##   - Intel / audit / investigation actions use the target or best-source
+##     member's confidence directly, since that is literally what we are
+##     measuring. Only set if we found a member to read.
+##   - Other action reports go out at the dispatching coordinator's
+##     confidence when a coord was used; if no coord (direct player
+##     action) the confidence is 95 — first-hand but never 100 because
+##     we can always be lied to by our target.
+##   - A handful of action kinds have no meaningful confidence concept
+##     (promotions, intro, etc.); those keep the default -1 no-band.
+func _stamp_report_confidence(letter: Letter, def: ActionDefinition, coord: OrgMember, target_id: String, _extras: Dictionary) -> void:
+	if letter == null or def == null:
+		return
+	# Kinds that are pure structural / bookkeeping — no band.
+	match def.id:
+		&"promote_coordinator", &"promote_lieutenant", &"sever_cell":
+			return
+	# Intel actions that read a named member: their target_id IS the
+	# member whose reliability we're probing. Use the member's current
+	# confidence directly.
+	var member_subject_ids: PackedStringArray = PackedStringArray([
+		"intel_cross_reference", "intel_source_audit",
+		"audit_cell", "rotate_roles", "run_double_agent",
+	])
+	if member_subject_ids.has(String(def.id)):
+		var m: OrgMember = Org.get_member(StringName(target_id))
+		if m != null:
+			letter.confidence = m.confidence
+			letter.reporter_id = m.id
+			return
+	# Fall-through: dispatched-action reports.
+	if coord != null and not coord.burned:
+		letter.confidence = coord.confidence
+		letter.reporter_id = coord.id
+	else:
+		letter.confidence = 95
 
 
 ## Wrap an Actor target name in a BBCode url so the letter view can
@@ -1778,6 +2159,10 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _reinvestigate_body(target, extras)
 		&"audit_cell":
 			return _audit_cell_body(target, extras)
+		&"rotate_roles":
+			return _rotate_roles_body(target, extras)
+		&"audit_entity":
+			return _audit_entity_body(target, extras)
 		&"run_double_agent":
 			return _double_agent_body(target, extras)
 
@@ -1797,6 +2182,8 @@ func _body_for(def: ActionDefinition, target: String, success: bool, extras: Dic
 			return _quiet_the_legend_body(extras)
 		&"discredit_hunter":
 			return _discredit_hunter_body(target, extras)
+		&"destroy_archive":
+			return _destroy_archive_body(target, extras)
 		&"false_flag_operation":
 			return _false_flag_body(extras)
 		&"request_contact":
@@ -1938,6 +2325,7 @@ func _cross_reference_body(target: String, extras: Dictionary) -> String:
 	var drop: int = int(extras.get("confidence_delta", 0))
 	var now_suspected: bool = bool(extras.get("now_suspected", false))
 	var corroborators: int = int(extras.get("corroborators", 0))
+	var src: String = String(extras.get("corruption_source", "UNKNOWN")).to_upper()
 
 	match verdict:
 		&"contradictions":
@@ -1946,6 +2334,9 @@ func _cross_reference_body(target: String, extras: Dictionary) -> String:
 				tail += "I have flagged them as suspected — the next move is yours."
 			else:
 				tail += "Not yet enough to call them turned, but enough to stop acting on their word alone."
+			if src == "RIVAL":
+				tail += (" The *shape* of the contradictions — same time-of-day, same errors of omission "
+					+ "across weeks — tells me someone else is drafting what they tell us.")
 			return ("I held %s's reports against every other thread I have on the same ground. "
 				+ "There are gaps — places where what they say happened and what others say happened "
 				+ "do not line up. They are small, and any one of them could be forgiven. Together, "
@@ -1965,13 +2356,19 @@ func _cross_reference_body(target: String, extras: Dictionary) -> String:
 
 func _source_audit_body(target: String, extras: Dictionary) -> String:
 	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var src: String = String(extras.get("corruption_source", "UNKNOWN")).to_upper()
 	match verdict:
 		&"compromised_confirmed":
-			return ("There is no more doubt. %s is turned. Their lifestyle has exceeded their means "
+			var stail: String = ""
+			if src == "RIVAL":
+				stail = (" The hand behind them is external — we are feeding a rival pair of eyes.")
+			elif src == "GREED":
+				stail = (" So far, the damage is their own appetite, not an enemy reading our mail.")
+			return (("There is no more doubt. %s is turned. Their lifestyle has exceeded their means "
 				+ "for some months, their route home at night passes a door it has no reason to, and "
 				+ "they have met twice with a man I can place in another city's records. You now decide "
 				+ "what use they still are — a quiet cut, or a louder play."
-				) % target
+				) % target) + stail
 		&"clean":
 			return ("%s has been walked through — contacts, purse, routines — and they come out whole. "
 				+ "No meetings we did not know of, no silver we did not account for. I have reset the "
@@ -2021,18 +2418,34 @@ func _reinvestigate_body(target: String, extras: Dictionary) -> String:
 
 func _audit_cell_body(target: String, extras: Dictionary) -> String:
 	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var src: String = String(extras.get("corruption_source", "UNKNOWN")).to_upper()
 	match verdict:
 		&"drift_confirmed":
-			return ("The audit on %s's cell returns what we feared. The ledgers and the operational "
+			var tail: String = ""
+			if src == "RIVAL":
+				tail = ("\n\nThe shape of the diversion is not that of a man skimming for himself. "
+					+ "A second hand is guiding their work. Someone outside our reach has been "
+					+ "collecting from them for longer than I care to admit.")
+			elif src == "GREED":
+				tail = ("\n\nNo outside hand is visible in the ledgers. This is the ordinary rot — "
+					+ "too much tenure, too little oversight, and a comfortable conscience.")
+			return (("The audit on %s's cell returns what we feared. The ledgers and the operational "
 				+ "record do not align; silver intended for one hand has been touching a second before "
 				+ "it arrived. I have flagged the cell for a decision — reassign, leverage, or cut."
-				) % target
+				) % target) + tail
 		&"drift_detected":
-			return ("%s's cell has grown too comfortable. Nothing outright wrong, yet — but the patterns "
+			var dtail: String = ""
+			if src == "GREED":
+				dtail = ("\n\nReading: personal drift. Their traits and tenure, not an enemy hand. "
+					+ "Cheap to pull back if you move now.")
+			elif src == "RIVAL":
+				dtail = ("\n\nReading: the pattern suggests an outside hand is already at work. "
+					+ "An audit or source-audit this year, not next.")
+			return (("%s's cell has grown too comfortable. Nothing outright wrong, yet — but the patterns "
 				+ "of their last six months show the small liberties that tend to grow into the large ones. "
 				+ "I have resurfaced them as suspected; if you mean to keep them, we should audit again "
 				+ "before the year turns."
-				) % target
+				) % target) + dtail
 		&"clean":
 			return ("%s's cell is in order. Their ledgers match the financial record to within what "
 				+ "variance the work admits; their operatives' reports track the public ground. Audit "
@@ -2044,6 +2457,51 @@ func _audit_cell_body(target: String, extras: Dictionary) -> String:
 				+ "heavier method if you have reason to doubt them."
 				) % target
 	return "The audit on %s's cell returned no verdict." % target
+
+
+func _rotate_roles_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	match verdict:
+		&"rotate_success":
+			var rotated: int = int(extras.get("rotated_count", 0))
+			var before: int  = int(extras.get("heat_before", 0))
+			var after: int   = int(extras.get("heat_after", 0))
+			return ("The rotation is done. %d operatives under %s have been moved to new faces and "
+				+ "new corners of the kingdom. Nothing about their loyalty has changed; what has "
+				+ "changed is what anyone looking for them is looking for.\n\n"
+				+ "Cell heat fell from %d to %d. Buy us a quiet half-season and we might keep the "
+				+ "cell intact through the next wave of interest.") % [rotated, target, before, after]
+		&"rotate_inconclusive":
+			return ("The rotation stumbled. Some of the pieces moved; some did not, and those that "
+				+ "did not are now visible against the ones that did. %s's cell has not been made "
+				+ "safer by half a rotation. Consider auditing instead before the exposure compounds."
+				) % target
+	return "The rotation in %s's cell returned no verdict." % target
+
+
+func _audit_entity_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var director: String = String(extras.get("director_name", "the director"))
+	var before: int = int(extras.get("corruption_before", 0))
+	var after: int = int(extras.get("corruption_after", before))
+	match verdict:
+		&"audit_entity_success":
+			return ("The audit on %s is closed. The books balanced with more persuasion than they used to, and "
+				+ "%s has been spoken to in a room without witnesses. Drift fell from %d to %d; the message "
+				+ "downstream is that someone is now watching.\n\n"
+				+ "A year of cleaner accounts, more or less, is all any audit buys. After that, the river "
+				+ "finds a new course."
+				) % [target, director, before, after]
+		&"audit_entity_inconclusive":
+			return ("The audit on %s stalled. The clerks were cooperative in the way that means nothing; "
+				+ "%s smiled through every interview and produced every ledger we asked for. If there is "
+				+ "drift, it has been hidden by a hand more careful than ours. A heavier reach may be required."
+				) % [target, director]
+		&"audit_entity_blocked":
+			return ("We could not reach %s with this audit. The institution is dissolved, compromised, or "
+				+ "otherwise beyond the writ of internal review. A different instrument is called for."
+				) % target
+	return "The audit on %s returned no verdict." % target
 
 
 func _double_agent_body(target: String, extras: Dictionary) -> String:
@@ -2103,6 +2561,16 @@ func _investigate_anomaly_body(extras: Dictionary) -> String:
 				+ "deliberate. %s. I could not yet say by whose hand; the trail narrows but does not end.\n\n"
 				+ "Another investigation of the same event, from a different angle, may give us the actor."
 				) % [head, region, label]
+		&"false_flag_cleared":
+			var head2: String = String(extras.get("op_headline", "the accusation"))
+			return ("The rumour in %s that pointed at our coordinator is now a rumour in reverse. "
+				+ "We placed three honest witnesses in three separate squares, and each of them had a "
+				+ "different reason to be believed. The merchants who were sure they saw her cannot "
+				+ "agree on her hair. The accusation — '[i]%s[/i]' — will still be remembered, but it "
+				+ "will no longer be believed.\n\n"
+				+ "Whoever stamped us with their forgery went to some trouble for it. That in itself "
+				+ "is worth remembering."
+				) % [region, head2]
 	return "An investigation closed in %s without a clear finding." % region
 
 
@@ -2274,6 +2742,33 @@ func _quiet_the_legend_body(extras: Dictionary) -> String:
 				+ "Another pass of the same work will move the needle again."
 				) % region
 	return "On the matter of rumour in %s, no clear report." % region
+
+
+## §B16 archive-destruction body. Reports cite the era-appropriate
+## phrasing for what was lost.
+func _destroy_archive_body(target: String, extras: Dictionary) -> String:
+	var verdict: StringName = StringName(String(extras.get("verdict", "")))
+	var historian: String = String(extras.get("historian_name", "the historian"))
+	match verdict:
+		&"no_historian":
+			return ("There is no scholar of our legend in %s to act against. Whatever brought this action "
+				+ "to the top of the pile does not match what the archives actually hold. The silver is "
+				+ "returned."
+				) % target
+		&"archive_destroyed":
+			return ("The archive in %s has burned. The chroniclers' ledgers, the receipts, the petitioners' "
+				+ "lists three generations deep — gone. %s is no longer constructing the case against us "
+				+ "because the case's raw material is ash.\n\n"
+				+ "This was loud. The town knows that a thing was destroyed; it does not yet know why. "
+				+ "Expect some of that discovery in the weeks ahead."
+				) % [target, historian]
+		&"arson_failed":
+			return ("The attempt on the archive in %s failed. Our people were turned back at the door, or "
+				+ "worse, caught with oil and kindling. %s now has proof of what we have been unable to "
+				+ "publicly confirm: that someone is afraid of what they are reading. They will redouble. "
+				+ "The entry in their ledger has our shape in it now."
+				) % [target, historian]
+	return "On the matter of the archive in %s, no clear report." % target
 
 
 ## §10.5 hunter-discredit body.
@@ -2475,6 +2970,10 @@ func _lookup_target_name(kind: ActionDefinition.TargetKind, id: String) -> Strin
 			var m: OrgMember = Org.get_member(StringName(id))
 			if m != null:
 				return m.display_name
+		ActionDefinition.TargetKind.ENTITY:
+			var e: OwnedEntity = Entities.get_entity(StringName(id))
+			if e != null:
+				return e.display_name
 		_:
 			pass
 	return id if not id.is_empty() else "the matter"

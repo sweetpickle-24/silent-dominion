@@ -38,6 +38,25 @@ extends Resource
 ## strength" without losing the pristine figure through drift.
 @export var size_ceiling: int = 0
 
+## §B10 recruiter's ledger. province_id -> thousands of men this
+## province has supplied to the army since seeding. Used to bias
+## morale in long wars (a heterogeneous army grumbles harder than a
+## homogeneous one when the campaign drags on) and to track where
+## the manpower came from for diagnostic / chronicle purposes.
+@export var culture_mix: Dictionary = {}
+
+## §B11 logistics. Consecutive days the army has been on campaign
+## without a viable supply line back home. Zeroed whenever the army
+## is at home (no active war) or when the home kingdom has a viable
+## road / port network. Crossing LOGISTICS_CUTOFF_DAYS triggers a
+## hard strength hit in ArmyRegistry.
+@export var supply_cutoff_days: int = 0
+
+## §B11 set true when the home kingdom has no road/port
+## infrastructure. Sticky within a month so the UI can describe the
+## army as "cut off from home" without recomputing per frame.
+@export var logistics_cut: bool = false
+
 
 func is_mutinous() -> bool:
 	return loyalty < 30
@@ -99,6 +118,13 @@ func quality_phrase() -> String:
 	return "peasant spears and rusted iron"
 
 
+## §B10 how mixed is the culture_mix right now. Returns 0 if empty or
+## single-source; higher values mean more heterogeneous. Used by
+## ArmyRegistry for long-war morale penalties.
+func culture_distinct_count() -> int:
+	return culture_mix.size()
+
+
 func to_dict() -> Dictionary:
 	return {
 		"id":            id,
@@ -110,6 +136,9 @@ func to_dict() -> Dictionary:
 		"loyalty":       loyalty,
 		"commander_id":  String(commander_id),
 		"size_ceiling":  size_ceiling,
+		"culture_mix":   culture_mix.duplicate(),
+		"supply_cutoff_days": supply_cutoff_days,
+		"logistics_cut":      logistics_cut,
 	}
 
 
@@ -124,4 +153,10 @@ static func from_dict(d: Dictionary) -> Army:
 	a.loyalty      = int(d.get("loyalty", 70))
 	a.commander_id = StringName(String(d.get("commander_id", "")))
 	a.size_ceiling = int(d.get("size_ceiling", a.size))
+	var mix: Dictionary = d.get("culture_mix", {})
+	a.culture_mix = {}
+	for k in mix.keys():
+		a.culture_mix[String(k)] = int(mix[k])
+	a.supply_cutoff_days = int(d.get("supply_cutoff_days", 0))
+	a.logistics_cut      = bool(d.get("logistics_cut", false))
 	return a

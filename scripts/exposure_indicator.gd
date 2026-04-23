@@ -105,6 +105,8 @@ func _refresh() -> void:
 
 func _on_level_changed(_lvl: int) -> void:
 	_refresh()
+	if Prefs.reduced_motion:
+		return
 	# A tiny pulse when the level tips over, to draw the eye.
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_panel, "scale", Vector2(1.06, 1.06), 0.10)

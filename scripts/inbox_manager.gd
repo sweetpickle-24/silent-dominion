@@ -13,6 +13,11 @@ signal letter_read(letter: Letter)
 
 var letters: Array[Letter] = []
 
+# Index: actor_id -> Array[Letter] in insertion order. Rebuilt on save-
+# load. Kept in sync on add_letter(). Lets the dossier fetch a name's
+# recent letters in O(1).
+var _by_actor: Dictionary = {}
+
 
 func _ready() -> void:
 	_seed_placeholder_letters()
@@ -23,7 +28,51 @@ func _ready() -> void:
 
 func add_letter(letter: Letter) -> void:
 	letters.append(letter)
+	_index_letter(letter)
 	letters_changed.emit()
+
+
+## Returns every Letter whose body names the given actor (via the
+## `[url=actor:<id>]` BBCode anchor), newest-first. Cheap lookup backed
+## by `_by_actor`.
+func letters_about(actor_id: StringName) -> Array[Letter]:
+	var raw: Array = _by_actor.get(actor_id, []) as Array
+	var out: Array[Letter] = []
+	for i in range(raw.size() - 1, -1, -1):
+		var l: Letter = raw[i]
+		if l != null:
+			out.append(l)
+	return out
+
+
+## Rebuild the actor index from `letters`. Call after a save-load
+## replaces the `letters` array in bulk.
+func rebuild_index() -> void:
+	_by_actor.clear()
+	for l in letters:
+		_index_letter(l)
+
+
+func _index_letter(letter: Letter) -> void:
+	if letter == null:
+		return
+	# Parse every [url=actor:<id>] anchor in the body.
+	var body: String = letter.body
+	var cursor: int = 0
+	while true:
+		var i: int = body.find("[url=actor:", cursor)
+		if i < 0:
+			break
+		var start: int = i + len("[url=actor:")
+		var end: int = body.find("]", start)
+		if end < 0:
+			break
+		var actor_id: StringName = StringName(body.substr(start, end - start))
+		var arr: Array = _by_actor.get(actor_id, []) as Array
+		if not arr.has(letter):
+			arr.append(letter)
+		_by_actor[actor_id] = arr
+		cursor = end + 1
 
 
 func get_unread() -> Array[Letter]:

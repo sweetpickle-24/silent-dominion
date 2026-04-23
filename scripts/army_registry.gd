@@ -48,6 +48,12 @@ const LOYALTY_PEACE_RECOVER: int = 1
 # Attrition when severely under-supplied at war.
 const WAR_LOW_SUPPLY_ATTRITION: float = 0.010
 
+# §B11 logistics: an army whose home kingdom has no road/port network
+# cannot resupply efficiently during a campaign.
+const LOGISTICS_DRAIN:         int   = 4     # extra supply hit per month
+const LOGISTICS_CUTOFF_DAYS:   int   = 90    # 3 months cut off = hard attrition
+const LOGISTICS_HARD_HIT:      float = 0.30  # one-shot 30% strength cut
+
 
 var _armies: Dictionary = {}            # kingdom_id -> Army
 var _last_size_band: Dictionary = {}    # kingdom_id -> StringName
@@ -118,13 +124,60 @@ func _tick_army(a: Army) -> void:
 		k.id, int(Relations.RelationState.AT_WAR)
 	).size() > 0
 
+	# §B11 logistics: does the kingdom have an intact road/port
+	# network back home? If not, a campaigning army starts to run
+	# out of bread.
+	a.logistics_cut = at_war and not _kingdom_has_connectivity(k)
+
 	_tick_supply(a, k, at_war)
 	_tick_morale(a, k, at_war)
 	_tick_loyalty(a, k)
 	_tick_size(a, k, at_war)
+	_tick_logistics_cutoff(a, k, at_war)
 
 	army_changed.emit(a.kingdom_id)
 	_maybe_announce_size(a)
+
+
+## §B11 The kingdom's supply line is considered viable if at least
+## one of its owned provinces carries a road network or a working
+## harbour. Minimum-viable heuristic: once we model partial routes
+## (§B13), this becomes a real path calculation.
+func _kingdom_has_connectivity(k: Kingdom) -> bool:
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p == null:
+			continue
+		if p.has_building(&"road_network") or p.has_building(&"harbour"):
+			return true
+	return false
+
+
+## §B11 When the army has been out of supply range long enough, we
+## apply a one-shot strength hit rather than slow-bleeding size
+## every month — that models an army "melting" on a campaign rather
+## than losing one man at a time.
+func _tick_logistics_cutoff(a: Army, _k: Kingdom, _at_war: bool) -> void:
+	if not a.logistics_cut:
+		if a.supply_cutoff_days > 0:
+			a.supply_cutoff_days = 0
+		return
+	a.supply_cutoff_days += 30   # one month at campaign tempo
+	if a.supply_cutoff_days < LOGISTICS_CUTOFF_DAYS:
+		return
+	# One-shot cut. Reset the counter so the hit only lands once per
+	# window; if they stay cut off another 3 months it lands again.
+	var before: int = a.size
+	var after: int = int(round(float(before) * (1.0 - LOGISTICS_HARD_HIT)))
+	a.size = maxi(0, after)
+	a.morale = maxi(0, a.morale - 10)
+	a.supply_cutoff_days = 0
+	EventBus.public_event.emit({
+		"kind":       &"army_logistics_cut",
+		"kingdom_id": a.kingdom_id,
+		"headline":   "The army of %s thins on the road" % a.kingdom_id,
+		"body":       "Wagons have not reached them in a season. Men are drifting off in tens, in fifties; the quartermasters count what they can and pretend not to notice the rest. Without a paved road or a working port back to the capital, this is the shape of a campaign with no spine.",
+	})
 
 
 func _tick_supply(a: Army, k: Kingdom, at_war: bool) -> void:
@@ -134,6 +187,9 @@ func _tick_supply(a: Army, k: Kingdom, at_war: bool) -> void:
 		# A broke crown cannot buy bread for a campaign.
 		if int(k.treasury_condition) >= int(Kingdom.TreasuryCondition.INDEBTED):
 			delta -= 2
+		# §B11: cut off from the home network.
+		if a.logistics_cut:
+			delta -= LOGISTICS_DRAIN
 	else:
 		# Peace lets the quartermasters refill the stores, but only
 		# as fast as the treasury permits.
@@ -195,13 +251,80 @@ func _tick_size(a: Army, k: Kingdom, at_war: bool) -> void:
 	var room: int = ceiling - a.size
 	if room > 0 and rate > 0.0:
 		var recruits: int = maxi(1, int(round(float(ceiling) * rate)))
-		a.size = mini(ceiling, a.size + recruits)
+		var actually_recruited: int = _draw_recruits_from_provinces(a, k, recruits)
+		a.size = mini(ceiling, a.size + actually_recruited)
 	elif room < 0 and not at_war:
 		# Peacetime attrition pulls the number back toward ceiling's
 		# natural level — kingdoms don't keep more men under arms than
 		# the provinces want to feed.
 		var leave: int = int(round(float(a.size) * PEACE_ATTRITION))
 		a.size = maxi(ceiling, a.size - maxi(1, leave))
+
+	# §B10 long-war morale: armies drawn from more than two
+	# cultures grumble more the longer the campaign drags. We key
+	# the penalty off the number of distinct contributing provinces
+	# rather than a full culture table.
+	if at_war and a.culture_distinct_count() > 2:
+		var enemy: String = _first_enemy_of(k)
+		if enemy != "" and Relations.war_months_between(k.id, enemy) > 12:
+			a.morale = maxi(0, a.morale - 1)
+
+
+## §B10 split the requested recruits across provinces weighted by
+## each province's remaining manpower pool × population. Returns
+## how many thousands were actually raised (may be below `need` if
+## the kingdom's villages are already drained). Mutates province
+## manpower_fraction and the army's culture_mix in place.
+func _draw_recruits_from_provinces(a: Army, k: Kingdom, need: int) -> int:
+	if need <= 0:
+		return 0
+	var provinces: Array[Province] = []
+	var weights: Array[float] = []
+	var total_weight: float = 0.0
+	for pid in k.owned_provinces:
+		var p: Province = WorldData.get_province(pid)
+		if p == null or p.population <= 0:
+			continue
+		var w: float = float(p.population) * p.manpower_fraction
+		if w <= 0.0:
+			continue
+		provinces.append(p)
+		weights.append(w)
+		total_weight += w
+	if provinces.is_empty() or total_weight <= 0.0:
+		return 0
+	var taken_total: int = 0
+	for i in range(provinces.size()):
+		var p: Province = provinces[i]
+		var share: float = weights[i] / total_weight
+		var want: int = int(round(float(need) * share))
+		if want <= 0:
+			continue
+		# How many thousands this province can actually give right
+		# now. Converting population to "recruitable thousands" is a
+		# coarse abstraction: the pool is seeded at CEILING_RATIO of
+		# population. Drain it no further than zero.
+		var province_cap: int = int(round(float(p.population) * CEILING_RATIO * p.manpower_fraction))
+		var take: int = mini(want, province_cap)
+		if take <= 0:
+			continue
+		taken_total += take
+		# Decrement manpower_fraction proportionally.
+		var new_frac: float = p.manpower_fraction - (float(take) / maxf(1.0, float(p.population) * CEILING_RATIO))
+		p.manpower_fraction = clampf(new_frac, 0.0, 1.0)
+		var bucket_key: String = String(p.culture) if String(p.culture) != "" else p.id
+		a.culture_mix[bucket_key] = int(a.culture_mix.get(bucket_key, 0)) + take
+	return taken_total
+
+
+## Helper for the long-war morale check. Returns the id of any
+## kingdom `k` is currently at war with, or "" if none. Used as a
+## proxy for "how long is the army abroad".
+func _first_enemy_of(k: Kingdom) -> String:
+	var list: Array[String] = Relations.ids_in_state(k.id, int(Relations.RelationState.AT_WAR))
+	if list.is_empty():
+		return ""
+	return list[0]
 
 
 # --- Seeding -----------------------------------------------------------------

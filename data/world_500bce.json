@@ -235,6 +235,8 @@
       "silver_production": 36.0,
       "iron_production": 8.0,
       "timber_production": 18.0,
+      "gold_production": 3.0,
+      "salt_production": 6.0,
       "owning_kingdom": "tartessos"
     },
     {
@@ -415,6 +417,7 @@
       "silver_production": 4.0,
       "iron_production": 6.0,
       "timber_production": 3.0,
+      "horses_production": 22.0,
       "owning_kingdom": ""
     },
     {
@@ -427,6 +430,7 @@
       "silver_production": 4.0,
       "iron_production": 10.0,
       "timber_production": 3.0,
+      "horses_production": 28.0,
       "owning_kingdom": ""
     },
     {
@@ -511,6 +515,7 @@
       "silver_production": 6.0,
       "iron_production": 5.0,
       "timber_production": 10.0,
+      "salt_production": 8.0,
       "owning_kingdom": "rome"
     },
     {
@@ -595,6 +600,7 @@
       "silver_production": 8.0,
       "iron_production": 8.0,
       "timber_production": 18.0,
+      "salt_production": 6.0,
       "owning_kingdom": "carthage"
     },
     {
@@ -691,6 +697,7 @@
       "silver_production": 6.0,
       "iron_production": 5.0,
       "timber_production": 10.0,
+      "horses_production": 14.0,
       "owning_kingdom": ""
     },
     {
@@ -739,7 +746,18 @@
       "silver_production": 55.0,
       "iron_production": 8.0,
       "timber_production": 18.0,
-      "owning_kingdom": "athens"
+      "owning_kingdom": "athens",
+      "city": {
+        "id": "athens_city",
+        "display_name": "Athens",
+        "districts": [
+          { "kind": 0, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 1, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 2, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 3, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 4, "fog": 100, "resident_actor_ids": [] }
+        ]
+      }
     },
     {
       "id": "euboea",
@@ -811,7 +829,17 @@
       "silver_production": 12.0,
       "iron_production": 18.0,
       "timber_production": 14.0,
-      "owning_kingdom": "sparta"
+      "owning_kingdom": "sparta",
+      "city": {
+        "id": "sparta_city",
+        "display_name": "Sparta",
+        "districts": [
+          { "kind": 0, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 1, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 2, "fog": 100, "resident_actor_ids": [] },
+          { "kind": 4, "fog": 100, "resident_actor_ids": [] }
+        ]
+      }
     },
     {
       "id": "messenia",
@@ -907,6 +935,8 @@
       "silver_production": 4.0,
       "iron_production": 6.0,
       "timber_production": 3.0,
+      "horses_production": 12.0,
+      "salt_production": 4.0,
       "owning_kingdom": "persia"
     },
     {
@@ -919,6 +949,8 @@
       "silver_production": 42.0,
       "iron_production": 5.0,
       "timber_production": 10.0,
+      "gold_production": 6.0,
+      "cloth_production": 6.0,
       "owning_kingdom": "persia"
     },
     {
@@ -1039,6 +1071,8 @@
       "silver_production": 32.0,
       "iron_production": 4.0,
       "timber_production": 12.0,
+      "cloth_production": 18.0,
+      "salt_production": 8.0,
       "owning_kingdom": "persia"
     },
     {
@@ -1111,6 +1145,7 @@
       "silver_production": 12.0,
       "iron_production": 18.0,
       "timber_production": 14.0,
+      "horses_production": 18.0,
       "owning_kingdom": "persia"
     },
     {
@@ -1195,6 +1230,7 @@
       "silver_production": 6.0,
       "iron_production": 5.0,
       "timber_production": 10.0,
+      "cloth_production": 22.0,
       "owning_kingdom": "egypt"
     },
     {
@@ -1231,6 +1267,7 @@
       "silver_production": 2.0,
       "iron_production": 8.0,
       "timber_production": 1.0,
+      "gold_production": 9.0,
       "owning_kingdom": "kush"
     },
     {

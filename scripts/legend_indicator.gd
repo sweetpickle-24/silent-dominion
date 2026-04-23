@@ -173,6 +173,8 @@ func _on_awareness_changed(_kid: String, _tier: int) -> void:
 func _on_hunter_emerged(_h: Dictionary) -> void:
 	_refresh_hunter_line()
 	_refresh_tooltip()
+	if Prefs.reduced_motion:
+		return
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_panel, "scale", Vector2(1.08, 1.08), 0.10)
 	tw.chain().tween_property(_panel, "scale", Vector2.ONE, 0.22) \
