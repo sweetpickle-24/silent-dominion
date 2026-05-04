@@ -1,0 +1,18 @@
+{
+    "permissions": {
+      "deny": [
+        "Edit(/Users/vladyslav/Desktop/silent-dominion/**)",
+        "Write(/Users/vladyslav/Desktop/silent-dominion/**)",
+        "Bash(rm -rf /Users/vladyslav/Desktop/silent-dominion*)",
+        "Bash(mv /Users/vladyslav/Desktop/silent-dominion*)"
+      ],
+      "ask": [
+        "Bash(git push*)",
+        "Bash(git reset*)",
+        "Bash(git rebase*)",
+        "Bash(git checkout main*)",
+        "Edit(project.godot)",
+        "Write(project.godot)"
+      ]
+    }
+  }
