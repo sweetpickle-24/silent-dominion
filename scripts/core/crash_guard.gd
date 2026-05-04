@@ -1,0 +1,6 @@
+class_name CrashGuard
+extends Node
+
+
+func _ready() -> void:
+	print("[CrashGuard] ready")

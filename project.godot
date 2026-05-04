@@ -1,0 +1,29 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Silent Dominion"
+run/main_scene="res://scenes/main/Main.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+
+[autoload]
+
+EventBus="*res://scripts/core/event_bus.gd"
+TimeKeeper="*res://scripts/core/time_keeper.gd"
+WorldRegistry="*res://scripts/core/world_registry.gd"
+ImmortalRegistry="*res://scripts/core/immortal_registry.gd"
+SaveSystem="*res://scripts/core/save_system.gd"
+Logger="*res://scripts/core/logger.gd"
+EraTheme="*res://scripts/core/era_theme.gd"
+ColorblindPalette="*res://scripts/core/colorblind_palette.gd"
+CrashGuard="*res://scripts/core/crash_guard.gd"
+RuleEvaluator="*res://scripts/core/rule_evaluator.gd"
+Helpers="*res://scripts/utils/helpers.gd"
