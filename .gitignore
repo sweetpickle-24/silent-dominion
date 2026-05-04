@@ -2,6 +2,11 @@
 .godot/
 /android/
 
-# DevLogger output
-godot_output.txt
+# macOS
+.DS_Store
+._*
 
+# Editor / OS scratch
+*.tmp
+*.swp
+*~

@@ -1,4 +1,3 @@
-class_name RuleEvaluator
 extends Node
 
 
