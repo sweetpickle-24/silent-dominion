@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_xa2h7"]
+
+[resource]
+script = ExtResource("1_xa2h7")
+id = &"test_delphi"
+name = "Delphi"
+place_type = &"monastery"
+region = &"phocis"
+founded_day = -250000
