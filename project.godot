@@ -16,12 +16,12 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
+Logger="*res://scripts/core/logger.gd"
 EventBus="*res://scripts/core/event_bus.gd"
 TimeKeeper="*res://scripts/core/time_keeper.gd"
 WorldRegistry="*res://scripts/core/world_registry.gd"
 ImmortalRegistry="*res://scripts/core/immortal_registry.gd"
 SaveSystem="*res://scripts/core/save_system.gd"
-Logger="*res://scripts/core/logger.gd"
 EraTheme="*res://scripts/core/era_theme.gd"
 ColorblindPalette="*res://scripts/core/colorblind_palette.gd"
 CrashGuard="*res://scripts/core/crash_guard.gd"
