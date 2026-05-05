@@ -12,6 +12,8 @@ const CRASH_GUARD: StringName = &"crash_guard"
 # Mechanic channels
 const PLACE: StringName = &"place"
 const WORLD_REGISTRY: StringName = &"world_registry"
+const MEMOIRS: StringName = &"memoirs"
+const SIMILARITY: StringName = &"similarity"
 
 # UI channels
 const UI: StringName = &"ui"

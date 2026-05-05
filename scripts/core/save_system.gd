@@ -65,6 +65,9 @@ func apply_to_runtime(save_game: SaveGame) -> void:
 		save_game.current_era,
 		save_game.current_season,
 	)
+	var memoirs: Node = get_node_or_null("/root/Main/Mechanics/Memoirs")
+	if memoirs:
+		memoirs.apply_state(save_game.memoirs_libraries)
 	_logger.info(LogChannels.SAVE_SYSTEM, "Runtime state applied from save", {
 		"day": save_game.game_day,
 	})
@@ -118,6 +121,9 @@ func _snapshot() -> SaveGame:
 	save_game.current_year = _time_keeper.current_year
 	save_game.current_era = _time_keeper.current_era
 	save_game.current_season = _time_keeper.current_season
+	var memoirs: Node = get_node_or_null("/root/Main/Mechanics/Memoirs")
+	if memoirs:
+		save_game.memoirs_libraries = memoirs.snapshot_state()
 	return save_game
 
 

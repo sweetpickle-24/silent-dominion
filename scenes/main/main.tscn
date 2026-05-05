@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
+[ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
 
 [node name="Main" type="Node"]
 
@@ -8,3 +9,6 @@
 
 [node name="Place" type="Node" parent="Mechanics"]
 script = ExtResource("1_place")
+
+[node name="Memoirs" type="Node" parent="Mechanics"]
+script = ExtResource("2_memoirs")
