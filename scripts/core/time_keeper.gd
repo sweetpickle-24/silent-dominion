@@ -106,6 +106,20 @@ func get_display_date() -> String:
 	]
 
 
+func apply_loaded_state(day: int, year: int, era: StringName, season: StringName) -> void:
+	current_day = day
+	current_year = year
+	current_era = era
+	current_season = season
+	_accumulator = 0.0
+	_tick_count_today = 0
+	_logger.info(LogChannels.TIME, "TimeKeeper state applied from load", {
+		"day": current_day,
+		"era": current_era,
+		"season": current_season,
+	})
+
+
 # --- Internal ---
 
 func _advance_one_day() -> void:
