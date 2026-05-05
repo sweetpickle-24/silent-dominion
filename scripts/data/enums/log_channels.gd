@@ -14,6 +14,8 @@ const PLACE: StringName = &"place"
 const WORLD_REGISTRY: StringName = &"world_registry"
 const MEMOIRS: StringName = &"memoirs"
 const SIMILARITY: StringName = &"similarity"
+const ACTION: StringName = &"action"
+const CHAIN: StringName = &"chain"
 
 # UI channels
 const UI: StringName = &"ui"

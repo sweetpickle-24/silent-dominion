@@ -4,6 +4,7 @@ extends Node
 const _LoggerScript := preload("res://scripts/core/logger.gd")
 const _LOG_DEBUG: int = _LoggerScript.Level.DEBUG
 const _GameDayTickedEventScript := preload("res://scripts/data/events/game_day_ticked_event.gd")
+const _SchemeResolvedEventScript := preload("res://scripts/data/events/scheme_resolved_event.gd")
 
 var _event_bus: Node
 var _logger: Node
@@ -29,6 +30,13 @@ func _ready() -> void:
 		var lib := MemoirsLibrary.new()
 		lib.immortal_id = &"player"
 		_libraries[&"player"] = lib
+	_event_bus.subscribe(
+		_SchemeResolvedEventScript,
+		Callable(self, "_on_scheme_resolved"),
+		100,
+		&"",
+		EndOfTickPhases.PER_IMMORTAL,
+	)
 	_logger.info(LogChannels.MEMOIRS, "Memoirs mechanic ready", {"library_count": _libraries.size()})
 
 
@@ -107,6 +115,55 @@ func find_top_matches(category: StringName, context: RuleContext, n: int = 10, i
 	if scored.size() > n:
 		scored = scored.slice(0, n)
 	return scored
+
+
+# --- SchemeResolved consumer ---
+
+func _on_scheme_resolved(event: SchemeResolvedEvent) -> void:
+	if event.outcome != SchemeOutcomes.SUCCESS:
+		return
+	_learn_from_scheme(event)
+
+
+func _learn_from_scheme(event: SchemeResolvedEvent) -> void:
+	# Step 7 minimal: every successful scheme of a pattern-eligible action_type
+	# creates a brand new Pattern. The full C1 algorithm (validate-existing /
+	# create-new / variant-update) is deferred.
+	var category: StringName = _action_type_to_category(event.action_type)
+	if category == &"":
+		return
+	var library: MemoirsLibrary = _libraries.get(event.immortal_id)
+	if library == null:
+		return
+	var pattern := Pattern.new()
+	pattern.id = StringName("learned_%s_%d" % [event.action_type, event.resolved_at_day])
+	pattern.name = "Learned from %s on day %d" % [event.target_ref, event.resolved_at_day]
+	pattern.category = category
+	pattern.description = "Auto-learned pattern (Step 7 placeholder learning)"
+	pattern.learned_from_event_id = event.scheme_id
+	pattern.learned_at_day = event.resolved_at_day
+	var world_registry: Node = get_node("/root/WorldRegistry")
+	var place: PlaceRecord = world_registry.get_place(event.target_place_ref)
+	if place != null:
+		pattern.region_scope = place.region
+	pattern.era = _time_keeper.current_era
+	pattern.last_validated_day = event.resolved_at_day
+	pattern.staleness_state = StalenessValues.FRESH
+	pattern.success_count = 1
+	library.patterns.append(pattern)
+	_logger.info(LogChannels.MEMOIRS, "Pattern learned from scheme", {
+		"pattern_id": pattern.id,
+		"category": category,
+		"from_scheme": event.scheme_id,
+	})
+
+
+func _action_type_to_category(action_type: StringName) -> StringName:
+	match action_type:
+		ActionTypeValues.PLANT_IDEA: return PatternCategories.PLANT_IDEA
+		ActionTypeValues.SEED_RUMOR: return PatternCategories.SEED_RUMOR
+		ActionTypeValues.CULTIVATE: return PatternCategories.CULTIVATE
+		_: return &""
 
 
 # --- Save/load support ---

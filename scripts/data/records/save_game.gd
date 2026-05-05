@@ -8,6 +8,7 @@ extends Resource
 @export var current_era: StringName = &"ancient"
 @export var current_season: StringName = &"spring"
 @export var memoirs_libraries: Dictionary = {}   # StringName immortal_id -> MemoirsLibrary
+@export var action_state: Dictionary = {}        # Action.snapshot_state output
 
 # TODO: @export var world: WorldState
 # TODO: @export var immortals: Array[ImmortalState] = []

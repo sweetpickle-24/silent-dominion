@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
+[ext_resource type="Script" path="res://scripts/mechanics/action/action.gd" id="3_action"]
+[ext_resource type="Script" path="res://scripts/mechanics/chain/chain.gd" id="4_chain"]
 
 [node name="Main" type="Node"]
 
@@ -12,3 +14,9 @@ script = ExtResource("1_place")
 
 [node name="Memoirs" type="Node" parent="Mechanics"]
 script = ExtResource("2_memoirs")
+
+[node name="Action" type="Node" parent="Mechanics"]
+script = ExtResource("3_action")
+
+[node name="Chain" type="Node" parent="Mechanics"]
+script = ExtResource("4_chain")
