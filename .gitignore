@@ -11,3 +11,6 @@ godot_output.txt
 *.tmp
 *.swp
 *~
+
+# GUT per-machine editor config
+.gut_editor_config.json

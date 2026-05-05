@@ -27,3 +27,7 @@ ColorblindPalette="*res://scripts/core/colorblind_palette.gd"
 CrashGuard="*res://scripts/core/crash_guard.gd"
 RuleEvaluator="*res://scripts/core/rule_evaluator.gd"
 Helpers="*res://scripts/utils/helpers.gd"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gut/plugin.cfg")
