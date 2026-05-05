@@ -44,6 +44,53 @@ You are working on Silent Dominion, a Godot game. This file auto-loads every ses
 - `project.godot` is sensitive. Don't edit unless asked.
 - If a change touches scenes or resources, mention it explicitly so Vladyslav can check Godot reloaded cleanly.
 
+## Flag-first protocol for locked-decision contradictions
+
+When implementation hits a friction point with a locked decision, the protocol is: **flag first, implement after approval.** This section exists because Steps 2 and 3 of the Phase 1 rebuild produced three deviations that were implemented before being flagged. The pattern that worked (and is now required) emerged in Step 3's later checkpoints.
+
+### What counts as a contradiction
+
+A non-exhaustive list:
+
+- The locked decision specifies a **code shape** (constants, classes, method signatures, file paths, autoload names) that the language or framework rejects at parse time or runtime.
+- The locked decision specifies an **API surface** (parameter names, return types, behaviour) that an implementation alternative would change.
+- The locked decision specifies a **file or folder structure** that hits a tooling or engine constraint.
+- The locked decision specifies a **behavioural rule** (e.g. "no cross-mechanic state access", "signals for local UI only") that an implementation expedient would violate.
+
+### When to flag
+
+Before any code is written or edited. The flagging happens **in chat**, not in commit messages, not in code comments, not in deviation records. If Claude Code is mid-implementation and hits a contradiction it didn't see coming, it **stops, reports, and waits** — even if the implementation is "almost done."
+
+### How to flag
+
+Every flag includes four pieces:
+
+1. **The actual error message or constraint**, verbatim where possible (copy-paste the Godot output, the GDScript parse error, the runtime exception).
+2. **The locked decision being contradicted** — filename and section (e.g. "B4 `b4-event-bus-implementation.md` line ~80, `const DELIVERY_MODE`").
+3. **At least two alternative approaches** that don't contradict the locked decision. If none exist, an explicit statement that none were found and what was searched.
+4. **An explicit ask for approval** before proceeding with any alternative.
+
+### What not to do
+
+These are the failure modes that have occurred:
+
+- **"Implement the workaround, then document it as a deviation."** This was the Step 2 EventBase pattern (`const` changed to methods, deviation record written after). The deviation record is fine; the implement-first sequencing is not.
+- **"Change a locked API surface to make implementation easier."** This was the Step 3 Checkpoint A `WorldView.snapshot(time_keeper, world_registry)` parameter change. Locked API surfaces are part of the contract — changing them requires approval, not convenience.
+- **"Edit `project.godot` or other config files without approval."** Even if the change seems mechanical (autoload reorder, plugin enable), config edits propagate. The `.claude/settings.json` ask-list covers `project.godot`, `CLAUDE.md`, and `.claude/settings.json` itself.
+
+### The pattern that works
+
+1. Hit a friction point (parse error, runtime error, locked-spec contradiction).
+2. **Stop. Don't implement.**
+3. Report in chat with the four pieces from "How to flag" above.
+4. Wait for explicit approval ("yes, do option B" or "let's revert and try X").
+5. Implement the approved approach.
+6. If the approved approach deviates from a locked decision, note the deviation in the commit message body. Vladyslav records it formally in the vault.
+
+### Settings-file integrity
+
+The `.claude/settings.json` `ask` patterns for `project.godot`, `CLAUDE.md`, and `.claude/settings.json` itself should be verified before each step. Path patterns must use glob syntax (`**/project.godot`) to match regardless of working directory. If a pattern isn't triggering when expected, flag it as a separate issue.
+
 ## When uncertain
 
 If a code change requires interpreting design intent and the vault is ambiguous or silent, **ask Vladyslav** rather than inferring. Inferring design from incomplete notes is how locked decisions get accidentally violated.

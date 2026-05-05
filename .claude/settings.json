@@ -11,8 +11,12 @@
         "Bash(git reset*)",
         "Bash(git rebase*)",
         "Bash(git checkout main*)",
-        "Edit(project.godot)",
-        "Write(project.godot)"
+        "Edit(**/project.godot)",
+        "Write(**/project.godot)",
+        "Edit(**/CLAUDE.md)",
+        "Write(**/CLAUDE.md)",
+        "Edit(**/.claude/settings.json)",
+        "Write(**/.claude/settings.json)"
       ]
     }
   }
