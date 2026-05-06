@@ -17,6 +17,7 @@ const SIMILARITY: StringName = &"similarity"
 const ACTION: StringName = &"action"
 const CHAIN: StringName = &"chain"
 const SOCIETY_CHARACTER: StringName = &"society_character"
+const IMMORTAL_REGISTRY: StringName = &"immortal_registry"
 
 # UI channels
 const UI: StringName = &"ui"

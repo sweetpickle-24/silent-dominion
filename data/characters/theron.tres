@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_83aut"]
+
+[resource]
+script = ExtResource("1_83aut")
+id = &"theron"
+name = "Theron of Piraeus"
+birth_day = -16060
+profession = &"merchant"
+region = &"attica"
+current_place = &"athens"
+public_position = "Mid-tier shipping merchant; owns three trade galleys"
+chain_status = &"coordinator"
+languages = Array[StringName]([&"greek", &"phoenician"])
+ambition = 35
+paranoia = 40
+loyalty = 75
+piety = 45
+intellect = 60
+greed = 55
+ruthlessness = 40
+resilience = 80
+charisma = 65
+heat = 5
+trust_score = 80

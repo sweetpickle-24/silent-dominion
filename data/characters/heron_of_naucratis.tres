@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_0koly"]
+
+[resource]
+script = ExtResource("1_0koly")
+id = &"heron_of_naucratis"
+name = "Heron of Naucratis"
+birth_day = -10950
+profession = &"scholar"
+region = &"egypt_lower"
+current_place = &"naucratis"
+public_position = "Greek scholar in the Egyptian trading colony; corresponds with Milesian thinkers"
+languages = Array[StringName]([&"greek", &"egyptian"])
+ambition = 45
+paranoia = 70
+loyalty = 65
+piety = 40
+intellect = 80
+greed = 25
+ruthlessness = 35
+curiosity = 75
+resilience = 70
+charisma = 55

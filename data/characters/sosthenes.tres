@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_g4gl6"]
+
+[resource]
+script = ExtResource("1_g4gl6")
+id = &"sosthenes"
+name = "Sosthenes of Miletus"
+birth_day = -19710
+profession = &"scholar"
+region = &"ionia"
+current_place = &"miletus"
+public_position = "Geometry tutor in the Milesian school"
+chain_status = &"witting_operative"
+languages = Array[StringName]([&"greek", &"persian", &"aramaic"])
+ambition = 25
+paranoia = 60
+loyalty = 80
+piety = 35
+intellect = 85
+greed = 25
+ruthlessness = 30
+curiosity = 80
+resilience = 70
+heat = 10
+trust_score = 90

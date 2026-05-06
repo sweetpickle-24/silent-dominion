@@ -62,11 +62,14 @@ func _load_societies() -> void:
 
 
 func _initialize_dispositions_to_baseline() -> void:
+	var immortal_registry: Node = get_node("/root/ImmortalRegistry")
+	var all_immortal_ids: Array = immortal_registry.all_immortal_ids()
 	for society_id: StringName in _societies.keys():
 		var society: SocietyCharacterRecord = _societies[society_id]
 		if not _dispositions.has(society_id):
 			_dispositions[society_id] = {}
-		_dispositions[society_id][&"player"] = society.disposition_baseline
+		for immortal_id: StringName in all_immortal_ids:
+			_dispositions[society_id][immortal_id] = society.disposition_baseline
 
 
 func _on_scheme_resolved(event: SchemeResolvedEvent) -> void:

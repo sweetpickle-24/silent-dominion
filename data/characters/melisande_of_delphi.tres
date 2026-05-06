@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_qv6qo"]
+
+[resource]
+script = ExtResource("1_qv6qo")
+id = &"melisande_of_delphi"
+name = "Melisande"
+birth_day = -16790
+profession = &"priest"
+region = &"phocis"
+current_place = &"delphi"
+public_position = "Senior priestess at the Delphic oracle"
+languages = Array[StringName]([&"greek"])
+ambition = 35
+paranoia = 65
+loyalty = 80
+piety = 80
+intellect = 70
+greed = 20
+ruthlessness = 40
+curiosity = 60
+resilience = 75
+charisma = 75

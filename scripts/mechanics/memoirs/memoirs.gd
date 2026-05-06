@@ -30,10 +30,12 @@ func _ready() -> void:
 		&"",
 		EndOfTickPhases.WORLD_SHARED,
 	)
-	if not _libraries.has(&"player"):
+	var immortal_registry: Node = get_node("/root/ImmortalRegistry")
+	var player_immortal: ImmortalRecord = immortal_registry.get_player()
+	if player_immortal != null and not _libraries.has(player_immortal.id):
 		var lib := MemoirsLibrary.new()
-		lib.immortal_id = &"player"
-		_libraries[&"player"] = lib
+		lib.immortal_id = player_immortal.id
+		_libraries[player_immortal.id] = lib
 	_scheme_resolved_sub = _event_bus.subscribe(
 		_SchemeResolvedEventScript,
 		Callable(self, "_on_scheme_resolved"),

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ImmortalRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_72glx"]
+[ext_resource type="Script" path="res://scripts/data/records/immortal_record.gd" id="2_2a51f"]
+
+[sub_resource type="Resource" id="Resource_ggpvr"]
+script = ExtResource("1_72glx")
+id = &"player_character"
+name = "Tertius"
+birth_day = -182500
+profession = &"merchant"
+region = &"attica"
+current_place = &"athens"
+public_position = "Athenian shipping merchant"
+languages = Array[StringName]([&"greek", &"persian", &"aramaic", &"egyptian"])
+paranoia = 70
+piety = 30
+intellect = 75
+greed = 40
+ruthlessness = 60
+curiosity = 70
+resilience = 85
+charisma = 60
+
+[resource]
+script = ExtResource("2_2a51f")
+id = &"player"
+character = SubResource("Resource_ggpvr")
+current_cover_identity = &"tertius_the_merchant"

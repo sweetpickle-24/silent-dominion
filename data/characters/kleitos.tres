@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_vyrjt"]
+
+[resource]
+script = ExtResource("1_vyrjt")
+id = &"kleitos"
+name = "Kleitos son of Demokrates"
+birth_day = -14600
+profession = &"aristocrat"
+region = &"attica"
+current_place = &"athens"
+public_position = "Mid-rank Athenian aristocrat; member of an old family but minor influence"
+languages = Array[StringName]([&"greek"])
+ambition = 75
+paranoia = 60
+loyalty = 40
+piety = 55
+intellect = 65
+ruthlessness = 65
+curiosity = 45
+resilience = 55
+charisma = 70

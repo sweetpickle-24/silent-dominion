@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_s8mf6"]
+
+[resource]
+script = ExtResource("1_s8mf6")
+id = &"eumenes_the_scribe"
+name = "Eumenes son of Lykon"
+birth_day = -19710
+profession = &"scholar"
+region = &"attica"
+current_place = &"athens"
+public_position = "Senior scribe in the Athenian archive"
+languages = Array[StringName]([&"greek", &"aramaic", &"egyptian"])
+ambition = 30
+paranoia = 40
+loyalty = 60
+piety = 60
+intellect = 80
+greed = 35
+ruthlessness = 25
+curiosity = 75
+resilience = 65
+charisma = 45

@@ -24,10 +24,12 @@ func _ready() -> void:
 		&"",
 		EndOfTickPhases.PER_IMMORTAL,
 	)
-	if not _schemes_by_immortal.has(&"player"):
+	var immortal_registry: Node = get_node("/root/ImmortalRegistry")
+	var player_immortal: ImmortalRecord = immortal_registry.get_player()
+	if player_immortal != null and not _schemes_by_immortal.has(player_immortal.id):
 		var bucket := ImmortalSchemes.new()
-		bucket.immortal_id = &"player"
-		_schemes_by_immortal[&"player"] = bucket
+		bucket.immortal_id = player_immortal.id
+		_schemes_by_immortal[player_immortal.id] = bucket
 	var save_system: Node = get_node("/root/SaveSystem")
 	save_system.register_state_handlers(
 		&"action_state",

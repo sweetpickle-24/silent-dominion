@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ImmortalRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_xbgl4"]
+[ext_resource type="Script" path="res://scripts/data/records/immortal_record.gd" id="2_gujvg"]
+
+[sub_resource type="Resource" id="Resource_2o36q"]
+script = ExtResource("1_xbgl4")
+id = &"the_veil_founder_character"
+name = "The Archivist"
+birth_day = -36500
+profession = &"scholar"
+region = &"ionia"
+current_place = &"miletus"
+public_position = "Itinerant scholar; corresponds with libraries across the eastern Mediterranean"
+languages = Array[StringName]([&"greek", &"persian", &"aramaic", &"egyptian"])
+ambition = 60
+paranoia = 80
+loyalty = 75
+piety = 30
+intellect = 95
+greed = 20
+ruthlessness = 55
+curiosity = 90
+resilience = 90
+charisma = 65
+
+[resource]
+script = ExtResource("2_gujvg")
+id = &"the_veil_founder"
+origin_day = -36500
+character = SubResource("Resource_2o36q")
+current_cover_identity = &"the_archivist"
+accumulated_legend = 30
+society_id = &"the_veil"

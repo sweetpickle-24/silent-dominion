@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_lm82p"]
+
+[resource]
+script = ExtResource("1_lm82p")
+id = &"lykia"
+name = "Lykia of Corinth"
+birth_day = -10220
+profession = &"merchant"
+region = &"corinthia"
+current_place = &"corinth"
+public_position = "Imports of Phoenician dye and rare cloth"
+chain_status = &"witting_operative"
+languages = Array[StringName]([&"greek"])
+ambition = 55
+loyalty = 65
+intellect = 70
+greed = 45
+curiosity = 60
+resilience = 65
+charisma = 75
+trust_score = 60
