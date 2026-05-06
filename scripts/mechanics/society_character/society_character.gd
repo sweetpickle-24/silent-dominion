@@ -30,6 +30,12 @@ func _ready() -> void:
 		&"",
 		EndOfTickPhases.DIPLOMATIC,
 	)
+	var save_system: Node = get_node("/root/SaveSystem")
+	save_system.register_state_handlers(
+		&"society_character_state",
+		Callable(self, "snapshot_state"),
+		Callable(self, "apply_state"),
+	)
 	_logger.info(LogChannels.SOCIETY_CHARACTER, "SocietyCharacter mechanic ready", {
 		"societies": _societies.size(),
 	})

@@ -5,20 +5,32 @@ const _LOG_DEBUG: int = _LoggerScript.Level.DEBUG
 
 var _logger: Node
 var _event_bus: Node
-var _time_keeper: Node
 
 # Threaded save state
 var _save_thread: Thread = null
 var _save_in_progress: bool = false
 
-const SAVE_VERSION_CURRENT: int = 1
+const SAVE_VERSION_CURRENT: int = 2
+
+# Registration-based save handlers. Mechanics register at _ready.
+var _snapshot_handlers: Dictionary = {}   # StringName state_key -> Callable
+var _apply_handlers: Dictionary = {}      # StringName state_key -> Callable
 
 
 func _ready() -> void:
 	_logger = get_node("/root/Logger")
 	_event_bus = get_node("/root/EventBus")
-	_time_keeper = get_node("/root/TimeKeeper")
 	_logger.info(LogChannels.SAVE_SYSTEM, "SaveSystem ready")
+
+
+# === Registration API ===
+
+func register_state_handlers(state_key: StringName, snapshot_callable: Callable, apply_callable: Callable) -> void:
+	assert(not _snapshot_handlers.has(state_key), "Duplicate save state_key: %s" % state_key)
+	_snapshot_handlers[state_key] = snapshot_callable
+	_apply_handlers[state_key] = apply_callable
+	if _logger.enabled_for(LogChannels.SAVE_SYSTEM, _LOG_DEBUG):
+		_logger.debug(LogChannels.SAVE_SYSTEM, "Save handler registered", {"state_key": state_key})
 
 
 # === Sync API (used by tests and as the worker-thread payload) ===
@@ -29,7 +41,7 @@ func save_to_file_sync(path: String) -> bool:
 	if err != OK:
 		_logger.error(LogChannels.SAVE_SYSTEM, "Save failed", {"path": path, "error": err})
 		return false
-	_logger.info(LogChannels.SAVE_SYSTEM, "Saved", {"path": path, "day": save_game.game_day})
+	_logger.info(LogChannels.SAVE_SYSTEM, "Saved", {"path": path})
 	return true
 
 
@@ -49,34 +61,25 @@ func load_from_file_sync(path: String) -> SaveGame:
 		})
 		return null
 	if save_game.save_version < SAVE_VERSION_CURRENT:
-		_logger.warn(LogChannels.SAVE_SYSTEM, "Loading older save", {
+		_logger.warn(LogChannels.SAVE_SYSTEM, "Loading older save, will migrate", {
 			"save_version": save_game.save_version,
 			"current_version": SAVE_VERSION_CURRENT,
 		})
-	_logger.info(LogChannels.SAVE_SYSTEM, "Loaded", {"path": path, "day": save_game.game_day})
+	_logger.info(LogChannels.SAVE_SYSTEM, "Loaded", {"path": path, "version": save_game.save_version})
 	return save_game
 
 
 func apply_to_runtime(save_game: SaveGame) -> void:
 	assert(save_game != null, "apply_to_runtime called with null SaveGame")
-	_time_keeper.apply_loaded_state(
-		save_game.game_day,
-		save_game.current_year,
-		save_game.current_era,
-		save_game.current_season,
-	)
-	var memoirs: Node = get_node_or_null("/root/Main/Mechanics/Memoirs")
-	if memoirs:
-		memoirs.apply_state(save_game.memoirs_libraries)
-	var action_node: Node = get_node_or_null("/root/Main/Mechanics/Action")
-	if action_node:
-		action_node.apply_state(save_game.action_state)
-	var society_character: Node = get_node_or_null("/root/Main/Mechanics/SocietyCharacter")
-	if society_character:
-		society_character.apply_state(save_game.society_character_state)
-	_logger.info(LogChannels.SAVE_SYSTEM, "Runtime state applied from save", {
-		"day": save_game.game_day,
-	})
+	var migrated: SaveGame = save_game
+	if save_game.save_version < SAVE_VERSION_CURRENT:
+		migrated = _migrate(save_game)
+	for state_key: StringName in _apply_handlers.keys():
+		var state: Variant = migrated.mechanic_states.get(state_key)
+		if state == null:
+			continue
+		_apply_handlers[state_key].call(state)
+	_logger.info(LogChannels.SAVE_SYSTEM, "Runtime state applied from save")
 
 
 # === Async API (production save path) ===
@@ -87,9 +90,6 @@ func save_to_file_async(path: String) -> bool:
 		return false
 	_save_in_progress = true
 	_event_bus.dispatch(SaveStartedEvent.new())
-	# Snapshot state on the main thread before spinning the worker,
-	# per a2-save-format.md §5.5 — concurrent mutation must not corrupt
-	# the in-flight save.
 	var snapshot := _snapshot()
 	_save_thread = Thread.new()
 	_save_thread.start(_worker_save.bind(snapshot, path))
@@ -123,20 +123,37 @@ func _snapshot() -> SaveGame:
 	var save_game := SaveGame.new()
 	save_game.save_version = SAVE_VERSION_CURRENT
 	save_game.save_mode = &"standard"
-	save_game.game_day = _time_keeper.current_day
-	save_game.current_year = _time_keeper.current_year
-	save_game.current_era = _time_keeper.current_era
-	save_game.current_season = _time_keeper.current_season
-	var memoirs: Node = get_node_or_null("/root/Main/Mechanics/Memoirs")
-	if memoirs:
-		save_game.memoirs_libraries = memoirs.snapshot_state()
-	var action_node: Node = get_node_or_null("/root/Main/Mechanics/Action")
-	if action_node:
-		save_game.action_state = action_node.snapshot_state()
-	var society_character: Node = get_node_or_null("/root/Main/Mechanics/SocietyCharacter")
-	if society_character:
-		save_game.society_character_state = society_character.snapshot_state()
+	var states: Dictionary = {}
+	for state_key: StringName in _snapshot_handlers.keys():
+		states[state_key] = _snapshot_handlers[state_key].call()
+	save_game.mechanic_states = states
 	return save_game
+
+
+func _migrate(save_game: SaveGame) -> SaveGame:
+	var migrated: SaveGame = save_game
+	if save_game.save_version < 2:
+		migrated = _migrate_v1_to_v2(save_game)
+	return migrated
+
+
+func _migrate_v1_to_v2(v1: SaveGame) -> SaveGame:
+	var v2 := SaveGame.new()
+	v2.save_version = 2
+	v2.save_mode = v1.save_mode
+	var states: Dictionary = {}
+	states[&"time_state"] = {
+		"current_day": v1.game_day,
+		"current_year": v1.current_year,
+		"current_era": v1.current_era,
+		"current_season": v1.current_season,
+	}
+	states[&"memoirs_libraries"] = v1.memoirs_libraries
+	states[&"action_state"] = v1.action_state
+	states[&"society_character_state"] = v1.society_character_state
+	v2.mechanic_states = states
+	_logger.info(LogChannels.SAVE_SYSTEM, "Migrated save v1 -> v2")
+	return v2
 
 
 func _create_empty_save() -> SaveGame:

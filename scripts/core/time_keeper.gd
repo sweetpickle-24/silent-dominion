@@ -44,6 +44,7 @@ func _ready() -> void:
 	_logger = get_node("/root/Logger")
 	_event_bus = get_node("/root/EventBus")
 	current_season = _season_for_day(current_day)
+	call_deferred("_register_save_handlers")
 	_logger.info(LogChannels.TIME, "TimeKeeper ready", {
 		"speed": current_speed,
 		"paused": is_paused,
@@ -106,11 +107,31 @@ func get_display_date() -> String:
 	]
 
 
-func apply_loaded_state(day: int, year: int, era: StringName, season: StringName) -> void:
-	current_day = day
-	current_year = year
-	current_era = era
-	current_season = season
+func _register_save_handlers() -> void:
+	var save_system: Node = get_node("/root/SaveSystem")
+	save_system.register_state_handlers(
+		&"time_state",
+		Callable(self, "snapshot_state"),
+		Callable(self, "apply_state"),
+	)
+
+
+func snapshot_state() -> Dictionary:
+	return {
+		"current_day": current_day,
+		"current_year": current_year,
+		"current_era": current_era,
+		"current_season": current_season,
+	}
+
+
+func apply_state(state) -> void:
+	if state == null or (state is Dictionary and state.is_empty()):
+		return
+	current_day = state.get("current_day", 0)
+	current_year = state.get("current_year", 0)
+	current_era = state.get("current_era", &"ancient")
+	current_season = state.get("current_season", &"winter")
 	_accumulator = 0.0
 	_tick_count_today = 0
 	_logger.info(LogChannels.TIME, "TimeKeeper state applied from load", {

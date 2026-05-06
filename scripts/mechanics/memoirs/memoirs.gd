@@ -39,6 +39,12 @@ func _ready() -> void:
 		&"",
 		EndOfTickPhases.PER_IMMORTAL,
 	)
+	var save_system: Node = get_node("/root/SaveSystem")
+	save_system.register_state_handlers(
+		&"memoirs_libraries",
+		Callable(self, "snapshot_state"),
+		Callable(self, "apply_state"),
+	)
 	_logger.info(LogChannels.MEMOIRS, "Memoirs mechanic ready", {"library_count": _libraries.size()})
 
 

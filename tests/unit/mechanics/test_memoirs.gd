@@ -38,7 +38,7 @@ func after_each():
 		_memoirs.free()
 	if FileAccess.file_exists(TEST_SAVE_PATH):
 		DirAccess.remove_absolute(TEST_SAVE_PATH)
-	_time_keeper.apply_loaded_state(0, 0, &"ancient", &"winter")
+	_time_keeper.apply_state({"current_day": 0, "current_year": 0, "current_era": &"ancient", "current_season": &"winter"})
 
 
 func test_add_pattern():

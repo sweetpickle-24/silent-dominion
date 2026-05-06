@@ -18,12 +18,12 @@ func after_each():
 	if FileAccess.file_exists(TEST_SAVE_PATH):
 		DirAccess.remove_absolute(TEST_SAVE_PATH)
 	# Reset TimeKeeper to defaults
-	_time_keeper.apply_loaded_state(0, 0, &"ancient", &"winter")
+	_time_keeper.apply_state({"current_day": 0, "current_year": 0, "current_era": &"ancient", "current_season": &"winter"})
 
 
 func test_sync_roundtrip():
 	# Set TimeKeeper to a specific state
-	_time_keeper.apply_loaded_state(42, 10, &"classical", &"summer")
+	_time_keeper.apply_state({"current_day": 42, "current_year": 10, "current_era": &"classical", "current_season": &"summer"})
 	assert_eq(_time_keeper.current_day, 42)
 
 	# Save
@@ -31,7 +31,7 @@ func test_sync_roundtrip():
 	assert_true(saved, "save_to_file_sync should succeed")
 
 	# Reset TimeKeeper to defaults
-	_time_keeper.apply_loaded_state(0, 0, &"ancient", &"winter")
+	_time_keeper.apply_state({"current_day": 0, "current_year": 0, "current_era": &"ancient", "current_season": &"winter"})
 	assert_eq(_time_keeper.current_day, 0)
 
 	# Load and apply
@@ -94,7 +94,7 @@ func test_world_registry_isolation():
 	assert_eq(athens.name, "Athens")
 
 	# Set TimeKeeper to day 5 and save
-	_time_keeper.apply_loaded_state(5, 0, &"ancient", &"winter")
+	_time_keeper.apply_state({"current_day": 5, "current_year": 0, "current_era": &"ancient", "current_season": &"winter"})
 	_save_system.save_to_file_sync(TEST_SAVE_PATH)
 
 	# Verify WorldRegistry is unchanged after save

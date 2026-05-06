@@ -28,6 +28,12 @@ func _ready() -> void:
 		var bucket := ImmortalSchemes.new()
 		bucket.immortal_id = &"player"
 		_schemes_by_immortal[&"player"] = bucket
+	var save_system: Node = get_node("/root/SaveSystem")
+	save_system.register_state_handlers(
+		&"action_state",
+		Callable(self, "snapshot_state"),
+		Callable(self, "apply_state"),
+	)
 	_logger.info(LogChannels.ACTION, "Action mechanic ready")
 
 
