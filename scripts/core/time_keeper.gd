@@ -20,6 +20,10 @@ var is_paused: bool = false
 var _accumulator: float = 0.0
 var _tick_count_today: int = 0
 
+# Tick timing history for debug overlay tab 3.
+const _TICK_HISTORY_CAP: int = 500
+var _tick_timings: Array = []
+
 # === Local signals (NOT EventBus) ===
 signal speed_changed(new_speed: StringName)
 signal pause_changed(now_paused: bool)
@@ -107,6 +111,10 @@ func get_display_date() -> String:
 	]
 
 
+func get_tick_timings() -> Array:
+	return _tick_timings.duplicate()
+
+
 func _register_save_handlers() -> void:
 	var save_system: Node = get_node("/root/SaveSystem")
 	save_system.register_state_handlers(
@@ -144,6 +152,8 @@ func apply_state(state) -> void:
 # --- Internal ---
 
 func _advance_one_day() -> void:
+	var start_usec: int = Time.get_ticks_usec()
+
 	current_day += 1
 	var old_year: int = current_year
 	current_year = current_day / 365
@@ -160,6 +170,16 @@ func _advance_one_day() -> void:
 	_event_bus.end_of_tick(current_day)
 
 	# TODO: _check_era_transition() — requires RuleEvaluator (Step 3)
+
+	var duration_ms: float = (Time.get_ticks_usec() - start_usec) / 1000.0
+	_tick_timings.append({"day": current_day, "duration_ms": duration_ms})
+	if _tick_timings.size() > _TICK_HISTORY_CAP:
+		_tick_timings.pop_front()
+	if duration_ms > 10.0:
+		_logger.warn(LogChannels.TIME, "Tick exceeded budget", {
+			"day": current_day,
+			"duration_ms": duration_ms,
+		})
 
 
 func _days_per_second_for(speed: StringName) -> int:
