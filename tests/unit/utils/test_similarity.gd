@@ -180,7 +180,7 @@ func test_era_same():
 
 func test_era_one_off():
 	var p := _make_pattern({"era": &"ancient"})
-	var ctx := _make_context(null, &"classical")
+	var ctx := _make_context(null, &"classical_collapse")
 	assert_almost_eq(Similarity.compute(p, ctx), 0.7, 0.001)
 
 
@@ -261,5 +261,5 @@ func test_composed_full_pipeline():
 			_make_attr("target.profession", &"scholar"),
 		],
 	})
-	var ctx := _make_context(target, &"classical")
+	var ctx := _make_context(target, &"classical_collapse")
 	assert_almost_eq(Similarity.compute(p, ctx), 0.2625, 0.001)

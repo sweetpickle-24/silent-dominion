@@ -5,6 +5,7 @@ const _LoggerScript := preload("res://scripts/core/logger.gd")
 const _LOG_DEBUG: int = _LoggerScript.Level.DEBUG
 const _GameDayTickedEventScript := preload("res://scripts/data/events/game_day_ticked_event.gd")
 const _SchemeResolvedEventScript := preload("res://scripts/data/events/scheme_resolved_event.gd")
+const _EraTransitionedEventScript := preload("res://scripts/data/events/era_transitioned_event.gd")
 
 var _event_bus: Node
 var _logger: Node
@@ -15,6 +16,7 @@ var _time_keeper: Node
 var _libraries: Dictionary = {}
 var _tick_sub  # SubscriptionHandle
 var _scheme_resolved_sub  # SubscriptionHandle
+var _era_transitioned_sub  # SubscriptionHandle
 
 
 func _ready() -> void:
@@ -38,6 +40,13 @@ func _ready() -> void:
 		100,
 		&"",
 		EndOfTickPhases.PER_IMMORTAL,
+	)
+	_era_transitioned_sub = _event_bus.subscribe(
+		_EraTransitionedEventScript,
+		Callable(self, "_on_era_transitioned"),
+		100,
+		&"",
+		EndOfTickPhases.WORLD_SHARED,
 	)
 	var save_system: Node = get_node("/root/SaveSystem")
 	save_system.register_state_handlers(
@@ -172,6 +181,25 @@ func _action_type_to_category(action_type: StringName) -> StringName:
 		ActionTypeValues.SEED_RUMOR: return PatternCategories.SEED_RUMOR
 		ActionTypeValues.CULTIVATE: return PatternCategories.CULTIVATE
 		_: return &""
+
+
+# --- Era transition consumer ---
+
+func _on_era_transitioned(event: EraTransitionedEvent) -> void:
+	# C2 spec: "flags pre-transition patterns as potentially aging."
+	# Flag-as-aging mechanic is deferred design. Step 10 logs only.
+	var pre_transition_count: int = 0
+	for library_id: StringName in _libraries.keys():
+		var library: MemoirsLibrary = _libraries[library_id]
+		for pattern: Pattern in library.patterns:
+			if pattern.era == event.old_era:
+				pre_transition_count += 1
+	_logger.info(LogChannels.MEMOIRS, "Era transition received", {
+		"old_era": event.old_era,
+		"new_era": event.new_era,
+		"patterns_in_old_era": pre_transition_count,
+		"note": "flag-as-aging deferred; patterns logged only",
+	})
 
 
 # --- Save/load support ---

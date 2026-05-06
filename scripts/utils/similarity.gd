@@ -6,7 +6,7 @@ extends RefCounted
 
 # Era ordering for distance calculation.
 const _ERA_ORDER: Array = [
-	&"ancient", &"classical", &"medieval", &"early_modern", &"industrial", &"modern",
+	&"ancient", &"classical_collapse", &"medieval", &"early_modern", &"modern",
 ]
 
 

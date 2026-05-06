@@ -1,7 +1,7 @@
 class_name SaveGame
 extends Resource
 
-@export var save_version: int = 2
+@export var save_version: int = 3
 @export var save_mode: StringName = &"standard"
 
 # Per-mechanic state. Primary storage from v2 onwards.

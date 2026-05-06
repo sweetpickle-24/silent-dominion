@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EraTransition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/era_transition.gd" id="1_otqon"]
+
+[resource]
+script = ExtResource("1_otqon")
+from_era = &"medieval"
+to_era = &"early_modern"
+trigger_condition = "world.year >= 1800"
+description = "Medieval Consolidation gives way to Early Modern Fracture (PLACEHOLDER date-based)"

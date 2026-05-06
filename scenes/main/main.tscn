@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/mechanics/chain/chain.gd" id="4_chain"]
 [ext_resource type="Script" path="res://scripts/mechanics/society_character/society_character.gd" id="5_society_character"]
 [ext_resource type="Script" path="res://scripts/ui/debug_overlay.gd" id="6_debug_overlay"]
+[ext_resource type="Script" path="res://scripts/ui/speed_pause_widget.gd" id="7_speed_widget"]
 
 [node name="Main" type="Node"]
 
@@ -25,6 +26,14 @@ script = ExtResource("4_chain")
 
 [node name="SocietyCharacter" type="Node" parent="Mechanics"]
 script = ExtResource("5_society_character")
+
+[node name="HUD" type="Control" parent="."]
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SpeedPauseWidget" type="MarginContainer" parent="HUD"]
+script = ExtResource("7_speed_widget")
 
 [node name="Overlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_debug_overlay")

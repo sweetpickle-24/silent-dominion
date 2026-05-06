@@ -32,6 +32,10 @@ signal era_about_to_transition(old_era: StringName, new_era: StringName)
 # Cached autoload references.
 var _logger: Node
 var _event_bus: Node
+var _rule_evaluator: Node
+
+# Era transition data loaded from data/eras/transitions/.
+var _era_transitions_by_from_era: Dictionary = {}   # StringName -> Array[EraTransition]
 
 # Season boundaries by day-of-year (Northern Hemisphere meteorological).
 # Jan 1 = day-of-year 0.
@@ -47,8 +51,11 @@ const _WINTER2_START: int = 334
 func _ready() -> void:
 	_logger = get_node("/root/Logger")
 	_event_bus = get_node("/root/EventBus")
+	_rule_evaluator = get_node("/root/RuleEvaluator")
 	current_season = _season_for_day(current_day)
+	_load_era_transitions()
 	call_deferred("_register_save_handlers")
+	call_deferred("_register_auto_pause_subscription")
 	_logger.info(LogChannels.TIME, "TimeKeeper ready", {
 		"speed": current_speed,
 		"paused": is_paused,
@@ -111,6 +118,84 @@ func get_display_date() -> String:
 	]
 
 
+func _load_era_transitions() -> void:
+	var dir := DirAccess.open("res://data/eras/transitions/")
+	if dir == null:
+		_logger.warn(LogChannels.TIME, "data/eras/transitions/ does not exist; no era transitions loaded")
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while file_name != "":
+		if file_name.ends_with(".tres"):
+			var path: String = "res://data/eras/transitions/%s" % file_name
+			var resource = ResourceLoader.load(path)
+			if resource is EraTransition:
+				if not _era_transitions_by_from_era.has(resource.from_era):
+					_era_transitions_by_from_era[resource.from_era] = []
+				_era_transitions_by_from_era[resource.from_era].append(resource)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	var total: int = 0
+	for key in _era_transitions_by_from_era:
+		total += _era_transitions_by_from_era[key].size()
+	_logger.info(LogChannels.TIME, "Era transitions loaded", {"transition_count": total})
+
+
+func _check_era_transition() -> void:
+	var transitions: Array = _era_transitions_by_from_era.get(current_era, [])
+	if transitions.is_empty():
+		return
+	var context: RuleContext = RuleContext.world_only(current_day, current_era)
+	for transition: EraTransition in transitions:
+		if _rule_evaluator.evaluate_predicate(transition.trigger_condition, context):
+			_transition_to_era(transition.to_era, transition.description)
+			return  # one transition per day max per C2
+
+
+func _transition_to_era(new_era: StringName, description: String) -> void:
+	var old_era: StringName = current_era
+	era_about_to_transition.emit(old_era, new_era)
+	current_era = new_era
+	var event := EraTransitionedEvent.new()
+	event.old_era = old_era
+	event.new_era = new_era
+	event.transition_day = current_day
+	event.description = description
+	_event_bus.dispatch(event)
+	# Auto-pause on era transition per §35.16
+	var auto_pause := AutoPauseTriggeredEvent.new()
+	auto_pause.trigger_category = AutoPauseCategoryValues.ERA_TRANSITION
+	auto_pause.trigger_source_event_id = StringName("era_transition_%d" % current_day)
+	auto_pause.urgency = &"normal"
+	_event_bus.dispatch(auto_pause)
+	_logger.info(LogChannels.TIME, "Era transition fired", {
+		"old_era": old_era,
+		"new_era": new_era,
+		"day": current_day,
+	})
+
+
+var _auto_pause_sub  # SubscriptionHandle
+
+func _register_auto_pause_subscription() -> void:
+	_auto_pause_sub = _event_bus.subscribe(
+		preload("res://scripts/data/events/auto_pause_triggered_event.gd"),
+		Callable(self, "_on_auto_pause_triggered"),
+		100,
+		&"",
+		EndOfTickPhases.UI,
+	)
+
+
+func _on_auto_pause_triggered(event: AutoPauseTriggeredEvent) -> void:
+	set_paused(true, StringName("auto_pause:" + event.trigger_category))
+	set_speed(SpeedValues.X1)
+	_logger.info(LogChannels.TIME, "Auto-paused", {
+		"category": event.trigger_category,
+		"urgency": event.urgency,
+	})
+
+
 func get_tick_timings() -> Array:
 	return _tick_timings.duplicate()
 
@@ -169,7 +254,7 @@ func _advance_one_day() -> void:
 	_event_bus.dispatch(event)
 	_event_bus.end_of_tick(current_day)
 
-	# TODO: _check_era_transition() — requires RuleEvaluator (Step 3)
+	_check_era_transition()
 
 	var duration_ms: float = (Time.get_ticks_usec() - start_usec) / 1000.0
 	_tick_timings.append({"day": current_day, "duration_ms": duration_ms})

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EraTransition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/era_transition.gd" id="1_orxtj"]
+
+[resource]
+script = ExtResource("1_orxtj")
+from_era = &"classical_collapse"
+to_era = &"medieval"
+trigger_condition = "world.year >= 1100"
+description = "Classical Collapse gives way to Medieval Consolidation (PLACEHOLDER date-based)"

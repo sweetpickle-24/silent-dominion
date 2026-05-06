@@ -23,7 +23,7 @@ func after_each():
 
 func test_sync_roundtrip():
 	# Set TimeKeeper to a specific state
-	_time_keeper.apply_state({"current_day": 42, "current_year": 10, "current_era": &"classical", "current_season": &"summer"})
+	_time_keeper.apply_state({"current_day": 42, "current_year": 10, "current_era": &"classical_collapse", "current_season": &"summer"})
 	assert_eq(_time_keeper.current_day, 42)
 
 	# Save
@@ -42,7 +42,7 @@ func test_sync_roundtrip():
 	# Verify restored state
 	assert_eq(_time_keeper.current_day, 42)
 	assert_eq(_time_keeper.current_year, 10)
-	assert_eq(_time_keeper.current_era, &"classical")
+	assert_eq(_time_keeper.current_era, &"classical_collapse")
 	assert_eq(_time_keeper.current_season, &"summer")
 
 

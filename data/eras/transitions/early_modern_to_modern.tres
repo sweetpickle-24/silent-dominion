@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EraTransition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/era_transition.gd" id="1_jjn3m"]
+
+[resource]
+script = ExtResource("1_jjn3m")
+from_era = &"early_modern"
+to_era = &"modern"
+trigger_condition = "world.year >= 2200"
+description = "Early Modern Fracture gives way to Modern Era (PLACEHOLDER date-based)"

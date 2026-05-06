@@ -10,7 +10,7 @@ var _event_bus: Node
 var _save_thread: Thread = null
 var _save_in_progress: bool = false
 
-const SAVE_VERSION_CURRENT: int = 2
+const SAVE_VERSION_CURRENT: int = 3
 
 # Registration-based save handlers. Mechanics register at _ready.
 var _snapshot_handlers: Dictionary = {}   # StringName state_key -> Callable
@@ -132,8 +132,10 @@ func _snapshot() -> SaveGame:
 
 func _migrate(save_game: SaveGame) -> SaveGame:
 	var migrated: SaveGame = save_game
-	if save_game.save_version < 2:
-		migrated = _migrate_v1_to_v2(save_game)
+	if migrated.save_version < 2:
+		migrated = _migrate_v1_to_v2(migrated)
+	if migrated.save_version < 3:
+		migrated = _migrate_v2_to_v3(migrated)
 	return migrated
 
 
@@ -154,6 +156,21 @@ func _migrate_v1_to_v2(v1: SaveGame) -> SaveGame:
 	v2.mechanic_states = states
 	_logger.info(LogChannels.SAVE_SYSTEM, "Migrated save v1 -> v2")
 	return v2
+
+
+func _migrate_v2_to_v3(v2: SaveGame) -> SaveGame:
+	# v3: era rename &"classical" -> &"classical_collapse", remove &"industrial".
+	# Corrects code-vs-vault drift from Step 2.
+	var v3 := SaveGame.new()
+	v3.save_version = 3
+	v3.save_mode = v2.save_mode
+	v3.mechanic_states = v2.mechanic_states.duplicate(true)
+	var time_state: Dictionary = v3.mechanic_states.get(&"time_state", {})
+	if time_state.get("current_era") == &"classical":
+		time_state["current_era"] = &"classical_collapse"
+		v3.mechanic_states[&"time_state"] = time_state
+	_logger.info(LogChannels.SAVE_SYSTEM, "Migrated save v2 -> v3 (era rename)")
+	return v3
 
 
 func _create_empty_save() -> SaveGame:
