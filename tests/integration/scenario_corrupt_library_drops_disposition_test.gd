@@ -72,8 +72,8 @@ func test_corrupt_library_drops_veil_disposition():
 	# Dispatch corrupt_institution targeting the library fixture.
 	_action.dispatch(
 		ActionTypeValues.CORRUPT_INSTITUTION,
-		&"test_alexandria_library",
-		&"test_alexandria_library",
+		&"test_library",
+		&"test_library",
 	)
 
 	# Advance through all phases (30 days total per Step 7 timings).

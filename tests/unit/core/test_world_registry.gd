@@ -12,13 +12,13 @@ func test_place_types_loaded():
 
 func test_places_loaded():
 	var wr: Node = get_node("/root/WorldRegistry")
-	assert_eq(wr.place_count(), 4, "Should have loaded 4 test fixtures")
+	assert_eq(wr.place_count(), 22, "Should have loaded 22 places (21 real + 1 fixture)")
 
 
 func test_get_place_returns_record():
 	var wr: Node = get_node("/root/WorldRegistry")
-	var athens: PlaceRecord = wr.get_place(&"test_athens")
-	assert_not_null(athens, "test_athens should exist")
+	var athens: PlaceRecord = wr.get_place(&"athens")
+	assert_not_null(athens, "athens should exist")
 	assert_eq(athens.name, "Athens")
 	assert_eq(athens.place_type, &"city")
 	assert_eq(athens.region, &"attica")
@@ -56,11 +56,10 @@ func test_get_place_type_unknown_returns_null():
 func test_all_place_ids():
 	var wr: Node = get_node("/root/WorldRegistry")
 	var ids: Array = wr.all_place_ids()
-	assert_eq(ids.size(), 4)
-	assert_has(ids, &"test_athens")
-	assert_has(ids, &"test_laurion")
-	assert_has(ids, &"test_delphi")
-	assert_has(ids, &"test_alexandria_library")
+	assert_eq(ids.size(), 22)
+	assert_has(ids, &"athens")
+	assert_has(ids, &"laurion")
+	assert_has(ids, &"delphi")
 
 
 func test_place_type_cross_reference_valid():

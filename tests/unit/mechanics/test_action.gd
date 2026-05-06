@@ -40,7 +40,7 @@ func after_each():
 
 func test_dispatch_creates_scheme():
 	var scheme: SchemeRecord = _action.dispatch(
-		ActionTypeValues.PLANT_IDEA, &"test_athens", &"test_athens")
+		ActionTypeValues.PLANT_IDEA, &"athens", &"athens")
 	assert_not_null(scheme)
 	assert_eq(scheme.current_phase, SchemePhases.DISPATCHED)
 	assert_eq(scheme.action_type, ActionTypeValues.PLANT_IDEA)
@@ -48,7 +48,7 @@ func test_dispatch_creates_scheme():
 
 
 func test_dispatch_fires_event():
-	_action.dispatch(ActionTypeValues.SEED_RUMOR, &"test_athens", &"test_athens")
+	_action.dispatch(ActionTypeValues.SEED_RUMOR, &"athens", &"athens")
 	assert_eq(_dispatched_events.size(), 1)
 	assert_eq(_dispatched_events[0].action_type, ActionTypeValues.SEED_RUMOR)
 

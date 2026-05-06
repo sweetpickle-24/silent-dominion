@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_ia8sg"]
+
+[resource]
+script = ExtResource("1_ia8sg")
+id = &"thebes"
+name = "Thebes"
+place_type = &"city"
+region = &"boeotia"
+founded_day = -100000
+population = 50000
+infrastructure_level = 45
+factional_balance = {
+&"civic": 0.3,
+&"mercantile": 0.2,
+&"military": 0.3,
+&"religious": 0.2
+}
+ambient_activity_baseline = 5.0

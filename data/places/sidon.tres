@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_i5enb"]
+
+[resource]
+script = ExtResource("1_i5enb")
+id = &"sidon"
+name = "Sidon"
+place_type = &"city"
+region = &"phoenicia"
+founded_day = -100000
+population = 35000
+infrastructure_level = 55
+factional_balance = {
+&"civic": 0.2,
+&"mercantile": 0.5,
+&"military": 0.1,
+&"religious": 0.2
+}
+ambient_activity_baseline = 6.0

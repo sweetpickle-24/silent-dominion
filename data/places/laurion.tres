@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_ukmlg"]
+
+[resource]
+script = ExtResource("1_ukmlg")
+id = &"laurion"
+name = "Laurion silver mines"
+place_type = &"mine"
+region = &"attica"
+founded_day = -100000
+population = 20000
+infrastructure_level = 40
+ambient_activity_baseline = 2.0
+site_capacity = 5000000

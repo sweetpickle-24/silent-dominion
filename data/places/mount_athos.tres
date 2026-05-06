@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_igr15"]
+
+[resource]
+script = ExtResource("1_igr15")
+id = &"mount_athos"
+name = "Mount Athos"
+place_type = &"named_site"
+region = &"chalcidice"
+founded_day = -100000
+factional_balance = {
+&"religious": 1.0
+}
+ambient_activity_baseline = 0.5

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_kip1s"]
+
+[resource]
+script = ExtResource("1_kip1s")
+id = &"athens"
+name = "Athens"
+place_type = &"city"
+region = &"attica"
+founded_day = -100000
+population = 100000
+infrastructure_level = 60
+factional_balance = {
+&"civic": 0.35,
+&"mercantile": 0.3,
+&"military": 0.1,
+&"religious": 0.15,
+&"scholarly": 0.1
+}
+ambient_activity_baseline = 8.0

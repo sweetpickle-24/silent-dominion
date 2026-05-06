@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_rtdug"]
+
+[resource]
+script = ExtResource("1_rtdug")
+id = &"tarentum"
+name = "Tarentum"
+place_type = &"city"
+region = &"magna_graecia"
+founded_day = -100000
+population = 30000
+infrastructure_level = 50
+factional_balance = {
+&"civic": 0.25,
+&"mercantile": 0.4,
+&"military": 0.2,
+&"religious": 0.15
+}
+ambient_activity_baseline = 4.5

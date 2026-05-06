@@ -6,8 +6,8 @@ func test_field_access():
 	s.id = &"scheme_1"
 	s.immortal_id = &"player"
 	s.action_type = ActionTypeValues.PLANT_IDEA
-	s.target_ref = &"test_athens"
-	s.target_place_ref = &"test_athens"
+	s.target_ref = &"athens"
+	s.target_place_ref = &"athens"
 	s.current_phase = SchemePhases.DISPATCHED
 	s.dispatched_at_day = 10
 	s.current_phase_entered_at_day = 10

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_tk2f5"]
+
+[resource]
+script = ExtResource("1_tk2f5")
+id = &"naucratis"
+name = "Naucratis"
+place_type = &"trading_post"
+region = &"egypt_lower"
+founded_day = -100000
+population = 8000
+infrastructure_level = 50
+factional_balance = {
+&"civic": 0.2,
+&"mercantile": 0.7,
+&"religious": 0.1
+}
+ambient_activity_baseline = 4.5

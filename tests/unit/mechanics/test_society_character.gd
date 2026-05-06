@@ -56,7 +56,7 @@ func test_baseline_disposition():
 func test_corrupt_library_drops_disposition():
 	# Dispatch a corrupt_institution scheme targeting the library fixture.
 	var scheme: SchemeRecord = _action.dispatch(
-		ActionTypeValues.CORRUPT_INSTITUTION, &"test_alexandria_library", &"test_alexandria_library")
+		ActionTypeValues.CORRUPT_INSTITUTION, &"test_library", &"test_library")
 	# Advance through all phases to resolution.
 	_chain._advance_schemes(2)
 	_chain._advance_schemes(5)
@@ -72,7 +72,7 @@ func test_corrupt_library_drops_disposition():
 
 
 func test_observe_does_not_fire_rules():
-	_action.dispatch(ActionTypeValues.OBSERVE, &"test_alexandria_library", &"test_alexandria_library")
+	_action.dispatch(ActionTypeValues.OBSERVE, &"test_library", &"test_library")
 	_chain._advance_schemes(2)
 	_chain._advance_schemes(5)
 	_chain._advance_schemes(10)
@@ -86,7 +86,7 @@ func test_observe_does_not_fire_rules():
 func test_save_load_roundtrip():
 	# Shift disposition first.
 	_action.dispatch(
-		ActionTypeValues.CORRUPT_INSTITUTION, &"test_alexandria_library", &"test_alexandria_library")
+		ActionTypeValues.CORRUPT_INSTITUTION, &"test_library", &"test_library")
 	_chain._advance_schemes(2)
 	_chain._advance_schemes(5)
 	_chain._advance_schemes(10)

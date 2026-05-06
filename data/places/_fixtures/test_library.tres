@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_chwl6"]
+
+[resource]
+script = ExtResource("1_chwl6")
+id = &"test_library"
+name = "Test Library"
+place_type = &"library"
+region = &"egypt"
+founded_day = -150000
+population = 100
+infrastructure_level = 40

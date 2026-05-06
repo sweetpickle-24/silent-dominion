@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_do1pe"]
+
+[resource]
+script = ExtResource("1_do1pe")
+id = &"persepolis"
+name = "Persepolis"
+place_type = &"city"
+region = &"persis"
+founded_day = -100000
+population = 30000
+infrastructure_level = 75
+factional_balance = {
+&"civic": 0.45,
+&"mercantile": 0.1,
+&"military": 0.25,
+&"religious": 0.2
+}
+ambient_activity_baseline = 4.5

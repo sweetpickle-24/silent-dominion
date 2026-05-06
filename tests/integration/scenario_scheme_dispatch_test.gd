@@ -75,7 +75,7 @@ func after_each():
 func test_full_scheme_lifecycle():
 	# --- Day 0: Dispatch ---
 	var scheme: SchemeRecord = _action.dispatch(
-		ActionTypeValues.PLANT_IDEA, &"test_athens", &"test_athens")
+		ActionTypeValues.PLANT_IDEA, &"athens", &"athens")
 	assert_not_null(scheme)
 	assert_eq(scheme.current_phase, SchemePhases.DISPATCHED)
 	assert_eq(_dispatched_events.size(), 1)
@@ -106,7 +106,7 @@ func test_full_scheme_lifecycle():
 	assert_eq(_resolved_events.size(), 1)
 	assert_eq(_resolved_events[0].outcome, SchemeOutcomes.SUCCESS)
 	assert_eq(_resolved_events[0].action_type, ActionTypeValues.PLANT_IDEA)
-	assert_eq(_resolved_events[0].target_ref, &"test_athens")
+	assert_eq(_resolved_events[0].target_ref, &"athens")
 
 	# Scheme removed from active list.
 	assert_eq(_action.get_active_schemes().size(), 0)
@@ -117,7 +117,7 @@ func test_full_scheme_lifecycle():
 	assert_eq(lib.patterns.size(), 1)
 	var learned: Pattern = lib.patterns[0]
 	assert_eq(learned.category, PatternCategories.PLANT_IDEA)
-	assert_eq(learned.region_scope, &"attica")  # from test_athens fixture
+	assert_eq(learned.region_scope, &"attica")  # from athens fixture
 	assert_eq(learned.learned_from_event_id, scheme.id)
 	assert_eq(learned.success_count, 1)
 	assert_eq(learned.staleness_state, StalenessValues.FRESH)
@@ -125,7 +125,7 @@ func test_full_scheme_lifecycle():
 
 func test_observe_does_not_learn():
 	# Observe is intelligence gathering, not a manipulation pattern.
-	_action.dispatch(ActionTypeValues.OBSERVE, &"test_delphi", &"test_delphi")
+	_action.dispatch(ActionTypeValues.OBSERVE, &"delphi", &"delphi")
 	_chain._advance_schemes(2)
 	_chain._advance_schemes(5)
 	_chain._advance_schemes(10)

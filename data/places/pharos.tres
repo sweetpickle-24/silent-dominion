@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_xfijx"]
+
+[resource]
+script = ExtResource("1_xfijx")
+id = &"pharos"
+name = "Pharos harbor"
+place_type = &"lighthouse"
+region = &"egypt_lower"
+founded_day = -100000
+population = 200
+infrastructure_level = 30
+factional_balance = {
+&"mercantile": 1.0
+}
+ambient_activity_baseline = 1.5

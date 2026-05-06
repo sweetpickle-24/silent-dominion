@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlaceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/place_record.gd" id="1_ud2jk"]
+
+[resource]
+script = ExtResource("1_ud2jk")
+id = &"memphis"
+name = "Memphis"
+place_type = &"city"
+region = &"egypt_lower"
+founded_day = -100000
+population = 100000
+infrastructure_level = 65
+factional_balance = {
+&"civic": 0.3,
+&"mercantile": 0.2,
+&"military": 0.15,
+&"religious": 0.35
+}
+ambient_activity_baseline = 7.0

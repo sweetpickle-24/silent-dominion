@@ -108,7 +108,7 @@ func test_multiple_schemes_independent():
 
 func test_full_30_day_lifecycle():
 	var scheme: SchemeRecord = _action.dispatch(
-		ActionTypeValues.SEED_RUMOR, &"test_athens", &"test_athens")
+		ActionTypeValues.SEED_RUMOR, &"athens", &"athens")
 	var initial_active: int = _action.get_active_schemes().size()
 	assert_eq(initial_active, 1)
 
