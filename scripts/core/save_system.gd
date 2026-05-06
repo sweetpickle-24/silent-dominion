@@ -71,6 +71,9 @@ func apply_to_runtime(save_game: SaveGame) -> void:
 	var action_node: Node = get_node_or_null("/root/Main/Mechanics/Action")
 	if action_node:
 		action_node.apply_state(save_game.action_state)
+	var society_character: Node = get_node_or_null("/root/Main/Mechanics/SocietyCharacter")
+	if society_character:
+		society_character.apply_state(save_game.society_character_state)
 	_logger.info(LogChannels.SAVE_SYSTEM, "Runtime state applied from save", {
 		"day": save_game.game_day,
 	})
@@ -130,6 +133,9 @@ func _snapshot() -> SaveGame:
 	var action_node: Node = get_node_or_null("/root/Main/Mechanics/Action")
 	if action_node:
 		save_game.action_state = action_node.snapshot_state()
+	var society_character: Node = get_node_or_null("/root/Main/Mechanics/SocietyCharacter")
+	if society_character:
+		save_game.society_character_state = society_character.snapshot_state()
 	return save_game
 
 

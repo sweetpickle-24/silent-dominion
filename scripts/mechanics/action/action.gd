@@ -131,6 +131,7 @@ func _is_valid_action_type(action_type: StringName) -> bool:
 		ActionTypeValues.PLANT_IDEA,
 		ActionTypeValues.SEED_RUMOR,
 		ActionTypeValues.CULTIVATE,
+		ActionTypeValues.CORRUPT_INSTITUTION,
 	]
 
 

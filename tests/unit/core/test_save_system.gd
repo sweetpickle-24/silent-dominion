@@ -88,7 +88,7 @@ func test_world_registry_isolation():
 	var wr: Node = get_node("/root/WorldRegistry")
 
 	# Confirm WorldRegistry has places before save
-	assert_eq(wr.place_count(), 3)
+	assert_eq(wr.place_count(), 4)
 	var athens: PlaceRecord = wr.get_place(&"test_athens")
 	assert_not_null(athens)
 	assert_eq(athens.name, "Athens")
@@ -98,7 +98,7 @@ func test_world_registry_isolation():
 	_save_system.save_to_file_sync(TEST_SAVE_PATH)
 
 	# Verify WorldRegistry is unchanged after save
-	assert_eq(wr.place_count(), 3)
+	assert_eq(wr.place_count(), 4)
 	assert_eq(wr.get_place(&"test_athens").name, "Athens")
 
 	# Load the save and apply
@@ -106,7 +106,7 @@ func test_world_registry_isolation():
 	_save_system.apply_to_runtime(save_game)
 
 	# WorldRegistry still intact after load
-	assert_eq(wr.place_count(), 3)
+	assert_eq(wr.place_count(), 4)
 	assert_eq(wr.get_place(&"test_athens").name, "Athens")
 	assert_eq(wr.get_place(&"test_laurion").place_type, &"mine")
 	assert_eq(wr.get_place(&"test_delphi").region, &"phocis")

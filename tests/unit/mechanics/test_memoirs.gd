@@ -28,8 +28,14 @@ func before_each():
 
 
 func after_each():
+	var eb: Node = get_node("/root/EventBus")
 	if is_instance_valid(_memoirs):
-		_memoirs.queue_free()
+		if _memoirs._tick_sub:
+			eb.unsubscribe(_memoirs._tick_sub)
+		if _memoirs._scheme_resolved_sub:
+			eb.unsubscribe(_memoirs._scheme_resolved_sub)
+		remove_child(_memoirs)
+		_memoirs.free()
 	if FileAccess.file_exists(TEST_SAVE_PATH):
 		DirAccess.remove_absolute(TEST_SAVE_PATH)
 	_time_keeper.apply_loaded_state(0, 0, &"ancient", &"winter")

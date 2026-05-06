@@ -7,12 +7,12 @@ extends GutTest
 func test_place_types_loaded():
 	var wr: Node = get_node("/root/WorldRegistry")
 	assert_gt(wr.place_types.size(), 0, "Should have loaded place types")
-	assert_eq(wr.place_types.size(), 9, "Should have loaded all 9 place types")
+	assert_eq(wr.place_types.size(), 11, "Should have loaded all 11 place types")
 
 
 func test_places_loaded():
 	var wr: Node = get_node("/root/WorldRegistry")
-	assert_eq(wr.place_count(), 3, "Should have loaded 3 test fixtures")
+	assert_eq(wr.place_count(), 4, "Should have loaded 4 test fixtures")
 
 
 func test_get_place_returns_record():
@@ -56,10 +56,11 @@ func test_get_place_type_unknown_returns_null():
 func test_all_place_ids():
 	var wr: Node = get_node("/root/WorldRegistry")
 	var ids: Array = wr.all_place_ids()
-	assert_eq(ids.size(), 3)
+	assert_eq(ids.size(), 4)
 	assert_has(ids, &"test_athens")
 	assert_has(ids, &"test_laurion")
 	assert_has(ids, &"test_delphi")
+	assert_has(ids, &"test_alexandria_library")
 
 
 func test_place_type_cross_reference_valid():

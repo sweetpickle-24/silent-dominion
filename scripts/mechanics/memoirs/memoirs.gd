@@ -13,13 +13,15 @@ var _time_keeper: Node
 # Per-immortal libraries. Keyed by immortal_id. Until ImmortalRegistry is real,
 # &"player" is the placeholder.
 var _libraries: Dictionary = {}
+var _tick_sub  # SubscriptionHandle
+var _scheme_resolved_sub  # SubscriptionHandle
 
 
 func _ready() -> void:
 	_event_bus = get_node("/root/EventBus")
 	_logger = get_node("/root/Logger")
 	_time_keeper = get_node("/root/TimeKeeper")
-	_event_bus.subscribe(
+	_tick_sub = _event_bus.subscribe(
 		_GameDayTickedEventScript,
 		Callable(self, "_on_game_day_ticked"),
 		100,
@@ -30,7 +32,7 @@ func _ready() -> void:
 		var lib := MemoirsLibrary.new()
 		lib.immortal_id = &"player"
 		_libraries[&"player"] = lib
-	_event_bus.subscribe(
+	_scheme_resolved_sub = _event_bus.subscribe(
 		_SchemeResolvedEventScript,
 		Callable(self, "_on_scheme_resolved"),
 		100,

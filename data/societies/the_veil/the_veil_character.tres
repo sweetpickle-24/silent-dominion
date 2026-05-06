@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="SocietyCharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_gdlm7"]
+[ext_resource type="Script" path="res://scripts/data/records/society_character_record.gd" id="2_io7av"]
+
+[sub_resource type="Resource" id="Resource_wb7gq"]
+script = ExtResource("1_gdlm7")
+id = &"veil_protects_libraries"
+condition = "event.action_type == \"corrupt_institution\" and target != null and target.place_type in [\"library\", \"academy\", \"monastery\"]"
+base_delta = -80
+attribution_tag = &"veil_protects_libraries"
+
+[sub_resource type="Resource" id="Resource_47ckd"]
+script = ExtResource("1_gdlm7")
+id = &"veil_protects_cultivated_scholars"
+condition = "event.action_type == \"cultivate\" and target != null and target.get(\"profession\") == \"scholar\""
+base_delta = -30
+attribution_tag = &"veil_protects_cultivated_scholars"
+
+[resource]
+script = ExtResource("2_io7av")
+society_id = &"the_veil"
+display_name = "The Veil"
+disposition_baseline = 20
+value_weights = {
+&"institutional_health_scholarly": 80,
+&"institutional_security": 40,
+&"intellectual_freedom": 70,
+&"intellectual_lineage_continuity": 60,
+&"knowledge_preservation": 100
+}
+capability_profile = {
+&"counter_intelligence": &"strong",
+&"crisis_response": &"weak",
+&"institutional_reach": &"strong"
+}
+forbidden_moves = Array[StringName]([&"book_burning", &"library_destruction", &"scholar_persecution"])
+disposition_modifier_rules = Array[ExtResource("1_gdlm7")]([SubResource("Resource_wb7gq"), SubResource("Resource_47ckd")])

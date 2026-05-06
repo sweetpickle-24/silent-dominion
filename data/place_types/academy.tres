@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="PlaceTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/place_type_definition.gd" id="1_sjd1c"]
+
+[resource]
+script = ExtResource("1_sjd1c")
+id = &"academy"
+display_name = "Academy"

@@ -61,6 +61,11 @@ func after_each():
 		eb.unsubscribe(_action._phase_advanced_sub)
 	if is_instance_valid(_chain) and _chain._tick_subscription:
 		eb.unsubscribe(_chain._tick_subscription)
+	if is_instance_valid(_memoirs):
+		if _memoirs._tick_sub:
+			eb.unsubscribe(_memoirs._tick_sub)
+		if _memoirs._scheme_resolved_sub:
+			eb.unsubscribe(_memoirs._scheme_resolved_sub)
 	for node in [_chain, _memoirs, _action]:
 		if is_instance_valid(node):
 			remove_child(node)

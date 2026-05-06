@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Rule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_mrebw"]
+
+[resource]
+script = ExtResource("1_mrebw")
+id = &"veil_protects_libraries"
+condition = "event.action_type == \"corrupt_institution\" and target != null and target.place_type in [\"library\", \"academy\", \"monastery\"]"
+base_delta = -80
+attribution_tag = &"veil_protects_libraries"

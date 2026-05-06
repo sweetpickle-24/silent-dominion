@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Rule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_c6a7x"]
+
+[resource]
+script = ExtResource("1_c6a7x")
+id = &"veil_protects_cultivated_scholars"
+condition = "event.action_type == \"cultivate\" and target != null and target.get(\"profession\") == \"scholar\""
+base_delta = -30
+attribution_tag = &"veil_protects_cultivated_scholars"
