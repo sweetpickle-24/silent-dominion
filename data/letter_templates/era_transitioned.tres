@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_b37ir"]
+
+[resource]
+script = ExtResource("1_b37ir")
+id = &"era_transitioned"
+triggering_event_class = &"EraTransitionedEvent"
+subject_variants = Array[String](["A change in the world's weather", "The age turning", "From the long view"])
+body_variants = Array[String](["The patterns of the world are shifting. What worked in the {old_era_display} no longer fits. {description} We have entered the {new_era_display}.", "You have seen this before — the slow turn of an age. The {old_era_display} gives way to the {new_era_display}. {description} Adapt accordingly.", "The world moves on. The {old_era_display} is behind us; the {new_era_display} opens ahead. {description}"])
+content_category = &"world_state"
+is_authored = true

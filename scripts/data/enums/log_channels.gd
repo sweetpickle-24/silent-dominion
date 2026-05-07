@@ -18,6 +18,8 @@ const ACTION: StringName = &"action"
 const CHAIN: StringName = &"chain"
 const SOCIETY_CHARACTER: StringName = &"society_character"
 const IMMORTAL_REGISTRY: StringName = &"immortal_registry"
+const LETTER: StringName = &"letter"
+const INBOX: StringName = &"inbox"
 
 # UI channels
 const UI: StringName = &"ui"

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_grilj"]
+
+[resource]
+script = ExtResource("1_grilj")
+id = &"scheme_dispatched_default"
+triggering_event_class = &"SchemeDispatchedEvent"
+subject_variants = Array[String](["Scheme dispatched"])
+body_variants = Array[String](["On day {day_text}: {action_display_name} dispatched targeting {target_ref}. Lieutenant assigned: {lieutenant_name}."])
+content_category = &"scheme_status"

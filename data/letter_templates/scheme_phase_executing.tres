@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_63ft0"]
+
+[resource]
+script = ExtResource("1_63ft0")
+id = &"scheme_phase_executing"
+triggering_event_class = &"SchemePhaseAdvancedEvent"
+sender_kind = &"character"
+subject_variants = Array[String](["The operative moves", "Preparations complete"])
+body_variants = Array[String](["The {action_display_name} at {target_place_name} has reached its final stage. {operative_name} is in position and proceeding. — {coordinator_name}", "All preparations are complete. {operative_name} begins the {action_display_name} at {target_place_name}. We await the outcome. — {coordinator_name}"])
+content_category = &"scheme_status"
+is_authored = true

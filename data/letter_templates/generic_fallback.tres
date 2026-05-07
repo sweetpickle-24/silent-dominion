@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_e26yg"]
+
+[resource]
+script = ExtResource("1_e26yg")
+id = &"generic_fallback"
+triggering_event_class = &"_fallback"
+subject_variants = Array[String](["A development"])
+body_variants = Array[String](["An event has occurred: {event_summary}."])
+content_category = &"general"

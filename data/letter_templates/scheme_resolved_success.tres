@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_johyt"]
+
+[resource]
+script = ExtResource("1_johyt")
+id = &"scheme_resolved_success"
+triggering_event_class = &"SchemeResolvedEvent"
+sender_kind = &"character"
+subject_variants = Array[String](["Word from {target_place_name}", "Concerning the {action_display_name}", "From the matter we discussed"])
+body_variants = Array[String](["It is done. The {action_display_name} at {target_place_name} concluded successfully. {operative_name} reports no complications. Your servant, {coordinator_name}.", "The work at {target_place_name} is complete. {operative_name} carried it through without incident. The {action_display_name} went as planned. — {coordinator_name}", "I write to confirm: the {action_display_name} succeeded. {target_place_name} saw no disruption in carrying it out. All is well. — {coordinator_name}"])
+content_category = &"scheme_status"
+is_authored = true

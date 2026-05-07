@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_wfbkb"]
+
+[resource]
+script = ExtResource("1_wfbkb")
+id = &"scheme_cancelled"
+triggering_event_class = &"SchemeCancelledEvent"
+sender_kind = &"character"
+subject_variants = Array[String](["Loss in the chain", "An ill turn"])
+body_variants = Array[String](["I write with regrettable news. We have lost a link in the chain. The {action_display_name} at {target_place_name} cannot proceed. The chain has been re-secured but at the cost of this work. — {handler_name}", "An unfortunate development. The operation at {target_place_name} must be abandoned — a crucial member is no longer available. We have covered our tracks. — {handler_name}"])
+content_category = &"chain_loss"
+is_authored = true

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_thawl"]
+
+[resource]
+script = ExtResource("1_thawl")
+id = &"disposition_shift"
+triggering_event_class = &"DispositionRuleFiredEvent"
+subject_variants = Array[String](["Word from {source_society_name}'s circles", "Reactions to your work"])
+body_variants = Array[String](["Your recent actions have drawn notice. {source_society_name} views you differently now — a shift of {delta} in their estimation. Attribution: {attribution_tag}.", "Intelligence suggests that {source_society_name}'s disposition toward you has changed by {delta}. The cause: {attribution_tag}. Watch your step."])
+content_category = &"diplomatic"
+is_authored = true
