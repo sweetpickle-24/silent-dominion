@@ -116,7 +116,7 @@ func _try_advance_scheme(scheme: SchemeRecord, day: int) -> void:
 	# Select chain member for the next phase if needed
 	var required_status: StringName = _phase_to_chain_status(next_phase)
 	if required_status != &"":
-		var candidates: Array = _find_candidates(scheme, required_status)
+		var candidates: Array = _find_candidates(scheme, required_status, day)
 		if candidates.is_empty():
 			_logger.warn(LogChannels.CHAIN, "No candidate for phase", {
 				"scheme_id": scheme.id, "phase": next_phase, "required": required_status,
@@ -177,12 +177,14 @@ func _phase_to_chain_status(phase: StringName) -> StringName:
 		_: return &""
 
 
-func _find_candidates(scheme: SchemeRecord, required_status: StringName) -> Array:
+func _find_candidates(scheme: SchemeRecord, required_status: StringName, day: int = -1) -> Array:
 	var candidates: Array = []
-	var day: int = 0
-	var tk: Node = get_node("/root/TimeKeeper")
-	if tk:
-		day = tk.current_day
+	if day < 0:
+		var tk: Node = get_node("/root/TimeKeeper")
+		if tk:
+			day = tk.current_day
+		else:
+			day = 0
 	for char_id: StringName in _immortal_registry.all_character_ids():
 		var c: CharacterRecord = _immortal_registry.get_character(char_id)
 		if c.chain_status != required_status:
@@ -290,7 +292,7 @@ func _handle_chain_break(scheme: SchemeRecord, broken_member_id: StringName, day
 	if required_status == &"":
 		_cancel_scheme(scheme, &"chain_break", day)
 		return
-	var candidates: Array = _find_candidates(scheme, required_status)
+	var candidates: Array = _find_candidates(scheme, required_status, day)
 	if candidates.is_empty():
 		_cancel_scheme(scheme, &"chain_break", day)
 		return

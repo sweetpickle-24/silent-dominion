@@ -26,7 +26,12 @@ func _ready() -> void:
 # === Registration API ===
 
 func register_state_handlers(state_key: StringName, snapshot_callable: Callable, apply_callable: Callable) -> void:
-	assert(not _snapshot_handlers.has(state_key), "Duplicate save state_key: %s" % state_key)
+	if _snapshot_handlers.has(state_key):
+		# Allow re-registration (happens in tests creating local mechanic nodes).
+		# In production, only the scene-tree mechanic registers once.
+		_snapshot_handlers[state_key] = snapshot_callable
+		_apply_handlers[state_key] = apply_callable
+		return
 	_snapshot_handlers[state_key] = snapshot_callable
 	_apply_handlers[state_key] = apply_callable
 	if _logger.enabled_for(LogChannels.SAVE_SYSTEM, _LOG_DEBUG):

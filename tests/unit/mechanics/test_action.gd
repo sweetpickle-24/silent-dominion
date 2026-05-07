@@ -31,9 +31,11 @@ func after_each():
 		eb.unsubscribe(_resolved_sub)
 		_resolved_sub = null
 	# Unsubscribe Action's internal subscription before freeing.
-	if is_instance_valid(_action) and _action._phase_advanced_sub:
-		eb.unsubscribe(_action._phase_advanced_sub)
 	if is_instance_valid(_action):
+		if _action._phase_advanced_sub:
+			eb.unsubscribe(_action._phase_advanced_sub)
+		if _action._cancelled_sub:
+			eb.unsubscribe(_action._cancelled_sub)
 		remove_child(_action)
 		_action.free()
 
