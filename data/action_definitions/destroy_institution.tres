@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_ptwmc"]
+
+[resource]
+script = ExtResource("1_ptwmc")
+id = &"destroy_institution"
+display_name = "Destroy Institution"
+tier = 3
+baseline_exposure_cost = 12.0
+baseline_bandwidth_cost = 4
+baseline_financial_cost = 2000
+baseline_time_days = 270
+phase_timing_overrides = {
+&"executing": 120
+}

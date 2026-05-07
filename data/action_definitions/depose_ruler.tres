@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_smoeo"]
+
+[resource]
+script = ExtResource("1_smoeo")
+id = &"depose_ruler"
+display_name = "Depose Ruler"
+tier = 3
+baseline_exposure_cost = 15.0
+baseline_bandwidth_cost = 5
+baseline_financial_cost = 5000
+baseline_time_days = 365
+required_capabilities = Array[StringName]([&"court_access"])
+phase_timing_overrides = {
+&"executing": 180
+}

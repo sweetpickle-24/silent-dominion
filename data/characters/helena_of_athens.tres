@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_llspb"]
+
+[resource]
+script = ExtResource("1_llspb")
+id = &"helena_of_athens"
+name = "Helena of Athens"
+birth_day = -12410
+profession = &"merchant"
+region = &"attica"
+current_place = &"athens"
+public_position = "Athenian merchant; Theron's longtime deputy in the harbor district"
+max_concurrent_assignments = 4
+chain_status = &"coordinator"
+languages = Array[StringName]([&"greek", &"phoenician"])
+loyalty = 80
+piety = 45
+intellect = 70
+greed = 45
+ruthlessness = 45
+curiosity = 55
+resilience = 70
+charisma = 70
+trust_score = 75

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_8775e"]
+
+[resource]
+script = ExtResource("1_8775e")
+id = &"infiltrate_institution"
+display_name = "Infiltrate Institution"
+tier = 2
+baseline_exposure_cost = 3.5
+baseline_bandwidth_cost = 3
+baseline_financial_cost = 150
+baseline_time_days = 120

@@ -47,8 +47,11 @@ func after_each():
 	for sub in [_resolved_sub, _disp_sub]:
 		if sub:
 			eb.unsubscribe(sub)
-	if is_instance_valid(_action) and _action._phase_advanced_sub:
-		eb.unsubscribe(_action._phase_advanced_sub)
+	if is_instance_valid(_action):
+		if _action._phase_advanced_sub:
+			eb.unsubscribe(_action._phase_advanced_sub)
+		if _action._cancelled_sub:
+			eb.unsubscribe(_action._cancelled_sub)
 	if is_instance_valid(_chain) and _chain._tick_subscription:
 		eb.unsubscribe(_chain._tick_subscription)
 	if is_instance_valid(_sc) and _sc._scheme_resolved_sub:
@@ -76,11 +79,12 @@ func test_corrupt_library_drops_veil_disposition():
 		&"test_library",
 	)
 
-	# Advance through all phases (30 days total per Step 7 timings).
-	_chain._advance_schemes(2)    # dispatched -> acknowledged
-	_chain._advance_schemes(5)    # acknowledged -> routing
-	_chain._advance_schemes(10)   # routing -> executing
-	_chain._advance_schemes(30)   # executing -> resolved
+	# Advance through all phases (variable timing with real chain selection).
+	var scheme: SchemeRecord = _action.get_active_schemes()[0]
+	for day in range(1, 500):
+		_chain._advance_schemes(day)
+		if scheme.current_phase == SchemePhases.RESOLVED:
+			break
 
 	# SchemeResolvedEvent should have fired.
 	assert_eq(_resolved_events.size(), 1)

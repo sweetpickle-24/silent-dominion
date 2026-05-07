@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_ehq0x"]
+
+[resource]
+script = ExtResource("1_ehq0x")
+id = &"corrupt_institution"
+display_name = "Corrupt Institution"
+tier = 3
+baseline_exposure_cost = 8.0
+baseline_bandwidth_cost = 4
+baseline_financial_cost = 1000
+baseline_time_days = 180
+phase_timing_overrides = {
+&"executing": 60
+}

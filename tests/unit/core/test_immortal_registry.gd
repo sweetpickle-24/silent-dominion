@@ -10,7 +10,7 @@ func test_immortals_loaded():
 
 func test_characters_loaded():
 	var ir: Node = get_node("/root/ImmortalRegistry")
-	assert_eq(ir.character_count(), 8, "Should have loaded 8 characters")
+	assert_eq(ir.character_count(), 9, "Should have loaded 9 characters")
 
 
 func test_get_player():
@@ -33,7 +33,7 @@ func test_get_character():
 	var theron: CharacterRecord = ir.get_character(&"theron")
 	assert_not_null(theron)
 	assert_eq(theron.name, "Theron of Piraeus")
-	assert_eq(theron.chain_status, ChainStatusValues.COORDINATOR)
+	assert_eq(theron.chain_status, ChainStatusValues.LIEUTENANT)
 	assert_eq(theron.current_place, &"athens")
 
 
@@ -54,8 +54,8 @@ func test_get_character_record_any():
 func test_characters_at_place():
 	var ir: Node = get_node("/root/ImmortalRegistry")
 	var athens_chars: Array = ir.characters_at_place(&"athens")
-	# Theron, Kleitos, Aspasia, Eumenes are at Athens
-	assert_eq(athens_chars.size(), 4)
+	# Theron, Helena, Kleitos, Aspasia, Eumenes are at Athens
+	assert_eq(athens_chars.size(), 5)
 	var miletus_chars: Array = ir.characters_at_place(&"miletus")
 	# Sosthenes is at Miletus
 	assert_eq(miletus_chars.size(), 1)

@@ -11,6 +11,7 @@ profession = &"philosopher"
 region = &"attica"
 current_place = &"athens"
 public_position = "Salonist; her gatherings draw philosophers, statesmen, scholars"
+public_position_tier = &"high"
 languages = Array[StringName]([&"greek", &"persian"])
 ambition = 55
 piety = 30

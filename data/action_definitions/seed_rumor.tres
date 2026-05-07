@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_crw2q"]
+
+[resource]
+script = ExtResource("1_crw2q")
+id = &"seed_rumor"
+display_name = "Seed Rumor"
+baseline_exposure_cost = 0.5
+baseline_financial_cost = 5
+baseline_time_days = 14

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_ifvod"]
+
+[resource]
+script = ExtResource("1_ifvod")
+id = &"observe"
+display_name = "Observe"
+baseline_exposure_cost = 0.2
+baseline_time_days = 7

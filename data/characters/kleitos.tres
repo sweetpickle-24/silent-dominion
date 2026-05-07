@@ -11,6 +11,7 @@ profession = &"aristocrat"
 region = &"attica"
 current_place = &"athens"
 public_position = "Mid-rank Athenian aristocrat; member of an old family but minor influence"
+public_position_tier = &"notable"
 languages = Array[StringName]([&"greek"])
 ambition = 75
 paranoia = 60

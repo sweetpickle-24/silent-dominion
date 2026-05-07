@@ -14,6 +14,8 @@ extends Resource
 
 # Public position
 @export var public_position: String = ""
+@export var public_position_tier: StringName = PublicPositionValues.MINOR
+@export var max_concurrent_assignments: int = 3
 
 # Chain status
 @export var chain_status: StringName = ChainStatusValues.NONE

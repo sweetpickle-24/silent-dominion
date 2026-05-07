@@ -11,6 +11,7 @@ var _time_keeper: Node
 var _schemes_by_immortal: Dictionary = {}   # StringName -> ImmortalSchemes
 var _next_scheme_seq: int = 1
 var _phase_advanced_sub  # SubscriptionHandle
+var _cancelled_sub  # SubscriptionHandle
 
 
 func _ready() -> void:
@@ -20,6 +21,13 @@ func _ready() -> void:
 	_phase_advanced_sub = _event_bus.subscribe(
 		preload("res://scripts/data/events/scheme_phase_advanced_event.gd"),
 		Callable(self, "_on_scheme_phase_advanced"),
+		100,
+		&"",
+		EndOfTickPhases.PER_IMMORTAL,
+	)
+	_cancelled_sub = _event_bus.subscribe(
+		preload("res://scripts/data/events/scheme_cancelled_event.gd"),
+		Callable(self, "_on_scheme_cancelled"),
 		100,
 		&"",
 		EndOfTickPhases.PER_IMMORTAL,
@@ -133,13 +141,31 @@ func _on_scheme_phase_advanced(event: SchemePhaseAdvancedEvent) -> void:
 		})
 
 
+func _on_scheme_cancelled(event: SchemeCancelledEvent) -> void:
+	var scheme: SchemeRecord = get_scheme(event.scheme_id, event.immortal_id)
+	if scheme == null:
+		return
+	var bucket: ImmortalSchemes = _schemes_by_immortal.get(scheme.immortal_id)
+	if bucket != null:
+		bucket.active_schemes.erase(scheme)
+	_logger.info(LogChannels.ACTION, "Scheme removed from active (cancelled)", {
+		"scheme_id": scheme.id, "reason": event.reason,
+	})
+
+
 func _is_valid_action_type(action_type: StringName) -> bool:
+	var chain: Node = get_node_or_null("../Chain")
+	if chain != null:
+		return chain.get_action_definition(action_type) != null
+	# Fallback for tests that don't have Chain wired
 	return action_type in [
-		ActionTypeValues.OBSERVE,
-		ActionTypeValues.PLANT_IDEA,
-		ActionTypeValues.SEED_RUMOR,
-		ActionTypeValues.CULTIVATE,
-		ActionTypeValues.CORRUPT_INSTITUTION,
+		ActionTypeValues.OBSERVE, ActionTypeValues.PLANT_IDEA,
+		ActionTypeValues.SEED_RUMOR, ActionTypeValues.CULTIVATE,
+		ActionTypeValues.CORRUPT_INSTITUTION, ActionTypeValues.GATHER_INTELLIGENCE,
+		ActionTypeValues.BRIBE_OFFICIAL, ActionTypeValues.COMPROMISE_NOBLE,
+		ActionTypeValues.BUILD_COVERT_NETWORK, ActionTypeValues.DISRUPT_TRADE,
+		ActionTypeValues.INFILTRATE_INSTITUTION, ActionTypeValues.DEPOSE_RULER,
+		ActionTypeValues.DESTROY_INSTITUTION,
 	]
 
 

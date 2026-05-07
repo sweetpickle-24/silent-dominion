@@ -12,6 +12,7 @@ profession = &"scholar"
 region = &"ionia"
 current_place = &"miletus"
 public_position = "Itinerant scholar; corresponds with libraries across the eastern Mediterranean"
+max_concurrent_assignments = 5
 languages = Array[StringName]([&"greek", &"persian", &"aramaic", &"egyptian"])
 ambition = 60
 paranoia = 80

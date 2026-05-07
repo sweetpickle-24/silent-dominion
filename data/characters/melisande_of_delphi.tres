@@ -11,6 +11,7 @@ profession = &"priest"
 region = &"phocis"
 current_place = &"delphi"
 public_position = "Senior priestess at the Delphic oracle"
+public_position_tier = &"high"
 languages = Array[StringName]([&"greek"])
 ambition = 35
 paranoia = 65

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_7gvtx"]
+
+[resource]
+script = ExtResource("1_7gvtx")
+id = &"compromise_noble"
+display_name = "Compromise Noble"
+tier = 2
+baseline_exposure_cost = 4.0
+baseline_bandwidth_cost = 3
+baseline_financial_cost = 500
+baseline_time_days = 90

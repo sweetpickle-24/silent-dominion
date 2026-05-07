@@ -57,8 +57,11 @@ func after_each():
 		if sub:
 			eb.unsubscribe(sub)
 	# Unsubscribe mechanic-internal subscriptions.
-	if is_instance_valid(_action) and _action._phase_advanced_sub:
-		eb.unsubscribe(_action._phase_advanced_sub)
+	if is_instance_valid(_action):
+		if _action._phase_advanced_sub:
+			eb.unsubscribe(_action._phase_advanced_sub)
+		if _action._cancelled_sub:
+			eb.unsubscribe(_action._cancelled_sub)
 	if is_instance_valid(_chain) and _chain._tick_subscription:
 		eb.unsubscribe(_chain._tick_subscription)
 	if is_instance_valid(_memoirs):
@@ -66,6 +69,8 @@ func after_each():
 			eb.unsubscribe(_memoirs._tick_sub)
 		if _memoirs._scheme_resolved_sub:
 			eb.unsubscribe(_memoirs._scheme_resolved_sub)
+		if _memoirs._era_transitioned_sub:
+			eb.unsubscribe(_memoirs._era_transitioned_sub)
 	for node in [_chain, _memoirs, _action]:
 		if is_instance_valid(node):
 			remove_child(node)
@@ -84,22 +89,11 @@ func test_full_scheme_lifecycle():
 	# Verify scheme is active.
 	assert_eq(_action.get_active_schemes().size(), 1)
 
-	# --- Day 2: dispatched -> acknowledged (2 days in dispatched) ---
-	_chain._advance_schemes(2)
-	assert_eq(scheme.current_phase, SchemePhases.ACKNOWLEDGED)
-	assert_eq(_phase_events.size(), 1)
-	assert_eq(_phase_events[0].new_phase, SchemePhases.ACKNOWLEDGED)
-
-	# --- Day 5: acknowledged -> routing (3 days in acknowledged) ---
-	_chain._advance_schemes(5)
-	assert_eq(scheme.current_phase, SchemePhases.ROUTING)
-
-	# --- Day 10: routing -> executing (5 days in routing) ---
-	_chain._advance_schemes(10)
-	assert_eq(scheme.current_phase, SchemePhases.EXECUTING)
-
-	# --- Day 30: executing -> resolved (20 days in executing) ---
-	_chain._advance_schemes(30)
+	# Advance through all phases (variable timing with real chain selection).
+	for day in range(1, 500):
+		_chain._advance_schemes(day)
+		if scheme.current_phase == SchemePhases.RESOLVED:
+			break
 	assert_eq(scheme.current_phase, SchemePhases.RESOLVED)
 
 	# Verify SchemeResolvedEvent fired.
@@ -125,11 +119,11 @@ func test_full_scheme_lifecycle():
 
 func test_observe_does_not_learn():
 	# Observe is intelligence gathering, not a manipulation pattern.
-	_action.dispatch(ActionTypeValues.OBSERVE, &"delphi", &"delphi")
-	_chain._advance_schemes(2)
-	_chain._advance_schemes(5)
-	_chain._advance_schemes(10)
-	_chain._advance_schemes(30)
+	var observe_scheme: SchemeRecord = _action.dispatch(ActionTypeValues.OBSERVE, &"delphi", &"delphi")
+	for day in range(1, 500):
+		_chain._advance_schemes(day)
+		if observe_scheme.current_phase == SchemePhases.RESOLVED:
+			break
 	# Resolved but no pattern learned (observe maps to &"" category).
 	var lib: MemoirsLibrary = _memoirs.get_library(&"player")
 	assert_eq(lib.patterns.size(), 0)

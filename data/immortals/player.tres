@@ -12,6 +12,7 @@ profession = &"merchant"
 region = &"attica"
 current_place = &"athens"
 public_position = "Athenian shipping merchant"
+max_concurrent_assignments = 10
 languages = Array[StringName]([&"greek", &"persian", &"aramaic", &"egyptian"])
 paranoia = 70
 piety = 30
