@@ -45,6 +45,9 @@ var _subscriptions: Dictionary = {}
 var _current_tick_index: int = 0
 var _next_handle_id: int = 0
 
+# Queued events waiting for drain at end-of-tick.
+var _queued_events: Array = []   # Array of EventBase
+
 # Cached autoload reference — avoids static-analysis issues with cross-autoload access.
 var _logger: Node
 
@@ -103,7 +106,7 @@ func dispatch(event: EventBase) -> void:
 		DeliveryModes.SYNCHRONOUS:
 			_dispatch_synchronous(event)
 		DeliveryModes.QUEUED:
-			push_error("EventBus: queued dispatch not yet implemented (Step 2 — synchronous only)")
+			_dispatch_queued(event)
 		DeliveryModes.PER_TICK_BATCHED:
 			push_error("EventBus: per-tick-batched dispatch not yet implemented (Step 2 — synchronous only)")
 		_:
@@ -114,7 +117,8 @@ func end_of_tick(day: int) -> void:
 	if _logger.enabled_for(LogChannels.EVENT_BUS, _LOG_DEBUG):
 		_logger.debug(LogChannels.EVENT_BUS, "end_of_tick", {"day": day, "tick_index": _current_tick_index})
 	_current_tick_index += 1
-	# TODO: drain queued events per phase ordering (EndOfTickPhases)
+	# Drain queued events accumulated during this tick.
+	_drain_queued()
 	# TODO: process per-tick-batched events
 	# TODO: call resolve_contested_operations(day)
 
@@ -156,6 +160,31 @@ func _dispatch_synchronous(event: EventBase) -> void:
 			])
 
 	_current_tick_index += 1
+
+
+func _dispatch_queued(event: EventBase) -> void:
+	# Stamp timing metadata now; handlers fire later during drain.
+	var tk: Node = get_node_or_null("/root/TimeKeeper")
+	if tk and tk.get("current_day") != null:
+		event.fired_at_day = tk.current_day
+	event.fired_at_tick_index = _current_tick_index
+	_queued_events.append(event)
+
+
+func _drain_queued() -> void:
+	if _queued_events.is_empty():
+		return
+	# Drain loop — handlers may queue more events, so loop until empty.
+	while not _queued_events.is_empty():
+		var batch: Array = _queued_events
+		_queued_events = []
+		for event: EventBase in batch:
+			var event_class: GDScript = event.get_script()
+			var subs: Array = _subscriptions.get(event_class, [])
+			for sub: Subscription in subs:
+				if not _passes_scope_filter(event, sub):
+					continue
+				sub.handler.call(event)
 
 
 func _passes_scope_filter(event: EventBase, sub: Subscription) -> bool:

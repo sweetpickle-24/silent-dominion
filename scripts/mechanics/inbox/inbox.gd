@@ -109,9 +109,12 @@ func snapshot_state() -> Dictionary:
 
 
 func apply_state(state) -> void:
-	if state == null or (state is Dictionary and state.is_empty()):
-		return
-	_inboxes = state.get("inboxes", {}).duplicate(true)
+	if state == null:
+		_inboxes = {}
+	elif state is Dictionary and state.is_empty():
+		_inboxes = {}
+	else:
+		_inboxes = state.get("inboxes", {}).duplicate(true)
 	var player: ImmortalRecord = _immortal_registry.get_player()
 	if player != null and not _inboxes.has(player.id):
 		_ensure_inbox(player.id)

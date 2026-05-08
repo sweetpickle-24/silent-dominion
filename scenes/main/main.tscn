@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/ui/speed_pause_widget.gd" id="7_speed_widget"]
 [ext_resource type="Script" path="res://scripts/mechanics/inbox/inbox.gd" id="8_inbox"]
 [ext_resource type="Script" path="res://scripts/mechanics/letter/correspondence.gd" id="9_correspondence"]
+[ext_resource type="Script" path="res://scripts/ui/table.gd" id="10_table"]
 
 [node name="Main" type="Node"]
 
@@ -35,10 +36,14 @@ script = ExtResource("8_inbox")
 [node name="Letter" type="Node" parent="Mechanics"]
 script = ExtResource("9_correspondence")
 
-[node name="HUD" type="Control" parent="."]
+[node name="Table" type="Control" parent="."]
 anchors_preset = 15
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("10_table")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 10
 
 [node name="SpeedPauseWidget" type="MarginContainer" parent="HUD"]
 script = ExtResource("7_speed_widget")

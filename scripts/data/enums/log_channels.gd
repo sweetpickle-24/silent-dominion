@@ -23,6 +23,9 @@ const INBOX: StringName = &"inbox"
 
 # UI channels
 const UI: StringName = &"ui"
+const COMPOSE_UI: StringName = &"compose_ui"
+const INBOX_UI: StringName = &"inbox_ui"
+const TABLE: StringName = &"table"
 
 # Meta channels
 const DEBUG: StringName = &"debug"
