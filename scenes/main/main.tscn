@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://scripts/ui/debug_overlay.gd" id="6_debug_overlay"]
 [ext_resource type="Script" path="res://scripts/mechanics/inbox/inbox.gd" id="8_inbox"]
 [ext_resource type="Script" path="res://scripts/mechanics/letter/correspondence.gd" id="9_correspondence"]
-[ext_resource type="Script" path="res://scripts/ui/table.gd" id="10_table"]
+[ext_resource type="Script" path="res://scripts/ui/desk.gd" id="10_desk"]
 
 [node name="Main" type="Node"]
 
@@ -35,11 +35,11 @@ script = ExtResource("8_inbox")
 [node name="Letter" type="Node" parent="Mechanics"]
 script = ExtResource("9_correspondence")
 
-[node name="Table" type="Control" parent="."]
+[node name="Desk" type="Control" parent="."]
 anchors_preset = 15
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("10_table")
+script = ExtResource("10_desk")
 
 [node name="Overlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_debug_overlay")
