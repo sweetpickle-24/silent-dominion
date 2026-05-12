@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_dqo56"]
+
+[resource]
+script = ExtResource("1_dqo56")
+id = &"veil_operative_miletus"
+name = "Kallisto of Miletus"
+birth_day = -10220
+profession = &"philosopher"
+province = &"ionia"
+current_place = &"miletus"
+public_position = "Junior member of the Milesian philosophical school"
+public_position_tier = &"invisible"
+chain_status = &"witting_operative"
+society_id = &"the_veil"
+languages = Array[StringName]([&"greek"])
+ambition = 40
+paranoia = 55
+loyalty = 70
+piety = 25
+intellect = 85
+greed = 25
+ruthlessness = 30
+curiosity = 90
+resilience = 65
+charisma = 60

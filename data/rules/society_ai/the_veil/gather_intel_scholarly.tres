@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_5yip3"]
+
+[resource]
+script = ExtResource("1_5yip3")
+id = &"the_veil:gather_intel_scholarly"
+society_id = &"the_veil"
+priority = 110
+description = "Annual intelligence on scholarly cities"
+condition = "world.day > 365"
+action_params = {
+"action_type": &"gather_intelligence",
+"target_constraints": {
+"min_population": 30000
+},
+"target_selector": &"random_scholarly_city"
+}
+cooldown_days = 365

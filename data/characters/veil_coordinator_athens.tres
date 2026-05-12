@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_yq5fu"]
+
+[resource]
+script = ExtResource("1_yq5fu")
+id = &"veil_coordinator_athens"
+name = "Aristion the Bookseller"
+birth_day = -14600
+profession = &"merchant"
+province = &"attica"
+current_place = &"athens"
+public_position = "Athenian bookseller and scribe; runs a small shop in the agora"
+max_concurrent_assignments = 4
+chain_status = &"coordinator"
+society_id = &"the_veil"
+languages = Array[StringName]([&"greek", &"phoenician"])
+ambition = 35
+paranoia = 75
+loyalty = 80
+piety = 30
+intellect = 80
+greed = 30
+ruthlessness = 35
+curiosity = 75
+resilience = 75
+charisma = 55

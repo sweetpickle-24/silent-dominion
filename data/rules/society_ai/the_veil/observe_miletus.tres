@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_aekmw"]
+
+[resource]
+script = ExtResource("1_aekmw")
+id = &"the_veil:observe_miletus"
+society_id = &"the_veil"
+description = "Observe Miletus regularly"
+condition = "world.day > 0"
+action_params = {
+"action_type": &"observe",
+"target_constraints": {
+"place_id": &"miletus"
+},
+"target_selector": &"specific_place"
+}
+cooldown_days = 240

@@ -20,6 +20,9 @@ extends Resource
 # Chain status
 @export var chain_status: StringName = ChainStatusValues.NONE
 
+# Society affiliation (empty for player's chain; set for society members)
+@export var society_id: StringName = &""
+
 # Languages (placeholder; full Languages mechanic at 11.14)
 @export var languages: Array[StringName] = []
 

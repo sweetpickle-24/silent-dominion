@@ -312,7 +312,6 @@ func _build_map_markers(map_panel: PanelContainer) -> void:
 		var line := Line2D.new()
 		line.default_color = Color("#5a7898") if route.kind == &"sea" else Color("#8a6848")
 		line.width = route.line_thickness
-		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for wp: StringName in route.waypoints:
 			var place: PlaceRecord = _world_registry.get_place(wp)
 			if place == null:

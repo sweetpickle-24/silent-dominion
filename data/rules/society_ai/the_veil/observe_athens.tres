@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_fpbem"]
+
+[resource]
+script = ExtResource("1_fpbem")
+id = &"the_veil:observe_athens"
+society_id = &"the_veil"
+description = "Observe Athens regularly"
+condition = "world.day > 0"
+action_params = {
+"action_type": &"observe",
+"target_constraints": {
+"place_id": &"athens"
+},
+"target_selector": &"specific_place"
+}
+cooldown_days = 180

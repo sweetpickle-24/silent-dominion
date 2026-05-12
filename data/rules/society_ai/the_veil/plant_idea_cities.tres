@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_pkv3x"]
+
+[resource]
+script = ExtResource("1_pkv3x")
+id = &"the_veil:plant_idea_cities"
+society_id = &"the_veil"
+priority = 120
+description = "Seed favorable ideas in major cities"
+condition = "world.day > 1825"
+action_params = {
+"action_type": &"plant_idea",
+"target_constraints": {
+"min_population": 50000
+},
+"target_selector": &"random_scholarly_city"
+}
+cooldown_days = 730

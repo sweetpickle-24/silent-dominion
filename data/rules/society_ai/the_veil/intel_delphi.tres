@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_6qddn"]
+
+[resource]
+script = ExtResource("1_6qddn")
+id = &"the_veil:intel_delphi"
+society_id = &"the_veil"
+priority = 80
+rule_tier = &"priority"
+description = "Deep intelligence on Delphi"
+condition = "world.day > 18250"
+action_params = {
+"action_type": &"gather_intelligence",
+"target_constraints": {
+"place_id": &"delphi"
+},
+"target_selector": &"specific_place"
+}
+cooldown_days = 1095

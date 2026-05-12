@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_18ahs"]
+
+[resource]
+script = ExtResource("1_18ahs")
+id = &"the_veil:alert_institutional_threat"
+society_id = &"the_veil"
+priority = 20
+rule_tier = &"forced"
+description = "Alert intelligence when institutional threats detected"
+condition = "world.day > 365"
+action_params = {
+"action_type": &"gather_intelligence",
+"target_selector": &"random_scholarly_city"
+}

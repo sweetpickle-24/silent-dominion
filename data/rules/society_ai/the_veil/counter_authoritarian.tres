@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_4pt81"]
+
+[resource]
+script = ExtResource("1_4pt81")
+id = &"the_veil:counter_authoritarian"
+society_id = &"the_veil"
+priority = 25
+rule_tier = &"forced"
+description = "Counter authoritarian pressure through ideas"
+condition = "world.day > 3650"
+action_params = {
+"action_type": &"plant_idea",
+"target_constraints": {
+"min_population": 50000
+},
+"target_selector": &"random_scholarly_city"
+}
+cooldown_days = 1825

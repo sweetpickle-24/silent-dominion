@@ -65,7 +65,17 @@ func _wire_subscriptions() -> void:
 
 # === Event handlers ===
 
+func _is_player_event(event: EventBase) -> bool:
+	var eid: Variant = event.get("immortal_id")
+	if eid == null or not (eid is StringName):
+		return true  # system events (era transition, etc.) go to player
+	var player: ImmortalRecord = _immortal_registry.get_player()
+	return player != null and eid == player.id
+
+
 func _on_scheme_dispatched(event: SchemeDispatchedEvent) -> void:
+	if not _is_player_event(event):
+		return
 	var chain: Node = get_node_or_null("../Chain")
 	if chain == null:
 		return
@@ -82,6 +92,8 @@ func _on_scheme_dispatched(event: SchemeDispatchedEvent) -> void:
 
 
 func _on_scheme_phase_advanced(event: SchemePhaseAdvancedEvent) -> void:
+	if not _is_player_event(event):
+		return
 	if event.new_phase != SchemePhases.EXECUTING:
 		return
 	var chain: Node = get_node_or_null("../Chain")
@@ -96,6 +108,8 @@ func _on_scheme_phase_advanced(event: SchemePhaseAdvancedEvent) -> void:
 
 
 func _on_scheme_resolved(event: SchemeResolvedEvent) -> void:
+	if not _is_player_event(event):
+		return
 	var chain: Node = get_node_or_null("../Chain")
 	var action_def: ActionDefinition = chain.get_action_definition(event.action_type) if chain else null
 	var place: PlaceRecord = _world_registry.get_place(event.target_place_ref)
@@ -110,6 +124,8 @@ func _on_scheme_resolved(event: SchemeResolvedEvent) -> void:
 
 
 func _on_scheme_cancelled(event: SchemeCancelledEvent) -> void:
+	if not _is_player_event(event):
+		return
 	var action_node: Node = get_node_or_null("../Action")
 	var action_type: StringName = &""
 	var target_place_name: String = ""

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_fi41m"]
+
+[resource]
+script = ExtResource("1_fi41m")
+id = &"the_veil:observe_persia"
+society_id = &"the_veil"
+priority = 140
+description = "Observe Persian courts"
+condition = "world.day > 730"
+action_params = {
+"action_type": &"observe",
+"target_constraints": {
+"place_id": &"persepolis"
+},
+"target_selector": &"specific_place"
+}
+cooldown_days = 365

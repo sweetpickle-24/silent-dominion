@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_ph11i"]
+
+[resource]
+script = ExtResource("1_ph11i")
+id = &"veil_operative_memphis"
+name = "Senebef of Memphis"
+birth_day = -19710
+profession = &"priest"
+province = &"egypt_lower"
+current_place = &"memphis"
+public_position = "Junior priest in the Memphis temple-school complex"
+chain_status = &"witting_operative"
+society_id = &"the_veil"
+languages = Array[StringName]([&"egyptian", &"greek", &"aramaic"])
+ambition = 25
+paranoia = 70
+loyalty = 85
+piety = 60
+intellect = 80
+greed = 20
+ruthlessness = 25
+curiosity = 80
+resilience = 75

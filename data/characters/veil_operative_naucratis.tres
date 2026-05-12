@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_w0di3"]
+
+[resource]
+script = ExtResource("1_w0di3")
+id = &"veil_operative_naucratis"
+name = "Demaratos of Naucratis"
+birth_day = -16060
+profession = &"merchant"
+province = &"egypt_lower"
+current_place = &"naucratis"
+public_position = "Greek merchant in the Naucratis trading colony"
+chain_status = &"witting_operative"
+society_id = &"the_veil"
+languages = Array[StringName]([&"greek", &"egyptian"])
+ambition = 30
+paranoia = 60
+loyalty = 75
+piety = 35
+intellect = 70
+greed = 35
+ruthlessness = 40
+curiosity = 65
+resilience = 70
+charisma = 65

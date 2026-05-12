@@ -118,12 +118,21 @@ func _try_advance_scheme(scheme: SchemeRecord, day: int) -> void:
 	if required_status != &"":
 		var candidates: Array = _find_candidates(scheme, required_status, day)
 		if candidates.is_empty():
-			_logger.warn(LogChannels.CHAIN, "No candidate for phase", {
-				"scheme_id": scheme.id, "phase": next_phase, "required": required_status,
-			})
-			return  # stall until someone becomes available
-		var best: CharacterRecord = _pick_best_candidate(candidates, scheme)
-		_apply_assignment(scheme, next_phase, best.id)
+			# Fallback: if no Lieutenant exists, the dispatching immortal acts as their own Lieutenant.
+			if required_status == ChainStatusValues.LIEUTENANT:
+				var immortal: ImmortalRecord = _immortal_registry.get_immortal(scheme.immortal_id)
+				if immortal != null:
+					_apply_assignment(scheme, next_phase, immortal.character.id)
+				else:
+					return
+			else:
+				_logger.warn(LogChannels.CHAIN, "No candidate for phase", {
+					"scheme_id": scheme.id, "phase": next_phase, "required": required_status,
+				})
+				return
+		else:
+			var best: CharacterRecord = _pick_best_candidate(candidates, scheme)
+			_apply_assignment(scheme, next_phase, best.id)
 	# Fire SchemePhaseAdvanced
 	var event := SchemePhaseAdvancedEvent.new()
 	event.scheme_id = scheme.id
@@ -185,9 +194,17 @@ func _find_candidates(scheme: SchemeRecord, required_status: StringName, day: in
 			day = tk.current_day
 		else:
 			day = 0
+	# Determine which society this scheme belongs to for filtering
+	var scheme_society: StringName = &""
+	var immortal: ImmortalRecord = _immortal_registry.get_immortal(scheme.immortal_id)
+	if immortal != null:
+		scheme_society = immortal.society_id
 	for char_id: StringName in _immortal_registry.all_character_ids():
 		var c: CharacterRecord = _immortal_registry.get_character(char_id)
 		if c.chain_status != required_status:
+			continue
+		# Filter by society — only match characters in the same organisation
+		if c.society_id != scheme_society:
 			continue
 		if not c.is_alive(day):
 			continue
