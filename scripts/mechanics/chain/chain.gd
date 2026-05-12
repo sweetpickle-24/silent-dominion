@@ -97,12 +97,11 @@ func _on_game_day_ticked(event: GameDayTickedEvent) -> void:
 # === Phase advancement ===
 
 func _advance_schemes(day: int) -> void:
-	var player: ImmortalRecord = _immortal_registry.get_player()
-	if player == null:
-		return
-	var schemes: Array = _action.get_active_schemes(player.id)
-	for scheme: SchemeRecord in schemes:
-		_try_advance_scheme(scheme, day)
+	# Advance schemes for ALL immortals (player + society founders).
+	for immortal_id: StringName in _immortal_registry.all_immortal_ids():
+		var schemes: Array = _action.get_active_schemes(immortal_id)
+		for scheme: SchemeRecord in schemes:
+			_try_advance_scheme(scheme, day)
 
 
 func _try_advance_scheme(scheme: SchemeRecord, day: int) -> void:
