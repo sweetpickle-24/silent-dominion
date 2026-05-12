@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_qatsw"]
+
+[resource]
+script = ExtResource("1_qatsw")
+id = &"phoenicia"
+name = "Phoenicia"
+cultural_sphere = &"phoenician"
+terrain = &"coastal"
+owning_kingdom = &"persia"
+center_lat = 33.5
+center_lon = 35.5
+render_radius_km = 120.0
+neighbors = Array[StringName]([&"cyprus", &"palestine"])

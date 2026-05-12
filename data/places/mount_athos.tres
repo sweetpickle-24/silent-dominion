@@ -7,7 +7,7 @@ script = ExtResource("1_igr15")
 id = &"mount_athos"
 name = "Mount Athos"
 place_type = &"named_site"
-region = &"chalcidice"
+province = &"chalcidice"
 founded_day = -100000
 factional_balance = {
 &"religious": 1.0

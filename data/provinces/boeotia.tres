@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_iaqtc"]
+
+[resource]
+script = ExtResource("1_iaqtc")
+id = &"boeotia"
+name = "Boeotia"
+cultural_sphere = &"greek"
+owning_kingdom = &"thebes"
+center_lat = 38.4
+center_lon = 23.3
+render_radius_km = 120.0
+neighbors = Array[StringName]([&"attica", &"phocis"])

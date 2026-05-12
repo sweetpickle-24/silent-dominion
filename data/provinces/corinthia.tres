@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_orisd"]
+
+[resource]
+script = ExtResource("1_orisd")
+id = &"corinthia"
+name = "Corinthia"
+cultural_sphere = &"greek"
+terrain = &"coastal"
+owning_kingdom = &"corinth"
+center_lat = 37.9
+center_lon = 22.9
+render_radius_km = 100.0
+neighbors = Array[StringName]([&"attica", &"laconia", &"achaea"])

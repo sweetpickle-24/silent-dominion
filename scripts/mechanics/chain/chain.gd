@@ -220,11 +220,11 @@ func _pick_best_candidate(candidates: Array, scheme: SchemeRecord) -> CharacterR
 	var target_region: StringName = &""
 	var place: PlaceRecord = _world_registry.get_place(scheme.target_place_ref)
 	if place != null:
-		target_region = place.region
+		target_region = place.province
 	for c: CharacterRecord in candidates:
 		var score: float = 0.0
 		# Region match bonus
-		if c.region == target_region:
+		if c.province == target_region:
 			score += 30.0
 		# Language match bonus
 		var target_lang: StringName = _REGION_LANGUAGES.get(target_region, &"")

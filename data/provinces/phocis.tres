@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_4ype6"]
+
+[resource]
+script = ExtResource("1_4ype6")
+id = &"phocis"
+name = "Phocis"
+cultural_sphere = &"greek"
+terrain = &"mountains"
+center_lat = 38.5
+center_lon = 22.5
+render_radius_km = 100.0
+neighbors = Array[StringName]([&"boeotia", &"aetolia"])

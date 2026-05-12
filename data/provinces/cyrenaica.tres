@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_bphpi"]
+
+[resource]
+script = ExtResource("1_bphpi")
+id = &"cyrenaica"
+name = "Cyrenaica"
+cultural_sphere = &"north_african_greek"
+terrain = &"coastal"
+climate = &"arid"
+center_lat = 32.8
+center_lon = 21.9
+neighbors = Array[StringName]([&"egypt_lower"])

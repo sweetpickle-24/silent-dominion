@@ -8,7 +8,7 @@ func _make_record(type: StringName, pop: int = 1000, infra: int = 50, capacity: 
 	r.id = &"test_place"
 	r.name = "Test Place"
 	r.place_type = type
-	r.region = &"test_region"
+	r.province = &"test_region"
 	r.population = pop
 	r.infrastructure_level = infra
 	r.site_capacity = capacity

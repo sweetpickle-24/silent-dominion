@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_um57i"]
+
+[resource]
+script = ExtResource("1_um57i")
+id = &"attica"
+name = "Attica"
+cultural_sphere = &"greek"
+terrain = &"coastal"
+owning_kingdom = &"athens"
+center_lat = 38.0
+center_lon = 23.7
+render_radius_km = 150.0
+neighbors = Array[StringName]([&"boeotia", &"corinthia", &"aegean_islands"])

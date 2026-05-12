@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_tdfso"]
+
+[resource]
+script = ExtResource("1_tdfso")
+id = &"egypt_lower"
+name = "Egypt Lower"
+cultural_sphere = &"egyptian"
+terrain = &"coastal"
+climate = &"arid"
+owning_kingdom = &"persia"
+center_lat = 30.0
+center_lon = 31.2
+neighbors = Array[StringName]([&"egypt_upper", &"cyrenaica"])

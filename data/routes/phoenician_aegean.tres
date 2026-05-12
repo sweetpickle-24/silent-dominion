@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_aj5lt"]
+
+[resource]
+script = ExtResource("1_aj5lt")
+id = &"phoenician_aegean"
+name = "Phoenician-Aegean"
+kind = &"sea"
+tier = &"major"
+waypoints = Array[StringName]([&"tyre", &"miletus"])
+line_thickness = 2.5

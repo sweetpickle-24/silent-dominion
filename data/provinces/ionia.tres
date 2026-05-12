@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_anm6e"]
+
+[resource]
+script = ExtResource("1_anm6e")
+id = &"ionia"
+name = "Ionia"
+cultural_sphere = &"greek"
+terrain = &"coastal"
+owning_kingdom = &"persia"
+center_lat = 37.5
+center_lon = 27.3
+render_radius_km = 150.0
+neighbors = Array[StringName]([&"lydia", &"aegean_islands", &"caria"])

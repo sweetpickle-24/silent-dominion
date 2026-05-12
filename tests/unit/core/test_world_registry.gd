@@ -21,7 +21,7 @@ func test_get_place_returns_record():
 	assert_not_null(athens, "athens should exist")
 	assert_eq(athens.name, "Athens")
 	assert_eq(athens.place_type, &"city")
-	assert_eq(athens.region, &"attica")
+	assert_eq(athens.province, &"attica")
 	assert_eq(athens.founded_day, -100000)
 
 

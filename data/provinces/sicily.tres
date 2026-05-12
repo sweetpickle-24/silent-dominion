@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_les1c"]
+
+[resource]
+script = ExtResource("1_les1c")
+id = &"sicily"
+name = "Sicily"
+cultural_sphere = &"greek"
+terrain = &"coastal"
+center_lat = 37.5
+center_lon = 14.0
+render_radius_km = 160.0
+neighbors = Array[StringName]([&"magna_graecia", &"africa_punica"])

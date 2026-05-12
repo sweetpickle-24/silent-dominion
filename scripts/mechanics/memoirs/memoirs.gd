@@ -164,7 +164,7 @@ func _learn_from_scheme(event: SchemeResolvedEvent) -> void:
 	var world_registry: Node = get_node("/root/WorldRegistry")
 	var place: PlaceRecord = world_registry.get_place(event.target_place_ref)
 	if place != null:
-		pattern.region_scope = place.region
+		pattern.region_scope = place.province
 	pattern.era = _time_keeper.current_era
 	pattern.last_validated_day = event.resolved_at_day
 	pattern.staleness_state = StalenessValues.FRESH

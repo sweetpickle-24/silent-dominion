@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_mslxc"]
+
+[resource]
+script = ExtResource("1_mslxc")
+id = &"laconia"
+name = "Laconia"
+cultural_sphere = &"greek"
+terrain = &"mountains"
+owning_kingdom = &"sparta"
+center_lat = 36.9
+center_lon = 22.4
+render_radius_km = 140.0
+neighbors = Array[StringName]([&"corinthia", &"arcadia"])

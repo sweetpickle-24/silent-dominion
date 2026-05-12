@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_a6xr4"]
+
+[resource]
+script = ExtResource("1_a6xr4")
+id = &"egypt_internal"
+name = "Nile Valley Road"
+waypoints = Array[StringName]([&"memphis", &"naucratis"])
+line_thickness = 1.5

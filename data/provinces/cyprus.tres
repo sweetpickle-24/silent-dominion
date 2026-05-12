@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_ghadv"]
+
+[resource]
+script = ExtResource("1_ghadv")
+id = &"cyprus"
+name = "Cyprus"
+cultural_sphere = &"phoenician"
+terrain = &"coastal"
+owning_kingdom = &"persia"
+center_lat = 35.0
+center_lon = 33.0
+render_radius_km = 130.0
+neighbors = Array[StringName]([&"phoenicia", &"ionia"])

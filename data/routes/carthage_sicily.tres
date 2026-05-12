@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_tg2r6"]
+
+[resource]
+script = ExtResource("1_tg2r6")
+id = &"carthage_sicily"
+name = "Punic Strait"
+kind = &"sea"
+waypoints = Array[StringName]([&"carthage", &"tarentum"])
+line_thickness = 1.5

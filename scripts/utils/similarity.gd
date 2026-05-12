@@ -122,7 +122,9 @@ static func _region_modifier(pattern: Pattern, context: RuleContext) -> float:
 		return 1.0
 	var current_region: StringName = &""
 	if context.target != null:
-		var region_val: Variant = context.target.get("region")
+		var region_val: Variant = context.target.get("province")
+		if region_val == null:
+			region_val = context.target.get("region")  # backward compat
 		if region_val != null:
 			current_region = region_val
 	if pattern.region_scope == current_region:

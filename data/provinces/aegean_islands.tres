@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_tlq8h"]
+
+[resource]
+script = ExtResource("1_tlq8h")
+id = &"aegean_islands"
+name = "Aegean Islands"
+cultural_sphere = &"greek"
+terrain = &"coastal"
+center_lat = 37.0
+center_lon = 25.5
+render_radius_km = 180.0
+neighbors = Array[StringName]([&"attica", &"ionia", &"crete"])

@@ -39,14 +39,22 @@ func distance_between_places(_place_a: StringName, _place_b: StringName) -> floa
 	return 0.0
 
 
-func regions_adjacent(_region_a: StringName, _region_b: StringName) -> bool:
-	# TODO: implement when WorldRegistry has region adjacency data
-	return false
+# Named regions_* for backward compat (Step 3). Operates on province ids.
+func regions_adjacent(province_a: StringName, province_b: StringName) -> bool:
+	var wr: Node = get_node("/root/WorldRegistry")
+	var prov: ProvinceRecord = wr.get_province(province_a)
+	if prov == null:
+		return false
+	return prov.is_adjacent_to(province_b)
 
 
-func regions_same_cultural_sphere(_region_a: StringName, _region_b: StringName) -> bool:
-	# TODO: implement when WorldRegistry has cultural sphere data
-	return false
+func regions_same_cultural_sphere(province_a: StringName, province_b: StringName) -> bool:
+	var wr: Node = get_node("/root/WorldRegistry")
+	var prov_a: ProvinceRecord = wr.get_province(province_a)
+	var prov_b: ProvinceRecord = wr.get_province(province_b)
+	if prov_a == null or prov_b == null:
+		return false
+	return prov_a.shares_cultural_sphere_with(prov_b)
 
 
 # --- Coverage / awareness helpers ---

@@ -9,7 +9,7 @@ extends Resource
 @export var birth_day: int = 0
 @export var death_day: int = -1
 @export var profession: StringName = &""
-@export var region: StringName = &""
+@export var province: StringName = &""
 @export var current_place: StringName = &""
 
 # Public position

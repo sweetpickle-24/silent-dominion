@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_oabbu"]
+
+[resource]
+script = ExtResource("1_oabbu")
+id = &"persis"
+name = "Persis"
+cultural_sphere = &"persian"
+terrain = &"mountains"
+climate = &"arid"
+owning_kingdom = &"persia"
+center_lat = 30.0
+center_lon = 53.0
+render_radius_km = 250.0
+neighbors = Array[StringName]([&"elam", &"kerman"])

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_stsui"]
+
+[resource]
+script = ExtResource("1_stsui")
+id = &"persepolis_susa"
+name = "Persepolis-Susa"
+tier = &"major"
+waypoints = Array[StringName]([&"persepolis", &"susa"])
+line_thickness = 2.5

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_8c5m6"]
+
+[resource]
+script = ExtResource("1_8c5m6")
+id = &"phoenician_egypt"
+name = "Levantine Coast"
+kind = &"sea"
+tier = &"major"
+waypoints = Array[StringName]([&"tyre", &"sidon", &"naucratis"])
+line_thickness = 2.5

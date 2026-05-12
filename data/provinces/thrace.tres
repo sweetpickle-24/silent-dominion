@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_ws8nr"]
+
+[resource]
+script = ExtResource("1_ws8nr")
+id = &"thrace"
+name = "Thrace"
+cultural_sphere = &"greek"
+climate = &"temperate_continental"
+owning_kingdom = &"persia"
+center_lat = 41.5
+center_lon = 26.0
+neighbors = Array[StringName]([&"macedonia_inner"])

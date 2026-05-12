@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_qhqoa"]
+
+[resource]
+script = ExtResource("1_qhqoa")
+id = &"media"
+name = "Media"
+cultural_sphere = &"persian"
+terrain = &"mountains"
+climate = &"temperate_continental"
+owning_kingdom = &"persia"
+center_lat = 35.0
+center_lon = 47.5
+render_radius_km = 250.0
+neighbors = Array[StringName]([&"elam", &"assyria"])

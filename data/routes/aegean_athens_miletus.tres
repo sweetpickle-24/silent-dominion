@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_gka80"]
+
+[resource]
+script = ExtResource("1_gka80")
+id = &"aegean_athens_miletus"
+name = "Aegean Sea Route"
+kind = &"sea"
+tier = &"major"
+waypoints = Array[StringName]([&"athens", &"miletus"])
+line_thickness = 2.5

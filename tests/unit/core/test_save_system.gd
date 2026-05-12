@@ -109,4 +109,4 @@ func test_world_registry_isolation():
 	assert_eq(wr.place_count(), 22)
 	assert_eq(wr.get_place(&"athens").name, "Athens")
 	assert_eq(wr.get_place(&"laurion").place_type, &"mine")
-	assert_eq(wr.get_place(&"delphi").region, &"phocis")
+	assert_eq(wr.get_place(&"delphi").province, &"phocis")

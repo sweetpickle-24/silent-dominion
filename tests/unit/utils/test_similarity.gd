@@ -8,7 +8,7 @@ class MockTarget:
 	var kind: StringName = &""
 	var profession: StringName = &""
 	var ambition: int = 0
-	var region: StringName = &""
+	var province: StringName = &""
 	var tags: Array = []
 
 
@@ -206,19 +206,19 @@ func test_region_empty_scope():
 
 func test_region_same():
 	var target := MockTarget.new()
-	target.region = &"attica"
+	target.province = &"attica"
 	var p := _make_pattern({"region_scope": &"attica"})
 	var ctx := _make_context(target)
 	assert_eq(Similarity.compute(p, ctx), 1.0)
 
 
-func test_region_different_with_stubs():
-	# Helpers stubs return false for adjacent/cultural sphere, so lands at 0.3.
+func test_region_same_cultural_sphere():
+	# Attica and phocis are both Greek cultural sphere → region modifier = 0.6.
 	var target := MockTarget.new()
-	target.region = &"phocis"
+	target.province = &"phocis"
 	var p := _make_pattern({"region_scope": &"attica"})
 	var ctx := _make_context(target)
-	assert_almost_eq(Similarity.compute(p, ctx), 0.3, 0.001)
+	assert_almost_eq(Similarity.compute(p, ctx), 0.6, 0.001)
 
 
 # --- Corruption penalty ---

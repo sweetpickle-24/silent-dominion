@@ -275,40 +275,81 @@ func _handle_click(event: InputEvent, method: String) -> void:
 # === Map markers ===
 
 func _build_map_markers(map_panel: PanelContainer) -> void:
-	# Place markers using lat/lon projection
-	var places_data: Array = [
-		{id=&"athens", lat=37.97, lon=23.73}, {id=&"sparta", lat=37.08, lon=22.43},
-		{id=&"corinth", lat=37.91, lon=22.88}, {id=&"thebes", lat=38.32, lon=23.32},
-		{id=&"delphi", lat=38.48, lon=22.50}, {id=&"miletus", lat=37.53, lon=27.28},
-		{id=&"laurion", lat=37.72, lon=24.05}, {id=&"persepolis", lat=29.93, lon=52.89},
-		{id=&"susa", lat=32.19, lon=48.26}, {id=&"babylon", lat=32.54, lon=44.42},
-		{id=&"ecbatana", lat=34.80, lon=48.51}, {id=&"tyre", lat=33.27, lon=35.20},
-		{id=&"sidon", lat=33.56, lon=35.37}, {id=&"memphis", lat=29.87, lon=31.25},
-		{id=&"naucratis", lat=30.89, lon=30.59}, {id=&"carthage", lat=36.85, lon=10.32},
-		{id=&"rome", lat=41.90, lon=12.50}, {id=&"tarentum", lat=40.47, lon=17.24},
-		{id=&"cyrene", lat=32.82, lon=21.86}, {id=&"mount_athos", lat=40.16, lon=24.33},
-		{id=&"pharos", lat=31.21, lon=29.89},
-	]
+	# Render provinces as circles, routes as lines, places as dots.
+	# Uses province center lat/lon; places offset from their province center.
 	var map_w: float = map_panel.size.x - 24
 	var map_h: float = map_panel.size.y - 24
-	var min_lat: float = 28.0
-	var max_lat: float = 43.0
-	var min_lon: float = 8.0
+	var min_lat: float = 25.0
+	var max_lat: float = 45.0
+	var min_lon: float = 5.0
 	var max_lon: float = 55.0
-	for pd in places_data:
-		var px: float = ((pd.lon - min_lon) / (max_lon - min_lon)) * map_w + 12
-		var py: float = ((max_lat - pd.lat) / (max_lat - min_lat)) * map_h + 12
+
+	# Province circles (translucent, colored by kingdom)
+	for pid: StringName in _world_registry.all_province_ids():
+		var prov: ProvinceRecord = _world_registry.get_province(pid)
+		var cx: float = ((prov.center_lon - min_lon) / (max_lon - min_lon)) * map_w + 12
+		var cy: float = ((max_lat - prov.center_lat) / (max_lat - min_lat)) * map_h + 12
+		var radius_px: float = (prov.render_radius_km / 111.0) / (max_lon - min_lon) * map_w
+		radius_px = clampf(radius_px, 15, 60)
+		var circle := ColorRect.new()
+		circle.position = Vector2(cx - radius_px, cy - radius_px)
+		circle.size = Vector2(radius_px * 2, radius_px * 2)
+		circle.color = Color(0.7, 0.65, 0.55, 0.3)
+		circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		map_panel.add_child(circle)
+		# Province name
+		var plbl := Label.new()
+		plbl.text = prov.name
+		plbl.position = Vector2(cx - 20, cy - 6)
+		plbl.add_theme_font_size_override("font_size", 8)
+		plbl.add_theme_color_override("font_color", Color("#7a6850"))
+		plbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		map_panel.add_child(plbl)
+
+	# Routes as lines (using Line2D for each)
+	for rid: StringName in _world_registry.all_route_ids():
+		var route: RouteRecord = _world_registry.get_route(rid)
+		var line := Line2D.new()
+		line.default_color = Color("#5a7898") if route.kind == &"sea" else Color("#8a6848")
+		line.width = route.line_thickness
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for wp: StringName in route.waypoints:
+			var place: PlaceRecord = _world_registry.get_place(wp)
+			if place == null:
+				continue
+			var prov: ProvinceRecord = _world_registry.get_province(place.province)
+			if prov == null:
+				continue
+			var h: int = hash(wp)
+			var dx: float = (float(h % 100) - 50) / 50.0 * 0.5
+			var dy: float = (float((h / 100) % 100) - 50) / 50.0 * 0.3
+			var px: float = ((prov.center_lon + dx - min_lon) / (max_lon - min_lon)) * map_w + 12
+			var py: float = ((max_lat - prov.center_lat - dy) / (max_lat - min_lat)) * map_h + 12
+			line.add_point(Vector2(px, py))
+		map_panel.add_child(line)
+
+	# Place markers
+	for place_id: StringName in _world_registry.all_place_ids():
+		var place: PlaceRecord = _world_registry.get_place(place_id)
+		var prov: ProvinceRecord = _world_registry.get_province(place.province)
+		if prov == null:
+			continue
+		var h: int = hash(place_id)
+		var dx: float = (float(h % 100) - 50) / 50.0 * 0.5
+		var dy: float = (float((h / 100) % 100) - 50) / 50.0 * 0.3
+		var px: float = ((prov.center_lon + dx - min_lon) / (max_lon - min_lon)) * map_w + 12
+		var py: float = ((max_lat - prov.center_lat - dy) / (max_lat - min_lat)) * map_h + 12
 		var marker := ColorRect.new()
-		marker.size = Vector2(8, 8)
-		marker.position = Vector2(px - 4, py - 4)
+		marker.size = Vector2(6, 6)
+		marker.position = Vector2(px - 3, py - 3)
 		marker.color = _SEAL_RED
 		marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		map_panel.add_child(marker)
 		var name_lbl := Label.new()
-		name_lbl.text = _world_registry.get_place(pd.id).name if _world_registry.get_place(pd.id) else str(pd.id)
-		name_lbl.position = Vector2(px + 6, py - 8)
+		name_lbl.text = place.name
+		name_lbl.position = Vector2(px + 5, py - 7)
 		name_lbl.add_theme_font_size_override("font_size", 9)
-		name_lbl.add_theme_color_override("font_color", _INK_SECONDARY)
+		name_lbl.add_theme_color_override("font_color", _INK_PRIMARY)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		map_panel.add_child(name_lbl)
 
@@ -455,7 +496,7 @@ func _open_compose() -> void:
 	var targets: Array = []
 	for pid: StringName in _world_registry.all_place_ids():
 		var p: PlaceRecord = _world_registry.get_place(pid)
-		target_dd.add_item("%s (%s)" % [p.name, p.region])
+		target_dd.add_item("%s (%s)" % [p.name, p.province])
 		targets.append({kind=&"place", ref=pid})
 	for cid: StringName in _immortal_registry.all_character_ids():
 		var c: CharacterRecord = _immortal_registry.get_character(cid)
@@ -602,8 +643,70 @@ func _open_letter(letter: Letter) -> void:
 # --- Map detail ---
 
 func _open_map() -> void:
-	_open_inbox()  # Placeholder: clicking map opens inbox for now
-	# TODO: open map detail with place selection
+	# Show a province/place selection list as the map detail
+	var panel := _make_detail_panel(800, 550)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	vbox.add_child(_make_label("Map — Provinces & Places", 22, _INK_PRIMARY, true))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	list.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for pid: StringName in _world_registry.all_province_ids():
+		var prov: ProvinceRecord = _world_registry.get_province(pid)
+		var header := Label.new()
+		header.text = "%s  (%s · %s · %s)" % [prov.name, prov.cultural_sphere, prov.terrain, prov.owning_kingdom if prov.owning_kingdom != &"" else "unaligned"]
+		header.add_theme_font_size_override("font_size", 14)
+		header.add_theme_color_override("font_color", _INK_PRIMARY)
+		list.add_child(header)
+		var places: Array = _world_registry.places_in_province(pid)
+		for place: PlaceRecord in places:
+			var btn := Button.new()
+			btn.text = "    %s  |  %s  |  pop: %d" % [place.name, place.place_type, place.population]
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.add_theme_font_size_override("font_size", 12)
+			btn.add_theme_color_override("font_color", _INK_SECONDARY)
+			btn.pressed.connect(func():
+				_close_detail()
+				_open_place_detail(place))
+			list.add_child(btn)
+	vbox.add_child(_make_close_button())
+	_open_detail(panel)
+
+
+func _open_place_detail(place: PlaceRecord) -> void:
+	var panel := _make_detail_panel(600, 400)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	vbox.add_child(_make_label(place.name, 22, _INK_PRIMARY, true))
+	var prov: ProvinceRecord = _world_registry.get_province(place.province)
+	vbox.add_child(_make_label("Province: %s  |  Type: %s" % [prov.name if prov else str(place.province), place.place_type], 13, _INK_SECONDARY))
+	vbox.add_child(_make_label("Population: %d  |  Infrastructure: %d" % [place.population, place.infrastructure_level], 13, _INK_SECONDARY))
+	if not place.factional_balance.is_empty():
+		var factions_text: String = ""
+		for key: StringName in place.factional_balance:
+			factions_text += "%s: %.0f%%  " % [key, place.factional_balance[key] * 100]
+		vbox.add_child(_make_label("Factions: %s" % factions_text, 12, _INK_TERTIARY))
+	var spacer := Control.new()
+	spacer.size_flags_vertical = SIZE_EXPAND_FILL
+	vbox.add_child(spacer)
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(btn_row)
+	var compose_btn := Button.new()
+	compose_btn.text = "Compose action targeting %s" % place.name
+	compose_btn.pressed.connect(func():
+		ComposePrefill.target_ref = place.id
+		_close_detail()
+		_open_compose())
+	btn_row.add_child(compose_btn)
+	btn_row.add_child(_make_close_button())
+	_open_detail(panel)
 
 
 # --- Placeholder details ---

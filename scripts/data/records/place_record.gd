@@ -5,7 +5,7 @@ extends Resource
 @export var id: StringName
 @export var name: String
 @export var place_type: StringName
-@export var region: StringName
+@export var province: StringName
 @export var founded_day: int = 0
 
 # Population. Settlements: human inhabitants. Sites: staff count.

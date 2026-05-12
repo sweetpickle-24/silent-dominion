@@ -7,7 +7,7 @@ func test_field_access():
 	c.name = "Test Character"
 	c.birth_day = -10000
 	c.profession = ProfessionValues.SCHOLAR
-	c.region = &"attica"
+	c.province = &"attica"
 	c.current_place = &"athens"
 	c.ambition = 75
 	c.intellect = 90

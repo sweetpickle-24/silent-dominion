@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_vrqok"]
+
+[resource]
+script = ExtResource("1_vrqok")
+id = &"cyrene_egypt"
+name = "Cyrene-Egypt Coast"
+kind = &"sea"
+waypoints = Array[StringName]([&"cyrene", &"naucratis"])
+line_thickness = 1.5

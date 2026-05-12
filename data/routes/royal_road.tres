@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_5cag6"]
+
+[resource]
+script = ExtResource("1_5cag6")
+id = &"royal_road"
+name = "Royal Road"
+tier = &"major"
+waypoints = Array[StringName]([&"miletus", &"babylon", &"susa"])
+line_thickness = 3.0

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_rrqme"]
+
+[resource]
+script = ExtResource("1_rrqme")
+id = &"latium"
+name = "Latium"
+cultural_sphere = &"latin"
+owning_kingdom = &"rome"
+center_lat = 41.9
+center_lon = 12.5
+render_radius_km = 150.0
+neighbors = Array[StringName]([&"etruria", &"campania"])

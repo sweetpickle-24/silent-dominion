@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_xgx8u"]
+
+[resource]
+script = ExtResource("1_xgx8u")
+id = &"africa_punica"
+name = "Africa Punica"
+cultural_sphere = &"punic"
+terrain = &"coastal"
+owning_kingdom = &"carthage"
+center_lat = 36.8
+center_lon = 10.3
+neighbors = Array[StringName]([&"sicily"])

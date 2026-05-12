@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_uwiw2"]
+
+[resource]
+script = ExtResource("1_uwiw2")
+id = &"macedonia_inner"
+name = "Macedonia Inner"
+cultural_sphere = &"greek"
+terrain = &"mountains"
+climate = &"temperate_continental"
+owning_kingdom = &"macedonia"
+center_lat = 40.7
+center_lon = 21.5
+render_radius_km = 180.0
+neighbors = Array[StringName]([&"chalcidice", &"thessaly", &"thrace"])

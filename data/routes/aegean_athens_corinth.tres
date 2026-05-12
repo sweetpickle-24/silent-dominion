@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RouteRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/route_record.gd" id="1_cvjr1"]
+
+[resource]
+script = ExtResource("1_cvjr1")
+id = &"aegean_athens_corinth"
+name = "Saronic Gulf"
+kind = &"sea"
+waypoints = Array[StringName]([&"athens", &"corinth"])
+line_thickness = 1.5

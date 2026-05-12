@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_ae1kk"]
+
+[resource]
+script = ExtResource("1_ae1kk")
+id = &"lydia"
+name = "Lydia"
+cultural_sphere = &"greek"
+owning_kingdom = &"persia"
+center_lat = 38.5
+center_lon = 28.0
+render_radius_km = 180.0
+neighbors = Array[StringName]([&"ionia"])

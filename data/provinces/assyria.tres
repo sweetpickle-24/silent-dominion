@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProvinceRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/province_record.gd" id="1_81tlr"]
+
+[resource]
+script = ExtResource("1_81tlr")
+id = &"assyria"
+name = "Assyria"
+cultural_sphere = &"persian"
+climate = &"arid"
+owning_kingdom = &"persia"
+center_lat = 36.0
+center_lon = 43.0
+render_radius_km = 220.0
+neighbors = Array[StringName]([&"babylonia", &"media"])

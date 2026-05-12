@@ -7,14 +7,20 @@ var _logger: Node
 # Loaded at _ready, then read-only for the rest of the game.
 var places: Dictionary = {}          # StringName id -> PlaceRecord
 var place_types: Dictionary = {}     # StringName id -> PlaceTypeDefinition
+var provinces: Dictionary = {}       # StringName id -> ProvinceRecord
+var routes: Dictionary = {}          # StringName id -> RouteRecord
 
 
 func _ready() -> void:
 	_logger = get_node("/root/Logger")
 	_load_place_types("res://data/place_types/")
+	_load_resources_from_dir("res://data/provinces/", provinces, "ProvinceRecord", false)
+	_load_resources_from_dir("res://data/routes/", routes, "RouteRecord", false)
 	_load_places("res://data/places/")
 	_logger.info(LogChannels.WORLD_REGISTRY, "WorldRegistry loaded", {
 		"place_types": place_types.size(),
+		"provinces": provinces.size(),
+		"routes": routes.size(),
 		"places": places.size(),
 	})
 
@@ -35,6 +41,31 @@ func all_place_ids() -> Array:
 
 func place_count() -> int:
 	return places.size()
+
+
+func get_province(id: StringName) -> ProvinceRecord:
+	return provinces.get(id, null)
+
+
+func get_route(id: StringName) -> RouteRecord:
+	return routes.get(id, null)
+
+
+func all_province_ids() -> Array:
+	return provinces.keys()
+
+
+func all_route_ids() -> Array:
+	return routes.keys()
+
+
+func places_in_province(province_id: StringName) -> Array:
+	var matches: Array = []
+	for place_id: StringName in places.keys():
+		var place: PlaceRecord = places[place_id]
+		if place.province == province_id:
+			matches.append(place)
+	return matches
 
 
 # --- Internal loading ---
