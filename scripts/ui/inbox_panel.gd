@@ -46,19 +46,40 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
 
+	# Parchment background for detail pane
+	var detail_bg := StyleBoxFlat.new()
+	detail_bg.bg_color = Color("#e8dcc4")
+	detail_bg.set_corner_radius_all(4)
+	detail_bg.set_content_margin_all(24)
+	right.add_theme_stylebox_override("panel", detail_bg)
+
+	var serif_font: Font = load("res://data/fonts/EBGaramond-Regular.ttf")
+
 	_detail_subject = Label.new()
-	_detail_subject.text = "Select a letter"
-	_detail_subject.add_theme_font_size_override("font_size", 18)
+	_detail_subject.text = "Select a letter to read it."
+	if serif_font:
+		_detail_subject.add_theme_font_override("font", serif_font)
+	_detail_subject.add_theme_font_size_override("font_size", 20)
+	_detail_subject.add_theme_color_override("font_color", Color("#5a4530"))
 	right.add_child(_detail_subject)
 
 	_detail_meta = Label.new()
 	_detail_meta.text = ""
+	_detail_meta.add_theme_color_override("font_color", Color("#7a6850"))
+	_detail_meta.add_theme_font_size_override("font_size", 12)
 	right.add_child(_detail_meta)
+
+	var sep := HSeparator.new()
+	right.add_child(sep)
 
 	_detail_body = RichTextLabel.new()
 	_detail_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_detail_body.bbcode_enabled = false
 	_detail_body.selection_enabled = true
+	if serif_font:
+		_detail_body.add_theme_font_override("normal_font", serif_font)
+	_detail_body.add_theme_font_size_override("normal_font_size", 16)
+	_detail_body.add_theme_color_override("default_color", Color("#1a1108"))
 	right.add_child(_detail_body)
 
 	_detail_actions = VBoxContainer.new()
@@ -88,13 +109,37 @@ func _refresh_list() -> void:
 		child.queue_free()
 	var letters: Array = _get_filtered_letters()
 	letters.sort_custom(func(a: Letter, b: Letter) -> bool: return a.day_received > b.day_received)
+	if letters.is_empty():
+		var empty := Label.new()
+		empty.text = "No letters yet — your hosts and contacts will write when there's news."
+		empty.add_theme_color_override("font_color", Color("#7a6850"))
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_letter_list.add_child(empty)
+		return
 	for letter: Letter in letters:
-		var btn := Button.new()
-		var prefix: String = "* " if not letter.is_read else "  "
-		btn.text = "%s[Day %d] %s" % [prefix, letter.day_received, letter.subject]
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.pressed.connect(_on_letter_selected.bind(letter))
-		_letter_list.add_child(btn)
+		var card := Button.new()
+		var prefix: String = "" if letter.is_read else "● "
+		card.text = "%s%s\n  %s — Day %d" % [prefix, letter.subject, _resolve_sender(letter), letter.day_received]
+		card.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var card_sb := StyleBoxFlat.new()
+		card_sb.bg_color = Color("#e8dcc4")
+		card_sb.set_corner_radius_all(3)
+		card_sb.set_content_margin_all(10)
+		card_sb.border_color = Color("#5a4530")
+		card_sb.set_border_width_all(1)
+		card.add_theme_stylebox_override("normal", card_sb)
+		var card_hover := StyleBoxFlat.new()
+		card_hover.bg_color = Color("#f0e4cc")
+		card_hover.set_corner_radius_all(3)
+		card_hover.set_content_margin_all(10)
+		card_hover.border_color = Color("#8b3a2a")
+		card_hover.set_border_width_all(1)
+		card.add_theme_stylebox_override("hover", card_hover)
+		card.add_theme_color_override("font_color", Color("#1a1108"))
+		card.add_theme_color_override("font_hover_color", Color("#1a1108"))
+		card.add_theme_font_size_override("font_size", 13)
+		card.pressed.connect(_on_letter_selected.bind(letter))
+		_letter_list.add_child(card)
 
 
 func _get_filtered_letters() -> Array:

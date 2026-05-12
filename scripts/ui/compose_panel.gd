@@ -45,9 +45,27 @@ func _ready() -> void:
 	add_child(_cost_label)
 
 	# Seal & Send
+	# Spacer
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(spacer)
+
 	_seal_button = Button.new()
 	_seal_button.text = "Seal & Send"
 	_seal_button.pressed.connect(_on_seal_pressed)
+	var seal_sb := StyleBoxFlat.new()
+	seal_sb.bg_color = Color("#8b3a2a")
+	seal_sb.set_corner_radius_all(6)
+	seal_sb.set_content_margin_all(16)
+	_seal_button.add_theme_stylebox_override("normal", seal_sb)
+	var seal_hover := StyleBoxFlat.new()
+	seal_hover.bg_color = Color("#a64d3a")
+	seal_hover.set_corner_radius_all(6)
+	seal_hover.set_content_margin_all(16)
+	_seal_button.add_theme_stylebox_override("hover", seal_hover)
+	_seal_button.add_theme_color_override("font_color", Color("#e8dcc4"))
+	_seal_button.add_theme_color_override("font_hover_color", Color("#ffffff"))
+	_seal_button.add_theme_font_size_override("font_size", 16)
 	add_child(_seal_button)
 
 	# Populate
@@ -110,10 +128,11 @@ func _update_cost_preview() -> void:
 	var player: ImmortalRecord = immortal_reg.get_player()
 	var mult: float = PublicPositionValues.EXPOSURE_MULTIPLIER.get(
 		player.character.public_position_tier, 1.0)
-	_cost_label.text = "Exposure: ~%.1f | Financial: %d | Bandwidth: %d | Time: ~%d days (estimate)" % [
+	_cost_label.text = "Exposure surface  ~%.1f\nBandwidth         %d slot%s\nFinancial         %d silver\nDuration          ~%d days\n(estimate — final cost depends on operative)" % [
 		ad.baseline_exposure_cost * mult,
-		ad.baseline_financial_cost,
 		ad.baseline_bandwidth_cost,
+		"s" if ad.baseline_bandwidth_cost != 1 else "",
+		ad.baseline_financial_cost,
 		ad.baseline_time_days,
 	]
 
