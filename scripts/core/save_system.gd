@@ -10,7 +10,7 @@ var _event_bus: Node
 var _save_thread: Thread = null
 var _save_in_progress: bool = false
 
-const SAVE_VERSION_CURRENT: int = 3
+const SAVE_VERSION_CURRENT: int = 4
 
 # Registration-based save handlers. Mechanics register at _ready.
 var _snapshot_handlers: Dictionary = {}   # StringName state_key -> Callable
@@ -141,6 +141,8 @@ func _migrate(save_game: SaveGame) -> SaveGame:
 		migrated = _migrate_v1_to_v2(migrated)
 	if migrated.save_version < 3:
 		migrated = _migrate_v2_to_v3(migrated)
+	if migrated.save_version < 4:
+		migrated = _migrate_v3_to_v4(migrated)
 	return migrated
 
 
@@ -176,6 +178,17 @@ func _migrate_v2_to_v3(v2: SaveGame) -> SaveGame:
 		v3.mechanic_states[&"time_state"] = time_state
 	_logger.info(LogChannels.SAVE_SYSTEM, "Migrated save v2 -> v3 (era rename)")
 	return v3
+
+
+func _migrate_v3_to_v4(v3: SaveGame) -> SaveGame:
+	# v4 adds immortal_registry_state for character mutable fields.
+	# Old saves don't have it; characters load from .tres with initial values.
+	var v4 := SaveGame.new()
+	v4.save_version = 4
+	v4.save_mode = v3.save_mode
+	v4.mechanic_states = v3.mechanic_states.duplicate(true)
+	_logger.info(LogChannels.SAVE_SYSTEM, "Migrated save v3 -> v4 (character mutable state)")
+	return v4
 
 
 func _create_empty_save() -> SaveGame:

@@ -24,6 +24,9 @@ const INBOX: StringName = &"inbox"
 const TRACE: StringName = &"trace"
 const INVESTIGATION: StringName = &"investigation"
 const FINGERPRINT: StringName = &"fingerprint"
+const TRUST: StringName = &"trust"
+const HEAT: StringName = &"heat"
+const CULTIVATION: StringName = &"cultivation"
 
 # UI channels
 const UI: StringName = &"ui"

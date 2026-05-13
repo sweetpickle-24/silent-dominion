@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_tcnit"]
+
+[resource]
+script = ExtResource("1_tcnit")
+id = &"cultivate_to_host"
+display_name = "Cultivate Target as Host"
+baseline_exposure_cost = 1.5
+baseline_bandwidth_cost = 2
+baseline_financial_cost = 50
+baseline_time_days = 180

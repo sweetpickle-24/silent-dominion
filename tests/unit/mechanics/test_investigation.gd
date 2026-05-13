@@ -34,13 +34,13 @@ func test_low_coverage_misses_faint_trace():
 
 func test_high_coverage_detects_trace():
 	_investigation.set_coverage(&"player", &"attica", 80)
-	_make_trace(&"athens", &"the_veil", 5.0, 10)
+	_make_trace(&"athens", &"the_veil", 15.0, 10)
 	_investigation._process_investigator(&"player", 11)
 	assert_gt(_investigation.get_detected_count(&"player", &"the_veil"), 0, "High coverage should detect loud trace")
 
 func test_same_trace_counted_once():
 	_investigation.set_coverage(&"player", &"attica", 80)
-	_make_trace(&"athens", &"the_veil", 5.0, 10)
+	_make_trace(&"athens", &"the_veil", 15.0, 10)
 	_investigation._process_investigator(&"player", 11)
 	_investigation._process_investigator(&"player", 12)
 	assert_eq(_investigation.get_detected_count(&"player", &"the_veil"), 1, "Same trace counted once")
@@ -54,7 +54,7 @@ func test_detection_advances_fingerprint():
 		t.emitting_immortal_id = &"the_veil_founder"
 		t.emitting_society_id = &"the_veil"
 		t.target_place_id = &"athens"
-		t.emission_strength = 5.0
+		t.emission_strength = 15.0
 		t.emitted_at_day = i * 10
 		t.expires_at_day = t.emitted_at_day + 730
 		if not _trace._traces_by_place.has(&"athens"):

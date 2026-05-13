@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -13,6 +13,9 @@
 [ext_resource type="Script" path="res://scripts/mechanics/trace/trace.gd" id="12_trace"]
 [ext_resource type="Script" path="res://scripts/mechanics/fingerprint/fingerprint.gd" id="13_fingerprint"]
 [ext_resource type="Script" path="res://scripts/mechanics/investigation/investigation.gd" id="14_investigation"]
+[ext_resource type="Script" path="res://scripts/mechanics/trust/trust.gd" id="15_trust"]
+[ext_resource type="Script" path="res://scripts/mechanics/heat/heat.gd" id="16_heat"]
+[ext_resource type="Script" path="res://scripts/mechanics/cultivation/cultivation.gd" id="17_cultivation"]
 
 [node name="Main" type="Node"]
 
@@ -50,6 +53,15 @@ script = ExtResource("13_fingerprint")
 
 [node name="Investigation" type="Node" parent="Mechanics"]
 script = ExtResource("14_investigation")
+
+[node name="Trust" type="Node" parent="Mechanics"]
+script = ExtResource("15_trust")
+
+[node name="Heat" type="Node" parent="Mechanics"]
+script = ExtResource("16_heat")
+
+[node name="Cultivation" type="Node" parent="Mechanics"]
+script = ExtResource("17_cultivation")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

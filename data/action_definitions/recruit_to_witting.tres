@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ActionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/definitions/action_definition.gd" id="1_akgse"]
+
+[resource]
+script = ExtResource("1_akgse")
+id = &"recruit_to_witting"
+display_name = "Recruit Host as Witting Operative"
+tier = 2
+baseline_exposure_cost = 3.0
+baseline_bandwidth_cost = 2
+baseline_financial_cost = 200
+baseline_time_days = 90

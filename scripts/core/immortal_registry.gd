@@ -12,10 +12,64 @@ func _ready() -> void:
 	_logger = get_node("/root/Logger")
 	_load_immortals("res://data/immortals/")
 	_load_characters("res://data/characters/")
+	call_deferred("_register_save_handlers")
 	_logger.info(LogChannels.IMMORTAL_REGISTRY, "ImmortalRegistry loaded", {
 		"immortals": _immortals.size(),
 		"characters": _characters.size(),
 	})
+
+
+func _register_save_handlers() -> void:
+	var save_system: Node = get_node("/root/SaveSystem")
+	save_system.register_state_handlers(
+		&"immortal_registry_state",
+		Callable(self, "snapshot_state"),
+		Callable(self, "apply_state"),
+	)
+
+
+func snapshot_state() -> Dictionary:
+	var character_states: Dictionary = {}
+	for char_id: StringName in _characters.keys():
+		var ch: CharacterRecord = _characters[char_id]
+		character_states[char_id] = {
+			"heat": ch.heat, "trust_score": ch.trust_score,
+			"chain_status": ch.chain_status, "society_id": ch.society_id,
+			"current_place": ch.current_place, "death_day": ch.death_day,
+		}
+	var immortal_states: Dictionary = {}
+	for imm_id: StringName in _immortals.keys():
+		var imm: ImmortalRecord = _immortals[imm_id]
+		immortal_states[imm_id] = {
+			"current_cover_identity": imm.current_cover_identity,
+			"accumulated_legend": imm.accumulated_legend,
+			"society_id": imm.society_id,
+		}
+	return {"characters": character_states, "immortals": immortal_states}
+
+
+func apply_state(state) -> void:
+	if state == null or (state is Dictionary and state.is_empty()):
+		return
+	for char_id: StringName in state.get("characters", {}).keys():
+		var ch: CharacterRecord = _characters.get(char_id, null)
+		if ch == null:
+			continue
+		var mut: Dictionary = state["characters"][char_id]
+		ch.heat = mut.get("heat", ch.heat)
+		ch.trust_score = mut.get("trust_score", ch.trust_score)
+		ch.chain_status = mut.get("chain_status", ch.chain_status)
+		ch.society_id = mut.get("society_id", ch.society_id)
+		ch.current_place = mut.get("current_place", ch.current_place)
+		ch.death_day = mut.get("death_day", ch.death_day)
+	for imm_id: StringName in state.get("immortals", {}).keys():
+		var imm: ImmortalRecord = _immortals.get(imm_id, null)
+		if imm == null:
+			continue
+		var mut: Dictionary = state["immortals"][imm_id]
+		imm.current_cover_identity = mut.get("current_cover_identity", imm.current_cover_identity)
+		imm.accumulated_legend = mut.get("accumulated_legend", imm.accumulated_legend)
+		imm.society_id = mut.get("society_id", imm.society_id)
 
 
 # --- Public read-only query API ---
