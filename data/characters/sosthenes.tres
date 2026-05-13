@@ -12,6 +12,7 @@ province = &"ionia"
 current_place = &"miletus"
 public_position = "Geometry tutor in the Milesian school"
 chain_status = &"witting_operative"
+society_id = &"player_organisation"
 languages = Array[StringName]([&"greek", &"persian", &"aramaic"])
 ambition = 25
 paranoia = 60

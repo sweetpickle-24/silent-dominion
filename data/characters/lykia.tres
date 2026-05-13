@@ -13,6 +13,7 @@ current_place = &"corinth"
 public_position = "Imports of Phoenician dye and rare cloth"
 public_position_tier = &"invisible"
 chain_status = &"witting_operative"
+society_id = &"player_organisation"
 languages = Array[StringName]([&"greek"])
 ambition = 55
 loyalty = 65

@@ -13,6 +13,7 @@ current_place = &"athens"
 public_position = "Mid-tier shipping merchant; owns three trade galleys"
 max_concurrent_assignments = 6
 chain_status = &"lieutenant"
+society_id = &"player_organisation"
 languages = Array[StringName]([&"greek", &"phoenician"])
 ambition = 35
 paranoia = 40

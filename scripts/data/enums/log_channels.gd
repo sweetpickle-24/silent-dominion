@@ -21,6 +21,9 @@ const IMMORTAL_REGISTRY: StringName = &"immortal_registry"
 const LETTER: StringName = &"letter"
 const SOCIETY_AI: StringName = &"society_ai"
 const INBOX: StringName = &"inbox"
+const TRACE: StringName = &"trace"
+const INVESTIGATION: StringName = &"investigation"
+const FINGERPRINT: StringName = &"fingerprint"
 
 # UI channels
 const UI: StringName = &"ui"

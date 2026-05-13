@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -10,6 +10,9 @@
 [ext_resource type="Script" path="res://scripts/mechanics/letter/correspondence.gd" id="9_correspondence"]
 [ext_resource type="Script" path="res://scripts/ui/desk.gd" id="10_desk"]
 [ext_resource type="Script" path="res://scripts/mechanics/society_ai/society_ai.gd" id="11_society_ai"]
+[ext_resource type="Script" path="res://scripts/mechanics/trace/trace.gd" id="12_trace"]
+[ext_resource type="Script" path="res://scripts/mechanics/fingerprint/fingerprint.gd" id="13_fingerprint"]
+[ext_resource type="Script" path="res://scripts/mechanics/investigation/investigation.gd" id="14_investigation"]
 
 [node name="Main" type="Node"]
 
@@ -38,6 +41,15 @@ script = ExtResource("9_correspondence")
 
 [node name="SocietyAI" type="Node" parent="Mechanics"]
 script = ExtResource("11_society_ai")
+
+[node name="Trace" type="Node" parent="Mechanics"]
+script = ExtResource("12_trace")
+
+[node name="Fingerprint" type="Node" parent="Mechanics"]
+script = ExtResource("13_fingerprint")
+
+[node name="Investigation" type="Node" parent="Mechanics"]
+script = ExtResource("14_investigation")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

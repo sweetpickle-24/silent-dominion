@@ -13,6 +13,7 @@ current_place = &"athens"
 public_position = "Athenian merchant; Theron's longtime deputy in the harbor district"
 max_concurrent_assignments = 4
 chain_status = &"coordinator"
+society_id = &"player_organisation"
 languages = Array[StringName]([&"greek", &"phoenician"])
 loyalty = 80
 piety = 45

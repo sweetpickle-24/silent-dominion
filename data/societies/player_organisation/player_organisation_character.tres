@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SocietyCharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_vsc8u"]
+[ext_resource type="Script" path="res://scripts/data/records/society_character_record.gd" id="2_gxc33"]
+
+[resource]
+script = ExtResource("2_gxc33")
+society_id = &"player_organisation"
+display_name = "Your Organisation"
