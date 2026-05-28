@@ -43,6 +43,11 @@ func test_rules_loaded_from_data():
 	add_child(ai)
 	assert_gt(ai._rules_by_society.size(), 0, "Should have loaded at least one society's rules")
 	assert_true(ai._rules_by_society.has(&"the_veil"), "Should have Veil rules")
-	assert_eq(ai._rules_by_society[&"the_veil"].size(), 12, "Should have 12 Veil rules")
+	assert_eq(ai._rules_by_society[&"the_veil"].size(), 27, "Should have 27 Veil rules")
+	var eb: Node = get_node("/root/EventBus")
+	if ai._tick_sub:
+		eb.unsubscribe(ai._tick_sub)
+	for sub in ai._reactive_subs:
+		eb.unsubscribe(sub)
 	remove_child(ai)
 	ai.free()

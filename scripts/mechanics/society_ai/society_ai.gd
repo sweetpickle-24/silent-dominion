@@ -138,6 +138,8 @@ func _evaluate_society_rules(society_id: StringName, day: int) -> void:
 	var active: Array = _action.get_active_schemes(immortal_id)
 	if active.size() >= MAX_CONCURRENT_SCHEMES_PER_SOCIETY:
 		return
+	if not _rules_by_society.has(society_id):
+		return
 	var rules: Array = _rules_by_society[society_id]
 	for rule: SocietyAIRule in rules:
 		if not _rule_off_cooldown(rule, day):

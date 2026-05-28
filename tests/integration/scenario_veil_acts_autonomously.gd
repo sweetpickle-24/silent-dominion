@@ -20,8 +20,11 @@ func before_each():
 
 func after_each():
 	var eb: Node = get_node("/root/EventBus")
-	if is_instance_valid(_ai) and _ai._tick_sub:
-		eb.unsubscribe(_ai._tick_sub)
+	if is_instance_valid(_ai):
+		if _ai._tick_sub:
+			eb.unsubscribe(_ai._tick_sub)
+		for sub in _ai._reactive_subs:
+			eb.unsubscribe(sub)
 	if is_instance_valid(_action):
 		if _action._phase_advanced_sub:
 			eb.unsubscribe(_action._phase_advanced_sub)
@@ -38,7 +41,7 @@ func after_each():
 func test_veil_dispatches_over_five_years():
 	# Verify rules loaded
 	assert_true(_ai._rules_by_society.has(&"the_veil"))
-	assert_eq(_ai._rules_by_society[&"the_veil"].size(), 12)
+	assert_eq(_ai._rules_by_society[&"the_veil"].size(), 27)
 
 	var veil_id: StringName = _ai._get_society_immortal_id(&"the_veil")
 	assert_ne(veil_id, &"", "Veil should have an immortal")

@@ -14,14 +14,6 @@ config/name="Silent Dominion"
 run/main_scene="res://scenes/main/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
-[display]
-
-window/size/viewport_width=1600
-window/size/viewport_height=900
-window/size/resizable=true
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-
 [autoload]
 
 Logger="*res://scripts/core/logger.gd"
@@ -35,6 +27,13 @@ ColorblindPalette="*res://scripts/core/colorblind_palette.gd"
 CrashGuard="*res://scripts/core/crash_guard.gd"
 RuleEvaluator="*res://scripts/core/rule_evaluator.gd"
 Helpers="*res://scripts/utils/helpers.gd"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [editor_plugins]
 

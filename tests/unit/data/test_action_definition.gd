@@ -41,7 +41,7 @@ func test_chain_loads_all_definitions():
 	var chain := Chain.new()
 	chain.name = "Chain"
 	add_child(chain)
-	assert_eq(chain.get_all_action_definitions().size(), 17, "Should load 13 action definitions")
+	assert_eq(chain.get_all_action_definitions().size(), 21, "Should load 21 action definitions")
 	assert_not_null(chain.get_action_definition(&"observe"))
 	assert_not_null(chain.get_action_definition(&"corrupt_institution"))
 	assert_null(chain.get_action_definition(&"nonexistent"))

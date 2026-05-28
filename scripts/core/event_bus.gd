@@ -151,6 +151,10 @@ func _dispatch_synchronous(event: EventBase) -> void:
 	for sub: Subscription in subs:
 		if not _passes_scope_filter(event, sub):
 			continue
+		# Guard against dangling subscriptions from freed nodes
+		var obj: Object = sub.handler.get_object()
+		if obj == null or not is_instance_valid(obj):
+			continue
 		sub.handler.call(event)
 		if _logger.enabled_for(LogChannels.EVENT_BUS, _LOG_DEBUG):
 			_logger.debug(LogChannels.EVENT_BUS, "%s -> %s (priority %d)" % [
@@ -183,6 +187,9 @@ func _drain_queued() -> void:
 			var subs: Array = _subscriptions.get(event_class, [])
 			for sub: Subscription in subs:
 				if not _passes_scope_filter(event, sub):
+					continue
+				var obj: Object = sub.handler.get_object()
+				if obj == null or not is_instance_valid(obj):
 					continue
 				sub.handler.call(event)
 
