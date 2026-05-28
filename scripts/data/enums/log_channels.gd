@@ -34,6 +34,9 @@ const REPUTATION: StringName = &"reputation"
 const DIPLOMACY: StringName = &"diplomacy"
 const KINGDOM: StringName = &"kingdom"
 const RULER_AI: StringName = &"ruler_ai"
+const POPULATION: StringName = &"population"
+const MORTALITY: StringName = &"mortality"
+const CHAR_GENERATION: StringName = &"char_generation"
 
 # UI channels
 const UI: StringName = &"ui"

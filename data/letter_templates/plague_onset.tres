@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"plague_onset"
+triggering_event_class = &"PlagueOnsetEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Plague reported", "Disease at {place_name}"])
+body_variants = Array[String](["Plague has broken out at {place_name}. Severity: {severity}. Mass mortality expected.", "A devastating disease is spreading through {place_name}. The death toll is rising."])
+content_category = &"demographic_shock"
+is_authored = true

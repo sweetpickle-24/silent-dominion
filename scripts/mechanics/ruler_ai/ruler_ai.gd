@@ -120,6 +120,13 @@ func _wire_reactive_subscriptions() -> void:
 			260, &"", EndOfTickPhases.WORLD_SHARED,
 		)
 		_reactive_subs.append(sub)
+	# Subscribe to character death for ruler succession
+	var death_sub = _event_bus.subscribe(
+		preload("res://scripts/data/events/character_died_event.gd"),
+		Callable(self, "_on_character_died"),
+		200, &"", EndOfTickPhases.WORLD_SHARED,
+	)
+	_reactive_subs.append(death_sub)
 
 
 # --- Per-tick evaluation ---
@@ -176,6 +183,96 @@ func _on_reactive_event(event: EventBase) -> void:
 		rules, event, day, context, _rule_evaluator,
 		func(rule: SocietyAIRule) -> bool: return _fire_decision(rule, state, kingdom_id, day),
 	)
+
+
+# --- Ruler succession ---
+
+func _on_character_died(event: CharacterDiedEvent) -> void:
+	if not event.was_ruler or event.kingdom_id == &"":
+		return
+	_handle_succession(event.kingdom_id, event.character_id, event.day)
+
+
+func _handle_succession(kingdom_id: StringName, dead_ruler_id: StringName, day: int) -> void:
+	if _kingdom_node == null:
+		return
+	var k: KingdomRecord = _kingdom_node.get_kingdom(kingdom_id)
+	if k == null:
+		return
+	# Select successor: generated claimant (placeholder — heir/family trees at 11.17)
+	var successor: CharacterRecord = _generate_successor(k, day)
+	if successor == null:
+		_logger.warn(LogChannels.RULER_AI, "No successor found", {"kingdom": kingdom_id})
+		return
+	# Register the new character
+	_immortal_registry.register_character(successor)
+	# Transfer throne
+	var old_ruler_id: StringName = k.ruler_character_id
+	k.ruler_character_id = successor.id
+	# Legitimacy hit: succession always costs legitimacy
+	var legitimacy_hit: int = 15  # placeholder; contested = bigger hit
+	_kingdom_node.apply_legitimacy_change(kingdom_id, -legitimacy_hit)
+	# Create new RulerState
+	_ruler_states.erase(kingdom_id)
+	_runners.erase(kingdom_id)
+	_ensure_ruler_state(kingdom_id)
+	# Fire event
+	var succ_event := RulerSucceededEvent.new()
+	succ_event.kingdom_id = kingdom_id
+	succ_event.old_ruler_id = old_ruler_id
+	succ_event.new_ruler_id = successor.id
+	succ_event.succession_type = &"generated"
+	succ_event.legitimacy_hit = legitimacy_hit
+	succ_event.day = day
+	_event_bus.dispatch(succ_event)
+	_logger.info(LogChannels.RULER_AI, "Ruler succession", {
+		"kingdom": kingdom_id, "old_ruler": dead_ruler_id,
+		"new_ruler": successor.id, "legitimacy_hit": legitimacy_hit,
+	})
+
+
+func _generate_successor(k: KingdomRecord, day: int) -> CharacterRecord:
+	# Placeholder successor generation — produces a character with
+	# traits influenced by the kingdom's dominant faction
+	var successor := CharacterRecord.new()
+	successor.id = StringName("ruler_%s_%d" % [k.id, day])
+	successor.name = "New ruler of %s (placeholder)" % k.display_name
+	successor.birth_day = day - (35 * 365)  # ~35 years old
+	successor.profession = &"ruler"
+	successor.current_place = k.capital_place_id
+	var capital: PlaceRecord = _world_registry.get_place(k.capital_place_id)
+	if capital != null:
+		successor.province = capital.province
+	successor.public_position = "Ruler"
+	successor.public_position_tier = PublicPositionValues.HIGH
+	# Trait generation: base 50, shifted by dominant faction
+	successor.ambition = 50
+	successor.paranoia = 50
+	successor.loyalty = 50
+	successor.piety = 50
+	successor.intellect = 50
+	successor.greed = 50
+	successor.ruthlessness = 50
+	successor.curiosity = 50
+	successor.resilience = 50
+	successor.charisma = 50
+	match k.dominant_faction():
+		&"military":
+			successor.ambition += 15
+			successor.ruthlessness += 10
+			successor.paranoia += 5
+		&"clergy":
+			successor.piety += 20
+			successor.loyalty += 10
+		&"merchants":
+			successor.greed += 15
+			successor.intellect += 10
+			successor.charisma += 5
+		&"nobility":
+			successor.ambition += 10
+			successor.charisma += 10
+			successor.loyalty += 5
+	return successor
 
 
 # --- Context building ---

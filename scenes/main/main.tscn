@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -21,6 +21,9 @@
 [ext_resource type="Script" path="res://scripts/mechanics/counter_intelligence/counter_intelligence.gd" id="20_counter_intelligence"]
 [ext_resource type="Script" path="res://scripts/mechanics/kingdom/kingdom.gd" id="21_kingdom"]
 [ext_resource type="Script" path="res://scripts/mechanics/ruler_ai/ruler_ai.gd" id="22_ruler_ai"]
+[ext_resource type="Script" path="res://scripts/mechanics/population/population.gd" id="23_population"]
+[ext_resource type="Script" path="res://scripts/mechanics/mortality/mortality.gd" id="24_mortality"]
+[ext_resource type="Script" path="res://scripts/mechanics/char_generation/char_generation.gd" id="25_char_generation"]
 
 [node name="Main" type="Node"]
 
@@ -82,6 +85,15 @@ script = ExtResource("21_kingdom")
 
 [node name="RulerAI" type="Node" parent="Mechanics"]
 script = ExtResource("22_ruler_ai")
+
+[node name="Population" type="Node" parent="Mechanics"]
+script = ExtResource("23_population")
+
+[node name="Mortality" type="Node" parent="Mechanics"]
+script = ExtResource("24_mortality")
+
+[node name="CharGeneration" type="Node" parent="Mechanics"]
+script = ExtResource("25_char_generation")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

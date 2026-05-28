@@ -92,12 +92,7 @@ func _update_place(record: PlaceRecord, day: int) -> void:
 # All numbers are placeholder calibration values. T2 calibration revises.
 
 func _update_city(record: PlaceRecord, _day: int) -> void:
-	# ~0.1% annual growth baseline = 0.00000274 per day. Infrastructure bonus up to 2×.
-	var pop_drift_rate: float = 0.00000274 * (1.0 + record.infrastructure_level / 100.0)
-	var pop_delta: int = int(record.population * pop_drift_rate)
-	if pop_delta < 1 and record.population > 100:
-		pop_delta = 1
-	record.population += pop_delta
+	# Population drift removed — Population mechanic (11.14b) is the sole driver.
 	record.tax_yield_per_day = _compute_city_tax_yield(record)
 	record.accumulated_yield += record.tax_yield_per_day
 
@@ -109,19 +104,13 @@ func _compute_city_tax_yield(record: PlaceRecord) -> int:
 
 
 func _update_town(record: PlaceRecord, _day: int) -> void:
-	var pop_drift_rate: float = 0.0000020 * (1.0 + record.infrastructure_level / 100.0)
-	var pop_delta: int = int(record.population * pop_drift_rate)
-	if pop_delta < 1 and record.population > 100:
-		pop_delta = 1
-	record.population += pop_delta
+	# Population drift removed — Population mechanic (11.14b) is the sole driver.
 	record.tax_yield_per_day = int(_compute_city_tax_yield(record) * 0.6)
 	record.accumulated_yield += record.tax_yield_per_day
 
 
 func _update_village(record: PlaceRecord, _day: int) -> void:
-	var pop_drift_rate: float = 0.0000015
-	var pop_delta: int = int(record.population * pop_drift_rate)
-	record.population += pop_delta
+	# Population drift removed — Population mechanic (11.14b) is the sole driver.
 	record.tax_yield_per_day = int(record.population / 5000.0)
 	record.accumulated_yield += record.tax_yield_per_day
 
@@ -138,10 +127,9 @@ func _update_mine(record: PlaceRecord, _day: int) -> void:
 	record.accumulated_yield += production
 
 
-func _update_monastery(record: PlaceRecord, day: int) -> void:
+func _update_monastery(record: PlaceRecord, _day: int) -> void:
+	# Population drift removed — Population mechanic (11.14b) is the sole driver.
 	record.tax_yield_per_day = 0
-	if day % 365 == 0:
-		record.population += 1
 
 
 func _update_fort(record: PlaceRecord, _day: int) -> void:

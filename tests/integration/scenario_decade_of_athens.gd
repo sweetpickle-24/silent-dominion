@@ -19,16 +19,25 @@ func after_each():
 
 
 func test_decade_of_athens():
+	# Reset populations — prior tests may have mutated WorldRegistry resources
+	var wr: Node = get_node("/root/WorldRegistry")
+	for pid: StringName in wr.all_place_ids():
+		var p: PlaceRecord = wr.get_place(pid)
+		if p != null:
+			p.accumulated_yield = 0
+	wr.get_place(&"athens").population = 100000
+	wr.get_place(&"rome").population = 25000
+	wr.get_place(&"delphi").population = 800
+	_place._initialize_runtime_state_from_registry()
 	# Tick 3650 days (10 years)
 	for day in range(1, 3651):
 		_place.update_per_day(day)
 
 	var athens: PlaceRecord = _place.get_place_state(&"athens")
 	assert_not_null(athens)
-	# Athens started at 100,000. At ~0.1% annual growth with infra bonus,
-	# after 10 years should be roughly 100,500-103,000.
-	assert_gt(athens.population, 100000, "Athens population should have grown")
-	assert_lt(athens.population, 110000, "Athens population should not have exploded")
+	# Population drift removed from Place at 11.14b — Population mechanic owns growth.
+	# Place keeps population stable; yields still accumulate from existing population.
+	assert_eq(athens.population, 100000, "Athens population stable (Population mechanic owns growth)")
 	assert_gt(athens.accumulated_yield, 0, "Athens should have accumulated tax yield")
 
 	# Laurion mine should have produced and depleted
@@ -41,13 +50,12 @@ func test_decade_of_athens():
 	var delphi: PlaceRecord = _place.get_place_state(&"delphi")
 	assert_not_null(delphi)
 	assert_eq(delphi.accumulated_yield, 0, "Delphi (monastery) should have 0 yield")
-	# Population should have grown by ~10 (1 monk/year)
-	assert_eq(delphi.population, 810, "Delphi should have gained ~10 monks over 10 years")
+	assert_eq(delphi.population, 800, "Delphi population stable")
 
-	# Rome (town) should have modest growth
+	# Rome (town) — population stable, yield accumulates
 	var rome: PlaceRecord = _place.get_place_state(&"rome")
 	assert_not_null(rome)
-	assert_gt(rome.population, 25000, "Rome should have grown")
+	assert_eq(rome.population, 25000, "Rome population stable")
 	assert_gt(rome.accumulated_yield, 0, "Rome should have accumulated yield")
 
 	# Babylon (largest city) should have largest yield

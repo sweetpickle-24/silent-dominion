@@ -105,10 +105,15 @@ func derived_military_strength(kingdom_id: StringName) -> int:
 	if k == null:
 		return 0
 	var levy: int = 0
+	var pop_node: Node = get_node_or_null("../Population")
 	for place_id: StringName in k.member_place_ids:
-		var place: PlaceRecord = _world_registry.get_place(place_id)
-		if place != null:
-			levy += int(place.population * 0.05)  # 5% of population as levy potential
+		if pop_node != null:
+			levy += pop_node.levy_capacity(place_id)
+		else:
+			# Fallback: read place.population directly (pre-Population-mechanic compat)
+			var place: PlaceRecord = _world_registry.get_place(place_id)
+			if place != null:
+				levy += int(place.population * 0.05)
 	return levy + k.standing_army
 
 
@@ -212,6 +217,15 @@ func _update_unrest(k: KingdomRecord) -> void:
 	# Low legitimacy builds unrest
 	if k.legitimacy < 50:
 		delta += (50 - k.legitimacy) * UNREST_FROM_LOW_LEGITIMACY_PER_DAY
+	# Demographic pressure: migration outflow / scarcity in member places
+	var pop_node: Node = get_node_or_null("../Population")
+	if pop_node != null:
+		var pressure: float = 0.0
+		for place_id: StringName in k.member_place_ids:
+			pressure += pop_node.migration_pressure(place_id)
+		if k.member_place_ids.size() > 0:
+			pressure /= k.member_place_ids.size()
+		delta += pressure * 2.0  # demographic pressure adds to unrest
 	# Natural decay
 	if delta <= 0.0:
 		delta = -UNREST_DECAY_PER_DAY

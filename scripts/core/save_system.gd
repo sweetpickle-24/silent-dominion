@@ -10,7 +10,7 @@ var _event_bus: Node
 var _save_thread: Thread = null
 var _save_in_progress: bool = false
 
-const SAVE_VERSION_CURRENT: int = 5
+const SAVE_VERSION_CURRENT: int = 6
 
 # Registration-based save handlers. Mechanics register at _ready.
 var _snapshot_handlers: Dictionary = {}   # StringName state_key -> Callable

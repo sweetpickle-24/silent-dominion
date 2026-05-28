@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"character_of_note_died"
+triggering_event_class = &"CharacterDiedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["A death reported", "Loss of a known figure"])
+body_variants = Array[String](["{character_name} has died of {cause} at {place_name}.", "Word reaches you: {character_name} is dead. Cause: {cause}."])
+content_category = &"mortality"
+is_authored = true

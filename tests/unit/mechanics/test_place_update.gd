@@ -29,12 +29,14 @@ func after_each():
 		_place.free()
 
 
-func test_city_population_grows():
+func test_city_population_stable_without_population_mechanic():
+	# Population drift removed from Place at 11.14b — Population mechanic owns growth.
+	# Place should NOT change population on its own.
 	var r := _make_record(PlaceTypeValues.CITY, 10000, 50)
 	var start_pop: int = r.population
 	for day in range(365):
 		_place._update_city(r, day)
-	assert_gt(r.population, start_pop, "City population should grow over a year")
+	assert_eq(r.population, start_pop, "City population should be stable (Population mechanic owns growth)")
 
 
 func test_city_tax_yield_positive():
@@ -107,12 +109,14 @@ func test_save_load_roundtrip():
 	for day in range(1, 11):
 		_place.update_per_day(day)
 	var athens_pop_before: int = _place.get_place_state(&"athens").population
-	assert_gt(athens_pop_before, 100000, "Athens should have grown slightly")
+	# Population no longer drifts from Place (11.14b); yield accumulates instead
+	assert_eq(athens_pop_before, 100000, "Athens population should be stable (Population mechanic owns growth)")
+	var yield_before: int = _place.get_place_state(&"athens").accumulated_yield
+	assert_gt(yield_before, 0, "Athens should have accumulated yield")
 
 	var state: Dictionary = _place.snapshot_state()
-	# Reset by re-initializing from registry
 	_place._initialize_runtime_state_from_registry()
 	assert_eq(_place.get_place_state(&"athens").population, 100000, "Should be reset to registry value")
 
 	_place.apply_state(state)
-	assert_eq(_place.get_place_state(&"athens").population, athens_pop_before, "Should restore saved state")
+	assert_eq(_place.get_place_state(&"athens").accumulated_yield, yield_before, "Should restore saved state")

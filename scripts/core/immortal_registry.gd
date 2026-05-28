@@ -121,6 +121,33 @@ func character_count() -> int:
 	return _characters.size()
 
 
+# --- Write paths (used by Mortality, CharGen, Cultivation) ---
+
+func register_character(character: CharacterRecord) -> void:
+	assert(character.id != &"", "Character must have an id")
+	_characters[character.id] = character
+
+
+func unregister_character(character_id: StringName) -> void:
+	_characters.erase(character_id)
+
+
+func set_character_death_day(character_id: StringName, day: int) -> void:
+	var character: CharacterRecord = get_character_record_any(character_id)
+	if character != null:
+		character.death_day = day
+
+
+func is_immortal(character_id: StringName) -> bool:
+	for imm_id: StringName in _immortals.keys():
+		var imm: ImmortalRecord = _immortals[imm_id]
+		if imm.character != null and imm.character.id == character_id:
+			return true
+		if imm_id == character_id:
+			return true
+	return false
+
+
 # --- Internal loading ---
 
 func _load_immortals(dir_path: String) -> void:

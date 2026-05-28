@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"famine_onset"
+triggering_event_class = &"FamineOnsetEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Famine reported", "Scarcity in {place_name}"])
+body_variants = Array[String](["Famine has struck {place_name}. Severity: {severity}. Population decline and migration expected.", "Reports of severe food scarcity at {place_name}. The population is suffering."])
+content_category = &"demographic_shock"
+is_authored = true
