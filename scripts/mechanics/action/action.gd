@@ -51,6 +51,18 @@ func _ready() -> void:
 
 func dispatch(action_type: StringName, target_ref: StringName, target_place_ref: StringName, immortal_id: StringName = &"player") -> SchemeRecord:
 	assert(_is_valid_action_type(action_type), "Unknown action_type: %s" % action_type)
+	# Mutual cultivation conflict detection
+	var is_recruit_attempt: bool = false
+	if action_type in [&"cultivate_to_host", &"cultivate", &"recruit_to_witting", &"cultivate_to_host"]:
+		var ir: Node = get_node_or_null("/root/ImmortalRegistry")
+		if ir != null:
+			var target_char: CharacterRecord = ir.get_character_record_any(target_ref)
+			if target_char != null and target_char.society_id != &"" and target_char.society_id != _get_immortal_society(immortal_id):
+				is_recruit_attempt = true
+				_logger.info(LogChannels.ACTION, "Recruit attempt detected — target belongs to another society", {
+					"target": target_ref, "target_society": target_char.society_id,
+					"dispatcher": immortal_id,
+				})
 	var scheme := SchemeRecord.new()
 	scheme.id = _generate_scheme_id(immortal_id)
 	scheme.immortal_id = immortal_id
@@ -61,6 +73,17 @@ func dispatch(action_type: StringName, target_ref: StringName, target_place_ref:
 	scheme.dispatched_at_day = _time_keeper.current_day
 	scheme.current_phase_entered_at_day = _time_keeper.current_day
 	scheme.phase_history = [{"phase": SchemePhases.DISPATCHED, "entered_at_day": _time_keeper.current_day}]
+	scheme.is_recruit_attempt = is_recruit_attempt
+
+	# Treaty violation check (Part 1.7) — player can break a treaty; violation is detected
+	var treaty_node: Node = get_node_or_null("/root/Main/Mechanics/Treaty")
+	if treaty_node != null and treaty_node.has_method("find_treaty_violation"):
+		var violation: Dictionary = treaty_node.find_treaty_violation(action_type, target_ref, immortal_id)
+		if not violation.is_empty():
+			_logger.warn(LogChannels.ACTION, "Action dispatched violates active treaty", {
+				"treaty_id": violation["treaty"].id,
+			})
+			treaty_node.record_violation(violation["treaty"], immortal_id, action_type, target_ref)
 
 	var bucket: ImmortalSchemes = _schemes_by_immortal.get(immortal_id)
 	if bucket == null:
@@ -166,7 +189,23 @@ func _is_valid_action_type(action_type: StringName) -> bool:
 		ActionTypeValues.BUILD_COVERT_NETWORK, ActionTypeValues.DISRUPT_TRADE,
 		ActionTypeValues.INFILTRATE_INSTITUTION, ActionTypeValues.DEPOSE_RULER,
 		ActionTypeValues.DESTROY_INSTITUTION,
+		ActionTypeValues.CULTIVATE_TO_HOST, ActionTypeValues.RECRUIT_TO_WITTING,
+		ActionTypeValues.PROMOTE_TO_COORDINATOR, ActionTypeValues.PROMOTE_TO_LIEUTENANT,
+		ActionTypeValues.COUNTER_INTELLIGENCE_ROTATE,
+		ActionTypeValues.COUNTER_INTELLIGENCE_OBSCURE_TRACES,
+		ActionTypeValues.PLANT_FALSE_FINGERPRINT,
+		ActionTypeValues.COUNTER_INTELLIGENCE_ARCHIVE_QUERY,
 	]
+
+
+func _get_immortal_society(immortal_id: StringName) -> StringName:
+	var ir: Node = get_node_or_null("/root/ImmortalRegistry")
+	if ir == null:
+		return &""
+	var immortal: ImmortalRecord = ir.get_immortal(immortal_id)
+	if immortal == null:
+		return &""
+	return immortal.society_id
 
 
 func _generate_scheme_id(immortal_id: StringName) -> StringName:

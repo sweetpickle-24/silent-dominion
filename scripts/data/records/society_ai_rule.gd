@@ -16,3 +16,9 @@ extends Resource
 @export var last_fired_at_day: int = -1
 @export var times_fired: int = 0
 @export var cooldown_days: int = 30
+
+# Memory: which memory keys this rule reads/writes
+@export var memory_keys_used: Array[StringName] = []
+
+# Reactive triggers: event class names that trigger this rule reactively (not just per-tick)
+@export var reactive_trigger_event_classes: Array[StringName] = []

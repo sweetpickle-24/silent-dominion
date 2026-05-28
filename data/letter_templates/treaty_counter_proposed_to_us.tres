@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"treaty_counter_proposed_to_us"
+triggering_event_class = &"TreatyCounterProposedEvent"
+sender_kind = &"intermediary"
+subject_variants = Array[String](["Modified terms", "A counter-proposal"])
+body_variants = Array[String](["The other party has modified your proposed terms. Some primitives were removed, others altered, and new conditions added. Review the counter-proposal — you may accept these modified terms, reject them, or counter-propose again.", "Your terms were not accepted as-is. A counter-proposal has arrived with modifications. The negotiation continues."])
+content_category = &"treaty"
+is_authored = true

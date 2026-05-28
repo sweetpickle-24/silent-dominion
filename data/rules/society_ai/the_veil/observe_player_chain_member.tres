@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:observe_player_chain_member"
+society_id = &"the_veil"
+priority = 95
+rule_tier = &"operational"
+description = "When Fingerprint Level 4 has identified a specific player chain member, observe at their current place."
+condition = "world.day > 730"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "observe", "target_selector": "random_scholarly_city", "target_constraints": {}}
+cooldown_days = 365

@@ -50,9 +50,11 @@ func _on_scheme_resolved(event: SchemeResolvedEvent) -> void:
 	if event.outcome != &"success":
 		return
 	target.chain_status = to_status
-	if to_status == &"host" and target.society_id == &"":
-		var immortal: ImmortalRecord = _immortal_registry.get_immortal(scheme.immortal_id)
-		if immortal != null:
+	# Set or swap society_id
+	var immortal: ImmortalRecord = _immortal_registry.get_immortal(scheme.immortal_id)
+	if immortal != null:
+		if target.society_id == &"" or target.society_id != immortal.society_id:
+			# Recruit (steal): successful cultivation of another society's member swaps society_id
 			target.society_id = immortal.society_id
 	_last_promotion_day[scheme.target_ref] = _time_keeper.current_day
 	_logger.info(LogChannels.CULTIVATION, "Cultivation success", {

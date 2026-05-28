@@ -15,8 +15,12 @@ var _rule_evaluator: Node
 var _rules_by_society: Dictionary = {}   # StringName society_id -> Array[SocietyAIRule]
 var _rule_state: Dictionary = {}         # StringName rule_id -> {last_fired_at_day, times_fired}
 
+# Per-rule per-society memory state (keyed by rule_id)
+var _rule_memory: Dictionary = {}        # StringName rule_id -> Dictionary
+
 const MAX_CONCURRENT_SCHEMES_PER_SOCIETY: int = 2
 var _tick_sub
+var _reactive_subs: Array = []
 
 
 func _ready() -> void:
@@ -33,6 +37,7 @@ func _ready() -> void:
 		Callable(self, "_on_game_day_ticked"),
 		200, &"", EndOfTickPhases.PER_IMMORTAL,
 	)
+	_wire_reactive_subscriptions()
 	var save_system: Node = get_node("/root/SaveSystem")
 	save_system.register_state_handlers(
 		&"society_ai_state",
@@ -76,6 +81,49 @@ func _load_rules() -> void:
 	base_dir.list_dir_end()
 	for sid: StringName in _rules_by_society:
 		_rules_by_society[sid].sort_custom(func(a: SocietyAIRule, b: SocietyAIRule) -> bool: return a.priority < b.priority)
+
+
+func _wire_reactive_subscriptions() -> void:
+	# Subscribe to events that reactive rules can trigger on
+	var reactive_events: Array = [
+		preload("res://scripts/data/events/scheme_resolved_event.gd"),
+		preload("res://scripts/data/events/fingerprint_level_advanced_event.gd"),
+		preload("res://scripts/data/events/first_contact_event.gd"),
+		preload("res://scripts/data/events/treaty_proposed_event.gd"),
+		preload("res://scripts/data/events/treaty_violation_detected_event.gd"),
+	]
+	for event_class in reactive_events:
+		var sub = _event_bus.subscribe(
+			event_class,
+			Callable(self, "_on_reactive_event"),
+			250, &"", EndOfTickPhases.PER_IMMORTAL,
+		)
+		_reactive_subs.append(sub)
+
+
+func _on_reactive_event(event: EventBase) -> void:
+	var event_class_name: String = event.get_script().get_global_name()
+	var day: int = _time_keeper.current_day
+	for society_id: StringName in _rules_by_society.keys():
+		var rules: Array = _rules_by_society[society_id]
+		for rule: SocietyAIRule in rules:
+			if rule.reactive_trigger_event_classes.is_empty():
+				continue
+			var found: bool = false
+			for trigger_class: StringName in rule.reactive_trigger_event_classes:
+				if trigger_class == StringName(event_class_name):
+					found = true
+					break
+			if not found:
+				continue
+			if not _rule_off_cooldown(rule, day):
+				continue
+			var context: RuleContext = RuleContext.world_only(day, _time_keeper.current_era)
+			context.event = event
+			if rule.condition.is_empty() or _rule_evaluator.evaluate_predicate(rule.condition, context):
+				if _fire_rule(rule, _get_society_immortal_id(society_id), day):
+					_rule_state[rule.id].last_fired_at_day = day
+					_rule_state[rule.id].times_fired += 1
 
 
 func _on_game_day_ticked(event: GameDayTickedEvent) -> void:
@@ -199,12 +247,33 @@ func _get_society_immortal_id(society_id: StringName) -> StringName:
 	return &""
 
 
+# --- Memory access ---
+
+func get_rule_memory(rule_id: StringName) -> Dictionary:
+	if not _rule_memory.has(rule_id):
+		_rule_memory[rule_id] = {}
+	return _rule_memory[rule_id]
+
+
+func set_rule_memory(rule_id: StringName, key: StringName, value: Variant) -> void:
+	if not _rule_memory.has(rule_id):
+		_rule_memory[rule_id] = {}
+	_rule_memory[rule_id][key] = value
+
+
+func read_rule_memory(rule_id: StringName, key: StringName, default_value: Variant = null) -> Variant:
+	if not _rule_memory.has(rule_id):
+		return default_value
+	return _rule_memory[rule_id].get(key, default_value)
+
+
 func snapshot_state() -> Dictionary:
-	return {"rule_state": _rule_state.duplicate(true)}
+	return {"rule_state": _rule_state.duplicate(true), "rule_memory": _rule_memory.duplicate(true)}
 
 
 func apply_state(state) -> void:
 	if state == null or (state is Dictionary and state.is_empty()):
 		return
 	_rule_state = state.get("rule_state", {}).duplicate(true)
+	_rule_memory = state.get("rule_memory", {}).duplicate(true)
 	_logger.info(LogChannels.SOCIETY_AI, "SocietyAI state applied from load")

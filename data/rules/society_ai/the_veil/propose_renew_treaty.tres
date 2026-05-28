@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:propose_renew_treaty"
+society_id = &"the_veil"
+priority = 78
+rule_tier = &"diplomatic"
+description = "When an active treaty has 60 days remaining and was honoured, propose renewal."
+condition = "world.day > 365"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "observe", "target_selector": "specific_place", "target_constraints": {"place_id": "athens"}}
+cooldown_days = 365

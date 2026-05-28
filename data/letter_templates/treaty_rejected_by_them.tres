@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"treaty_rejected_by_them"
+triggering_event_class = &"TreatyRejectedEvent"
+sender_kind = &"intermediary"
+subject_variants = Array[String](["Terms rejected", "The proposal was declined"])
+body_variants = Array[String](["The other party has rejected your proposal outright. No counter-offer was made. The diplomatic channel remains open, but this particular negotiation has ended.", "Your terms were found unacceptable. The proposal is dead. You may propose new terms in the future, but this attempt has failed."])
+content_category = &"treaty"
+is_authored = true

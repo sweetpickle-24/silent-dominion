@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"reputation_shift_negative"
+triggering_event_class = &"ReputationShiftEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Your standing suffers", "Reputation damaged"])
+body_variants = Array[String](["Your reputation among the immortal community has suffered. Treaty partners and potential allies question your reliability.", "Word spreads: your commitments may not be trusted. Your diplomatic standing has fallen."])
+content_category = &"reputation"
+is_authored = true

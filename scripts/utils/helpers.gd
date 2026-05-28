@@ -77,3 +77,39 @@ func scholar_professions() -> Array[StringName]:
 
 func institutional_kinds() -> Array[StringName]:
 	return [&"library", &"academy", &"monastery", &"temple", &"council_house"]
+
+
+# --- Compound trait pattern detection (§24.2) ---
+
+const COMPOUND_TRAIT_THRESHOLD: int = 70
+const COMPOUND_TRAIT_LOW_THRESHOLD: int = 30
+
+# Six compound trait patterns from §24.2. Returns true if the character
+# exhibits the named pattern based on trait thresholds.
+func has_compound_trait_pattern(character: CharacterRecord, pattern_kind: StringName) -> bool:
+	if character == null:
+		return false
+	match pattern_kind:
+		&"dangerous_ruler":
+			# High ambition + high paranoia
+			return character.ambition >= COMPOUND_TRAIT_THRESHOLD and character.paranoia >= COMPOUND_TRAIT_THRESHOLD
+		&"hunter":
+			# High intellect + high curiosity
+			return character.intellect >= COMPOUND_TRAIT_THRESHOLD and character.curiosity >= COMPOUND_TRAIT_THRESHOLD
+		&"lieutenant_ideal":
+			# High loyalty + high resilience
+			return character.loyalty >= COMPOUND_TRAIT_THRESHOLD and character.resilience >= COMPOUND_TRAIT_THRESHOLD
+		&"corruption_profile":
+			# High greed + low loyalty
+			return character.greed >= COMPOUND_TRAIT_THRESHOLD and character.loyalty <= COMPOUND_TRAIT_LOW_THRESHOLD
+		&"religious_catalyst":
+			# High piety + high charisma
+			return character.piety >= COMPOUND_TRAIT_THRESHOLD and character.charisma >= COMPOUND_TRAIT_THRESHOLD
+		&"apex_predator":
+			# High paranoia + high ruthlessness + maximal public position
+			return (character.paranoia >= COMPOUND_TRAIT_THRESHOLD
+				and character.ruthlessness >= COMPOUND_TRAIT_THRESHOLD
+				and character.public_position_tier == PublicPositionValues.MAXIMAL)
+		_:
+			push_error("Unknown compound trait pattern: %s" % pattern_kind)
+			return false

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"treaty_expired"
+triggering_event_class = &"TreatyExpiredEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Treaty expired", "An agreement concludes"])
+body_variants = Array[String](["A treaty has reached the end of its agreed duration and expired naturally. Both parties honoured its terms through the active period. Reputation has been credited accordingly.", "The treaty's term has run its course. It expires honourably, leaving both parties with improved standing."])
+content_category = &"treaty"
+is_authored = true

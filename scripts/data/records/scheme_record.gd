@@ -26,3 +26,6 @@ extends Resource
 @export var outcome: StringName = &""
 @export var resolved_at_day: int = -1
 @export var cancellation_reason: StringName = &""
+
+# Mutual cultivation conflict: true if target belongs to another society
+@export var is_recruit_attempt: bool = false

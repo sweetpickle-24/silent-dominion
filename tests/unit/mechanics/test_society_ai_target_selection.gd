@@ -11,9 +11,11 @@ func before_each():
 
 func after_each():
 	var eb: Node = get_node("/root/EventBus")
-	if is_instance_valid(_ai) and _ai._tick_sub:
-		eb.unsubscribe(_ai._tick_sub)
 	if is_instance_valid(_ai):
+		if _ai._tick_sub:
+			eb.unsubscribe(_ai._tick_sub)
+		for sub in _ai._reactive_subs:
+			eb.unsubscribe(sub)
 		remove_child(_ai)
 		_ai.free()
 

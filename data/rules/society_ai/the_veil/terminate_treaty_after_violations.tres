@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:terminate_treaty_after_violations"
+society_id = &"the_veil"
+priority = 70
+rule_tier = &"diplomatic"
+description = "When active treaty has 3+ recorded violations or 1 severe violation, terminate."
+condition = "true"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "observe", "target_selector": "specific_place", "target_constraints": {"place_id": "athens"}}
+cooldown_days = 365
+reactive_trigger_event_classes = Array[StringName]([&"TreatyViolationDetectedEvent"])

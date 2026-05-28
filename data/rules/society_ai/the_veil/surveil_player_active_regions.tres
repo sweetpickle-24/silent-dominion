@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:surveil_player_active_regions"
+society_id = &"the_veil"
+priority = 140
+rule_tier = &"operational"
+description = "Periodic observation rotation through regions where player traces are concentrated."
+condition = "world.day > 365"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "observe", "target_selector": "random_place", "target_constraints": {}}
+cooldown_days = 730
+memory_keys_used = Array[StringName]([&"last_surveilled_region"])

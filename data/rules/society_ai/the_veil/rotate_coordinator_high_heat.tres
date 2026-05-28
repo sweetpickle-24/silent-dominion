@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:rotate_coordinator_high_heat"
+society_id = &"the_veil"
+priority = 80
+rule_tier = &"operational"
+description = "When a Veil Coordinator's heat > 60, rotate them out. Counter-intelligence signature capability."
+condition = "true"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "counter_intelligence_rotate", "target_selector": "random_place", "target_constraints": {}}
+cooldown_days = 365

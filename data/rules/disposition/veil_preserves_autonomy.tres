@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Rule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil_preserves_autonomy"
+condition = "event.action_type == \"observe\" and target != null and target.place_type in [\"library\", \"academy\", \"monastery\"]"
+base_delta = 25
+attribution_tag = &"veil_preserves_institutional_autonomy"

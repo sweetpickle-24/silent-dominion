@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:promote_witting_to_coordinator"
+society_id = &"the_veil"
+priority = 110
+rule_tier = &"strategic"
+description = "Promote a Witting Operative with 10+ years of service and trust > 70 to Coordinator. Growth arc milestone."
+condition = "world.day > 3650"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "promote_to_coordinator", "target_selector": "random_place", "target_constraints": {}}
+cooldown_days = 3650

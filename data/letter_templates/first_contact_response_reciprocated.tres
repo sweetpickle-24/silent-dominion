@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"first_contact_response_reciprocated"
+triggering_event_class = &"FirstContactEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["A channel opens", "The gesture was returned"])
+body_variants = Array[String](["The other party has reciprocated your opening gesture. A communication channel now exists between you — tentative, deniable, but real. Formal treaty proposals may now be exchanged.", "Your gesture was met in kind. Whatever organisation operates in the shadows alongside you, they are willing to talk. A diplomatic channel is open."])
+content_category = &"first_contact"
+is_authored = true

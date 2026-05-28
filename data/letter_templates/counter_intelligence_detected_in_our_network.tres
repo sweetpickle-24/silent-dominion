@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"counter_intelligence_detected_in_our_network"
+triggering_event_class = &"CounterIntelligenceFiredEvent"
+sender_kind = &"character"
+subject_variants = Array[String](["Unusual activity detected", "A known figure has departed"])
+body_variants = Array[String](["A known operative of the rival organisation has left their usual posting for parts unknown. Our coverage detected the movement — they appear to be rotating personnel, likely in response to our investigation.", "Counter-intelligence activity has been detected in an area we monitor. The rival is actively obscuring their traces. Their operational security is adapting to our presence."])
+content_category = &"counter_intelligence"
+is_authored = true

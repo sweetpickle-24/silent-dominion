@@ -16,6 +16,9 @@
 [ext_resource type="Script" path="res://scripts/mechanics/trust/trust.gd" id="15_trust"]
 [ext_resource type="Script" path="res://scripts/mechanics/heat/heat.gd" id="16_heat"]
 [ext_resource type="Script" path="res://scripts/mechanics/cultivation/cultivation.gd" id="17_cultivation"]
+[ext_resource type="Script" path="res://scripts/mechanics/treaty/treaty.gd" id="18_treaty"]
+[ext_resource type="Script" path="res://scripts/mechanics/first_contact/first_contact.gd" id="19_first_contact"]
+[ext_resource type="Script" path="res://scripts/mechanics/counter_intelligence/counter_intelligence.gd" id="20_counter_intelligence"]
 
 [node name="Main" type="Node"]
 
@@ -62,6 +65,15 @@ script = ExtResource("16_heat")
 
 [node name="Cultivation" type="Node" parent="Mechanics"]
 script = ExtResource("17_cultivation")
+
+[node name="Treaty" type="Node" parent="Mechanics"]
+script = ExtResource("18_treaty")
+
+[node name="FirstContact" type="Node" parent="Mechanics"]
+script = ExtResource("19_first_contact")
+
+[node name="CounterIntelligence" type="Node" parent="Mechanics"]
+script = ExtResource("20_counter_intelligence")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

@@ -27,6 +27,11 @@ const FINGERPRINT: StringName = &"fingerprint"
 const TRUST: StringName = &"trust"
 const HEAT: StringName = &"heat"
 const CULTIVATION: StringName = &"cultivation"
+const TREATY: StringName = &"treaty"
+const FIRST_CONTACT: StringName = &"first_contact"
+const COUNTER_INTELLIGENCE: StringName = &"counter_intelligence"
+const REPUTATION: StringName = &"reputation"
+const DIPLOMACY: StringName = &"diplomacy"
 
 # UI channels
 const UI: StringName = &"ui"

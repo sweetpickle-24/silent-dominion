@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:acquire_first_lieutenant"
+society_id = &"the_veil"
+priority = 105
+rule_tier = &"strategic"
+description = "Promote a seasoned Coordinator to Lieutenant around 300 BCE (200+ game years in). The Veil's first institutional layer."
+condition = "world.year > 200"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "promote_to_lieutenant", "target_selector": "random_place", "target_constraints": {}}
+cooldown_days = 7300

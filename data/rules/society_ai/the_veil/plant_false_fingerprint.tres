@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:plant_false_fingerprint"
+society_id = &"the_veil"
+priority = 85
+rule_tier = &"operational"
+description = "When player's Fingerprint level against the Veil reaches 3+, plant false fingerprints in a different region. Reactive on FingerprintLevelAdvancedEvent."
+condition = "true"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "plant_false_fingerprint", "target_selector": "random_place", "target_constraints": {}}
+cooldown_days = 730
+reactive_trigger_event_classes = Array[StringName]([&"FingerprintLevelAdvancedEvent"])

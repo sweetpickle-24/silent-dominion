@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Rule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil_shares_third_party_intel"
+condition = "event.action_type == \"gather_intelligence\""
+base_delta = 10
+attribution_tag = &"veil_shares_third_party_intel"

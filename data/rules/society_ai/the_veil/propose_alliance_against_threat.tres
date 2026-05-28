@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:propose_alliance_against_threat"
+society_id = &"the_veil"
+priority = 76
+rule_tier = &"diplomatic"
+description = "When a kingdom in Veil cultural sphere shows anti-intellectual policy AND player has shown library-protection, propose coordinated treaty."
+condition = "world.day > 1825"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "observe", "target_selector": "specific_place", "target_constraints": {"place_id": "athens"}}
+cooldown_days = 3650

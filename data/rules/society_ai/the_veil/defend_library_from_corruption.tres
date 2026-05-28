@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:defend_library_from_corruption"
+society_id = &"the_veil"
+priority = 60
+rule_tier = &"operational"
+description = "When corrupt_institution fires at a library/academy in Veil cultural sphere, dispatch counter-operation: gather intelligence + plant_idea against hostiles. Reactive."
+condition = "true"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "gather_intelligence", "target_selector": "random_scholarly_city", "target_constraints": {}}
+cooldown_days = 90
+reactive_trigger_event_classes = Array[StringName]([&"SchemeResolvedEvent"])

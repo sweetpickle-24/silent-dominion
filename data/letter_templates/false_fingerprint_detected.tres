@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"false_fingerprint_detected"
+triggering_event_class = &"FalseFingerprintPlantedEvent"
+sender_kind = &"character"
+subject_variants = Array[String](["Suspicious traces", "A planted fingerprint"])
+body_variants = Array[String](["Our investigation at the highest level of analysis has determined that certain traces attributed to a rival organisation were in fact planted deliberately. Someone is running a false-flag operation — leaving traces designed to mislead.", "The fingerprint doesn't match. What appeared to be evidence of rival activity is a fabrication — traces planted to deceive our investigation. Counter-intelligence at work."])
+content_category = &"counter_intelligence"
+is_authored = true

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil:recruit_scholar_host_other_cities"
+society_id = &"the_veil"
+priority = 130
+rule_tier = &"strategic"
+description = "Cultivate scholars in Miletus, Memphis, or Naucratis as new Hosts. Expands the Veil's scholarly network."
+condition = "world.day > 365"
+action_kind = &"dispatch_scheme"
+action_params = {"action_type": "cultivate_to_host", "target_selector": "random_scholarly_city", "target_constraints": {"cultural_sphere": "greek"}}
+cooldown_days = 1825

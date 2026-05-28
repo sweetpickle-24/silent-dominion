@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"first_contact_received_shared_intelligence"
+triggering_event_class = &"FirstContactEvent"
+sender_kind = &"intermediary"
+subject_variants = Array[String](["A scholar's curious offer", "Word from an unusual patron"])
+body_variants = Array[String](["A scholar in the agora mentioned a 'private patron of unusual age.' He offered, unprompted, a piece of intelligence about a third party. The information proved accurate when verified through your own network days later. Someone is reaching out.", "Through channels you did not expect, a fragment of intelligence arrives — accurate, specific, and freely given. The source: an intermediary acting on behalf of someone who has noticed you. A gesture of good faith from an unknown hand."])
+content_category = &"first_contact"
+is_authored = true

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Rule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rules/rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"veil_centralising_regime"
+condition = "event.action_type == \"bribe_official\" and target != null and target.place_type in [\"city\"]"
+base_delta = -15
+attribution_tag = &"veil_centralising_regime_negative"
