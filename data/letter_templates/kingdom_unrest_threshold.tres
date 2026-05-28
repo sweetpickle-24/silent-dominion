@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"kingdom_unrest_threshold"
+triggering_event_class = &"KingdomUnrestThresholdCrossedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Unrest rising", "Instability reported"])
+body_variants = Array[String](["Unrest in {kingdom_name} has crossed a critical threshold, now at {new_unrest}.", "Reports indicate growing instability in {kingdom_name}."])
+content_category = &"kingdom_intel"
+is_authored = true

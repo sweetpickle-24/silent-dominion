@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:disband_army_when_broke"
+priority = 18
+rule_tier = &"operational"
+description = "Disband part of the army when broke to reduce expenditure."
+condition = "target.treasury_condition == \"broke\" and target.standing_army > 50"
+action_kind = &"disband_army"
+action_params = {"amount": 50}
+cooldown_days = 90

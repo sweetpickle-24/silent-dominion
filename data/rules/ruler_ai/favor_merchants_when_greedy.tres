@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:favor_merchants_when_greedy"
+priority = 65
+rule_tier = &"operational"
+description = "Greedy rulers favor the merchant faction for personal enrichment."
+condition = "self.greed > 60 and target.faction_merchants < 40"
+action_kind = &"shift_faction_favor"
+action_params = {"faction": "merchants", "delta": 5}
+cooldown_days = 365

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_sparta"
+name = "King of Sparta (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"laconia"
+current_place = &"sparta"
+public_position = "Agiad King"
+public_position_tier = &"maximal"
+ambition = 50
+paranoia = 65
+loyalty = 80
+piety = 60
+intellect = 50
+greed = 25
+ruthlessness = 70
+curiosity = 30
+resilience = 85
+charisma = 55

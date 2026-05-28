@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"kingdom_treasury_condition_changed"
+triggering_event_class = &"KingdomTreasuryConditionChangedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Treasury condition shift", "Fiscal change reported"])
+body_variants = Array[String](["Treasury condition in {kingdom_name} has shifted from {old_condition} to {new_condition}.", "Reports indicate the fiscal situation in {kingdom_name} has changed to {new_condition}."])
+content_category = &"kingdom_intel"
+is_authored = true

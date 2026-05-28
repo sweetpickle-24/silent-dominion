@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"ruler_decision_made"
+triggering_event_class = &"RulerDecisionMadeEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Ruler action reported", "Policy decision"])
+body_variants = Array[String](["The ruler of {kingdom_name} has made a decision: {decision}.", "A policy change has been enacted in {kingdom_name}: {decision}."])
+content_category = &"kingdom_intel"
+is_authored = true

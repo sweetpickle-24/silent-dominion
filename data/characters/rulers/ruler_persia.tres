@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_persia"
+name = "Great King (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"persis"
+current_place = &"persepolis"
+public_position = "King of Kings"
+public_position_tier = &"maximal"
+ambition = 75
+paranoia = 60
+loyalty = 50
+piety = 55
+intellect = 65
+greed = 50
+ruthlessness = 65
+curiosity = 40
+resilience = 70
+charisma = 60

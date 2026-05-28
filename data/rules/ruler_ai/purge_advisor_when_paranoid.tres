@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:purge_advisor_when_paranoid"
+priority = 55
+rule_tier = &"full_fidelity"
+description = "Paranoid rulers purge advisors they distrust. Full-fidelity only."
+condition = "self.paranoia > 70"
+action_kind = &"purge_advisor"
+action_params = {"advisor_id": ""}
+cooldown_days = 730

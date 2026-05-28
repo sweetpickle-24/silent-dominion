@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_thebes"
+name = "Boeotarch of Thebes (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"boeotia"
+current_place = &"thebes"
+public_position = "Boeotarch"
+public_position_tier = &"high"
+ambition = 60
+paranoia = 55
+loyalty = 65
+piety = 55
+intellect = 55
+greed = 45
+ruthlessness = 50
+curiosity = 45
+resilience = 60
+charisma = 50

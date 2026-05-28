@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:favor_clergy_when_pious"
+priority = 68
+rule_tier = &"operational"
+description = "Pious rulers favor the clergy faction."
+condition = "self.piety > 60 and target.faction_clergy < 35"
+action_kind = &"shift_faction_favor"
+action_params = {"faction": "clergy", "delta": 5}
+cooldown_days = 365

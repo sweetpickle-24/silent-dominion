@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_rome"
+name = "Consul of Rome (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"latium"
+current_place = &"rome"
+public_position = "Consul"
+public_position_tier = &"high"
+ambition = 70
+paranoia = 45
+loyalty = 65
+piety = 60
+intellect = 55
+greed = 45
+ruthlessness = 60
+curiosity = 40
+resilience = 75
+charisma = 55

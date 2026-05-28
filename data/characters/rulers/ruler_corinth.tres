@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_corinth"
+name = "Tyrant of Corinth (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"corinthia"
+current_place = &"corinth"
+public_position = "Tyrant"
+public_position_tier = &"high"
+ambition = 65
+paranoia = 50
+loyalty = 45
+piety = 40
+intellect = 60
+greed = 70
+ruthlessness = 55
+curiosity = 50
+resilience = 50
+charisma = 60

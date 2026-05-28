@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:emergency_tax_cut_reactive"
+priority = 5
+rule_tier = &"operational"
+description = "Reactive emergency: when treasury crashes to broke mid-tick, immediately cut taxes to stem unrest."
+condition = "target.treasury_condition == \"broke\" and target.unrest > 50"
+action_kind = &"adjust_tax_level"
+action_params = {"delta": -20}
+cooldown_days = 30
+reactive_trigger_event_classes = Array[StringName]([&"KingdomTreasuryConditionChangedEvent"])

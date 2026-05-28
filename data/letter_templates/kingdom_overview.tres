@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"kingdom_overview"
+triggering_event_class = &""
+sender_kind = &"system"
+subject_variants = Array[String](["Kingdom status", "State of the realm"])
+body_variants = Array[String](["Kingdom {kingdom_name}: treasury {treasury_condition}, tax level {tax_level}, unrest {unrest}, legitimacy {legitimacy}.", "{kingdom_name} overview — fiscal: {treasury_condition}, stability: {unrest} unrest."])
+content_category = &"kingdom_intel"
+is_authored = true

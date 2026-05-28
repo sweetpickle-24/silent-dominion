@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:expand_rivalry_when_ambitious"
+priority = 60
+rule_tier = &"operational"
+description = "Ambitious rulers raise rivalry tension with neighbors when fiscally secure."
+condition = "self.ambition > 65 and target.treasury_condition in [\"flush\", \"stable\"] and target.legitimacy > 50"
+action_kind = &"set_rivalry_tension"
+action_params = {"other_kingdom": "sparta", "delta": 15}
+cooldown_days = 365

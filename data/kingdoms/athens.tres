@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"athens"
+display_name = "Athens"
+ruler_character_id = &"ruler_athens"
+capital_place_id = &"athens"
+member_place_ids = Array[StringName]([&"athens", &"laurion", &"miletus"])
+tax_level = 35
+legitimacy = 65
+unrest = 10
+standing_army = 100
+faction_military = 20
+faction_clergy = 15
+faction_merchants = 35
+faction_nobility = 30
+treasury_condition = &"stable"

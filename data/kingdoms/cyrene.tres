@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"cyrene"
+display_name = "Cyrene"
+ruler_character_id = &"ruler_cyrene"
+capital_place_id = &"cyrene"
+member_place_ids = Array[StringName]([&"cyrene"])
+tax_level = 35
+legitimacy = 55
+unrest = 10
+standing_army = 40
+faction_military = 20
+faction_clergy = 25
+faction_merchants = 30
+faction_nobility = 25
+treasury_condition = &"stable"

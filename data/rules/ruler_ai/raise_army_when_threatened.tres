@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:raise_army_when_threatened"
+priority = 35
+rule_tier = &"operational"
+description = "Raise army when treasury can sustain it and the ruler is militarily inclined."
+condition = "self.paranoia > 55 and target.treasury_condition in [\"flush\", \"stable\"] and target.standing_army < 200"
+action_kind = &"raise_army"
+action_params = {"amount": 50}
+cooldown_days = 365

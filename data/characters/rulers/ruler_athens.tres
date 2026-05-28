@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_athens"
+name = "Archon of Athens (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"attica"
+current_place = &"athens"
+public_position = "Chief Archon"
+public_position_tier = &"high"
+ambition = 55
+paranoia = 45
+loyalty = 60
+piety = 50
+intellect = 75
+greed = 40
+ruthlessness = 35
+curiosity = 70
+resilience = 55
+charisma = 65

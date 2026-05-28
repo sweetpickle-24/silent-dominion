@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:reduce_tax_when_unrest_critical"
+priority = 10
+rule_tier = &"operational"
+description = "Emergency tax reduction when unrest is critical. Stability dominates."
+condition = "target.unrest > 70"
+action_kind = &"adjust_tax_level"
+action_params = {"delta": -15}
+cooldown_days = 60
+reactive_trigger_event_classes = Array[StringName]([&"KingdomUnrestThresholdCrossedEvent"])

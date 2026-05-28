@@ -32,6 +32,8 @@ const FIRST_CONTACT: StringName = &"first_contact"
 const COUNTER_INTELLIGENCE: StringName = &"counter_intelligence"
 const REPUTATION: StringName = &"reputation"
 const DIPLOMACY: StringName = &"diplomacy"
+const KINGDOM: StringName = &"kingdom"
+const RULER_AI: StringName = &"ruler_ai"
 
 # UI channels
 const UI: StringName = &"ui"

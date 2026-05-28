@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"achaemenid_persia"
+display_name = "Achaemenid Persia"
+ruler_character_id = &"ruler_persia"
+capital_place_id = &"persepolis"
+member_place_ids = Array[StringName]([&"persepolis", &"susa", &"ecbatana", &"babylon", &"memphis", &"naucratis", &"pharos", &"sidon", &"tyre"])
+tax_level = 45
+legitimacy = 70
+unrest = 15
+standing_army = 500
+faction_military = 35
+faction_clergy = 20
+faction_merchants = 20
+faction_nobility = 25
+treasury_condition = &"flush"

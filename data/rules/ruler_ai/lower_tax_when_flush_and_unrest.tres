@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:lower_tax_when_flush_and_unrest"
+priority = 40
+rule_tier = &"operational"
+description = "Lower taxes when treasury is flush and unrest is building."
+condition = "target.treasury_condition == \"flush\" and target.unrest > 40"
+action_kind = &"adjust_tax_level"
+action_params = {"delta": -10}
+cooldown_days = 90

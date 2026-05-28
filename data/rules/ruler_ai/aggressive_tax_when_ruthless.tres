@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:aggressive_tax_when_ruthless"
+priority = 50
+rule_tier = &"operational"
+description = "Ruthless rulers raise taxes aggressively when treasury is strained regardless of unrest."
+condition = "self.ruthlessness > 60 and target.treasury_condition in [\"strained\", \"indebted\"]"
+action_kind = &"adjust_tax_level"
+action_params = {"delta": 15}
+cooldown_days = 180

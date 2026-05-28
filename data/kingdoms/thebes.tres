@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"thebes"
+display_name = "Thebes"
+ruler_character_id = &"ruler_thebes"
+capital_place_id = &"thebes"
+member_place_ids = Array[StringName]([&"thebes"])
+tax_level = 40
+legitimacy = 60
+unrest = 15
+standing_army = 80
+faction_military = 30
+faction_clergy = 25
+faction_merchants = 20
+faction_nobility = 25
+treasury_condition = &"stable"

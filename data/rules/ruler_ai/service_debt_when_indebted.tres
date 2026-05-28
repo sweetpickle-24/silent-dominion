@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:service_debt_when_indebted"
+priority = 20
+rule_tier = &"operational"
+description = "Service outstanding debt when treasury is strained or worse and debt exists."
+condition = "target.treasury_condition in [\"indebted\", \"broke\"] and target.total_debt() > 0"
+action_kind = &"service_debt"
+action_params = {"amount": 100}
+cooldown_days = 30

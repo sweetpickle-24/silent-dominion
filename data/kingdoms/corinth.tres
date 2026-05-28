@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"corinth"
+display_name = "Corinth"
+ruler_character_id = &"ruler_corinth"
+capital_place_id = &"corinth"
+member_place_ids = Array[StringName]([&"corinth"])
+tax_level = 45
+legitimacy = 55
+unrest = 10
+standing_army = 60
+faction_military = 20
+faction_clergy = 15
+faction_merchants = 40
+faction_nobility = 25
+treasury_condition = &"stable"

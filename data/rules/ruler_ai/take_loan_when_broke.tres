@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:take_loan_when_broke"
+priority = 15
+rule_tier = &"operational"
+description = "Take an emergency loan when treasury is broke."
+condition = "target.treasury_condition == \"broke\""
+action_kind = &"take_loan"
+action_params = {"creditor": "merchant_guild", "amount": 500}
+cooldown_days = 365

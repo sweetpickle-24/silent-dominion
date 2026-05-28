@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"carthage"
+display_name = "Carthage"
+ruler_character_id = &"ruler_carthage"
+capital_place_id = &"carthage"
+member_place_ids = Array[StringName]([&"carthage"])
+tax_level = 50
+legitimacy = 60
+unrest = 10
+standing_army = 150
+faction_military = 25
+faction_clergy = 15
+faction_merchants = 40
+faction_nobility = 20
+treasury_condition = &"stable"

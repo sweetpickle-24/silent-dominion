@@ -139,9 +139,11 @@ func _load_resources_from_dir(dir_path: String, target: Dictionary) -> void:
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
 	while file_name != "":
-		if file_name.ends_with(".tres"):
-			var path: String = dir_path + file_name
-			var resource = ResourceLoader.load(path)
+		var full_path: String = dir_path + file_name
+		if dir.current_is_dir() and not file_name.begins_with("."):
+			_load_resources_from_dir(full_path + "/", target)
+		elif file_name.ends_with(".tres"):
+			var resource = ResourceLoader.load(full_path)
 			if resource != null:
 				var id: Variant = resource.get("id")
 				if id != null and id is StringName and id != &"":

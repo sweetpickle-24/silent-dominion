@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"ruler_succession_risk"
+triggering_event_class = &"RulerSuccessionRiskRaisedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Succession concern", "Aging ruler"])
+body_variants = Array[String](["The ruler of {kingdom_name} is aging. Succession risk is now {risk_level}.", "Concerns about succession stability in {kingdom_name} have risen to {risk_level}."])
+content_category = &"kingdom_intel"
+is_authored = true

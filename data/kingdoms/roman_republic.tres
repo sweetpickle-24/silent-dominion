@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"roman_republic"
+display_name = "Roman Republic"
+ruler_character_id = &"ruler_rome"
+capital_place_id = &"rome"
+member_place_ids = Array[StringName]([&"rome", &"tarentum"])
+tax_level = 35
+legitimacy = 70
+unrest = 8
+standing_army = 120
+faction_military = 35
+faction_clergy = 15
+faction_merchants = 20
+faction_nobility = 30
+treasury_condition = &"stable"

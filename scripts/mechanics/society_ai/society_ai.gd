@@ -13,10 +13,7 @@ var _world_registry: Node
 var _rule_evaluator: Node
 
 var _rules_by_society: Dictionary = {}   # StringName society_id -> Array[SocietyAIRule]
-var _rule_state: Dictionary = {}         # StringName rule_id -> {last_fired_at_day, times_fired}
-
-# Per-rule per-society memory state (keyed by rule_id)
-var _rule_memory: Dictionary = {}        # StringName rule_id -> Dictionary
+var _runner: RuleListRunner = RuleListRunner.new()
 
 const MAX_CONCURRENT_SCHEMES_PER_SOCIETY: int = 2
 var _tick_sub
@@ -74,7 +71,7 @@ func _load_rules() -> void:
 							if not _rules_by_society.has(resource.society_id):
 								_rules_by_society[resource.society_id] = []
 							_rules_by_society[resource.society_id].append(resource)
-							_rule_state[resource.id] = {"last_fired_at_day": -1, "times_fired": 0}
+							_runner.ensure_rule_state(resource.id)
 					fname = subdir.get_next()
 				subdir.list_dir_end()
 		subdir_name = base_dir.get_next()
@@ -84,7 +81,6 @@ func _load_rules() -> void:
 
 
 func _wire_reactive_subscriptions() -> void:
-	# Subscribe to events that reactive rules can trigger on
 	var reactive_events: Array = [
 		preload("res://scripts/data/events/scheme_resolved_event.gd"),
 		preload("res://scripts/data/events/fingerprint_level_advanced_event.gd"),
@@ -102,28 +98,18 @@ func _wire_reactive_subscriptions() -> void:
 
 
 func _on_reactive_event(event: EventBase) -> void:
-	var event_class_name: String = event.get_script().get_global_name()
 	var day: int = _time_keeper.current_day
 	for society_id: StringName in _rules_by_society.keys():
 		var rules: Array = _rules_by_society[society_id]
-		for rule: SocietyAIRule in rules:
-			if rule.reactive_trigger_event_classes.is_empty():
-				continue
-			var found: bool = false
-			for trigger_class: StringName in rule.reactive_trigger_event_classes:
-				if trigger_class == StringName(event_class_name):
-					found = true
-					break
-			if not found:
-				continue
-			if not _rule_off_cooldown(rule, day):
-				continue
-			var context: RuleContext = RuleContext.world_only(day, _time_keeper.current_era)
-			context.event = event
-			if rule.condition.is_empty() or _rule_evaluator.evaluate_predicate(rule.condition, context):
-				if _fire_rule(rule, _get_society_immortal_id(society_id), day):
-					_rule_state[rule.id].last_fired_at_day = day
-					_rule_state[rule.id].times_fired += 1
+		var immortal_id: StringName = _get_society_immortal_id(society_id)
+		if immortal_id == &"":
+			continue
+		var context: RuleContext = RuleContext.world_only(day, _time_keeper.current_era)
+		context.event = event
+		_runner.evaluate_reactive(
+			rules, event, day, context, _rule_evaluator,
+			func(rule: SocietyAIRule) -> bool: return _fire_rule(rule, immortal_id, day),
+		)
 
 
 func _on_game_day_ticked(event: GameDayTickedEvent) -> void:
@@ -141,27 +127,15 @@ func _evaluate_society_rules(society_id: StringName, day: int) -> void:
 	if not _rules_by_society.has(society_id):
 		return
 	var rules: Array = _rules_by_society[society_id]
-	for rule: SocietyAIRule in rules:
-		if not _rule_off_cooldown(rule, day):
-			continue
-		var context: RuleContext = RuleContext.world_only(day, _time_keeper.current_era)
-		if rule.condition.is_empty() or _rule_evaluator.evaluate_predicate(rule.condition, context):
-			if _fire_rule(rule, immortal_id, day):
-				_rule_state[rule.id].last_fired_at_day = day
-				_rule_state[rule.id].times_fired += 1
-				return  # one rule per society per tick
+	var context: RuleContext = RuleContext.world_only(day, _time_keeper.current_era)
+	_runner.evaluate_rules(
+		rules, day, context, _rule_evaluator,
+		func(rule: SocietyAIRule) -> bool: return _fire_rule(rule, immortal_id, day),
+		true,
+	)
 
 
-func _rule_off_cooldown(rule: SocietyAIRule, day: int) -> bool:
-	if rule.cooldown_days <= 0:
-		return true
-	var state: Dictionary = _rule_state.get(rule.id, {"last_fired_at_day": -1})
-	if state.last_fired_at_day < 0:
-		return true
-	return (day - state.last_fired_at_day) >= rule.cooldown_days
-
-
-func _fire_rule(rule: SocietyAIRule, immortal_id: StringName, day: int) -> bool:
+func _fire_rule(rule: SocietyAIRule, immortal_id: StringName, _day: int) -> bool:
 	if rule.action_kind != &"dispatch_scheme":
 		return false
 	var params: Dictionary = rule.action_params
@@ -249,33 +223,36 @@ func _get_society_immortal_id(society_id: StringName) -> StringName:
 	return &""
 
 
-# --- Memory access ---
+# --- Memory access (delegates to runner) ---
 
 func get_rule_memory(rule_id: StringName) -> Dictionary:
-	if not _rule_memory.has(rule_id):
-		_rule_memory[rule_id] = {}
-	return _rule_memory[rule_id]
+	return _runner.get_rule_memory(rule_id)
 
 
 func set_rule_memory(rule_id: StringName, key: StringName, value: Variant) -> void:
-	if not _rule_memory.has(rule_id):
-		_rule_memory[rule_id] = {}
-	_rule_memory[rule_id][key] = value
+	_runner.set_rule_memory(rule_id, key, value)
 
 
 func read_rule_memory(rule_id: StringName, key: StringName, default_value: Variant = null) -> Variant:
-	if not _rule_memory.has(rule_id):
-		return default_value
-	return _rule_memory[rule_id].get(key, default_value)
+	return _runner.read_rule_memory(rule_id, key, default_value)
+
+
+# Backward compat: _rule_state / _rule_memory access for tests
+var _rule_state: Dictionary:
+	get: return _runner._rule_state
+	set(v): _runner._rule_state = v
+
+var _rule_memory: Dictionary:
+	get: return _runner._rule_memory
+	set(v): _runner._rule_memory = v
 
 
 func snapshot_state() -> Dictionary:
-	return {"rule_state": _rule_state.duplicate(true), "rule_memory": _rule_memory.duplicate(true)}
+	return _runner.snapshot()
 
 
 func apply_state(state) -> void:
 	if state == null or (state is Dictionary and state.is_empty()):
 		return
-	_rule_state = state.get("rule_state", {}).duplicate(true)
-	_rule_memory = state.get("rule_memory", {}).duplicate(true)
+	_runner.apply_snapshot(state)
 	_logger.info(LogChannels.SOCIETY_AI, "SocietyAI state applied from load")

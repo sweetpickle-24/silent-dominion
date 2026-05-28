@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:invest_when_intellect_high"
+priority = 70
+rule_tier = &"operational"
+description = "Intellectual rulers invest in their capital's infrastructure when flush."
+condition = "self.intellect > 65 and target.treasury_condition == \"flush\""
+action_kind = &"invest_in_place"
+action_params = {"place_id": ""}
+cooldown_days = 365

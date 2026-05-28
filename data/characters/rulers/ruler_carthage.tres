@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_carthage"
+name = "Suffete of Carthage (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"africa_punica"
+current_place = &"carthage"
+public_position = "Suffete"
+public_position_tier = &"high"
+ambition = 70
+paranoia = 55
+loyalty = 50
+piety = 45
+intellect = 65
+greed = 75
+ruthlessness = 60
+curiosity = 55
+resilience = 60
+charisma = 55

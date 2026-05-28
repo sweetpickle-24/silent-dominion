@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="KingdomRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/kingdom_record.gd" id="1_kr"]
+
+[resource]
+script = ExtResource("1_kr")
+id = &"sparta"
+display_name = "Sparta"
+ruler_character_id = &"ruler_sparta"
+capital_place_id = &"sparta"
+member_place_ids = Array[StringName]([&"sparta"])
+tax_level = 30
+legitimacy = 80
+unrest = 5
+standing_army = 200
+faction_military = 50
+faction_clergy = 15
+faction_merchants = 10
+faction_nobility = 25
+treasury_condition = &"stable"

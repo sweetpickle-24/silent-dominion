@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -19,6 +19,8 @@
 [ext_resource type="Script" path="res://scripts/mechanics/treaty/treaty.gd" id="18_treaty"]
 [ext_resource type="Script" path="res://scripts/mechanics/first_contact/first_contact.gd" id="19_first_contact"]
 [ext_resource type="Script" path="res://scripts/mechanics/counter_intelligence/counter_intelligence.gd" id="20_counter_intelligence"]
+[ext_resource type="Script" path="res://scripts/mechanics/kingdom/kingdom.gd" id="21_kingdom"]
+[ext_resource type="Script" path="res://scripts/mechanics/ruler_ai/ruler_ai.gd" id="22_ruler_ai"]
 
 [node name="Main" type="Node"]
 
@@ -74,6 +76,12 @@ script = ExtResource("19_first_contact")
 
 [node name="CounterIntelligence" type="Node" parent="Mechanics"]
 script = ExtResource("20_counter_intelligence")
+
+[node name="Kingdom" type="Node" parent="Mechanics"]
+script = ExtResource("21_kingdom")
+
+[node name="RulerAI" type="Node" parent="Mechanics"]
+script = ExtResource("22_ruler_ai")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

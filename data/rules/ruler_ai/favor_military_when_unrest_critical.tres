@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SocietyAIRule" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/society_ai_rule.gd" id="1_rule"]
+
+[resource]
+script = ExtResource("1_rule")
+id = &"ruler:favor_military_when_unrest_critical"
+priority = 25
+rule_tier = &"operational"
+description = "Shift favor toward military faction when unrest threatens stability."
+condition = "target.unrest > 70"
+action_kind = &"shift_faction_favor"
+action_params = {"faction": "military", "delta": 10}
+cooldown_days = 180

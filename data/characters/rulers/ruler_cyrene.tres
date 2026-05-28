@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/character_record.gd" id="1_cr"]
+
+[resource]
+script = ExtResource("1_cr")
+id = &"ruler_cyrene"
+name = "King of Cyrene (placeholder)"
+birth_day = -18250
+profession = &"ruler"
+province = &"cyrenaica"
+current_place = &"cyrene"
+public_position = "King"
+public_position_tier = &"notable"
+ambition = 45
+paranoia = 50
+loyalty = 60
+piety = 55
+intellect = 60
+greed = 50
+ruthlessness = 40
+curiosity = 55
+resilience = 55
+charisma = 50
