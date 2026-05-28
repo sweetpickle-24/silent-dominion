@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"greek_olympian"
+display_name = "Greek Olympian Religion"
+kind = &"religion"
+founded_day = -36500
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 25
+institutional_strength = 55
+popular_depth = 75
+ecumenical_openness = 70
+reform_potential = 5
+geographic_concentration_score = 40
+lifecycle_phase = &"dominance"
+liturgical_language_id = &"greek"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"punic"
+display_name = "Punic"
+origin_region_id = &"africa_punica"
+era_of_emergence = &"ancient"
+prestige = 40
+lingua_franca_scope = 25
+liturgical_use = 15
+writing_system_id = &"phoenician_script"
+vitality = &"stable"

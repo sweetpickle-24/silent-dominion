@@ -37,6 +37,8 @@ const RULER_AI: StringName = &"ruler_ai"
 const POPULATION: StringName = &"population"
 const MORTALITY: StringName = &"mortality"
 const CHAR_GENERATION: StringName = &"char_generation"
+const RELIGION: StringName = &"religion"
+const LANGUAGES: StringName = &"languages"
 
 # UI channels
 const UI: StringName = &"ui"

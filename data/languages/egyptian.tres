@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"egyptian"
+display_name = "Egyptian"
+origin_region_id = &"egypt_lower"
+era_of_emergence = &"ancient"
+prestige = 55
+lingua_franca_scope = 10
+liturgical_use = 70
+writing_system_id = &"hieroglyphic"
+vitality = &"stable"

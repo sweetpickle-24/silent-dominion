@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"old_persian"
+display_name = "Old Persian"
+origin_region_id = &"persis"
+era_of_emergence = &"ancient"
+prestige = 65
+lingua_franca_scope = 30
+liturgical_use = 50
+writing_system_id = &"cuneiform"
+vitality = &"stable"

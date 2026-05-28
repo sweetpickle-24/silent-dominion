@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"religion_spread_notable"
+triggering_event_class = &"ReligionSpreadIntoPlaceEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["New faith takes hold", "Religious expansion"])
+body_variants = Array[String](["A religion has established presence at {place_name}.", "Reports indicate a new faith is gaining followers at {place_name}."])
+content_category = &"cultural_shift"
+is_authored = true

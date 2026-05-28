@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"zoroastrianism"
+display_name = "Zoroastrianism"
+kind = &"religion"
+founded_day = -73000
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 60
+institutional_strength = 65
+popular_depth = 60
+ecumenical_openness = 30
+reform_potential = 15
+geographic_concentration_score = 65
+lifecycle_phase = &"dominance"
+liturgical_language_id = &"old_persian"

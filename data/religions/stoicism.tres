@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"stoicism"
+display_name = "Stoicism"
+kind = &"ideology"
+founded_day = -1
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 20
+institutional_strength = 15
+popular_depth = 20
+ecumenical_openness = 80
+reform_potential = 5
+geographic_concentration_score = 30
+lifecycle_phase = &"emergence"
+liturgical_language_id = &"greek"

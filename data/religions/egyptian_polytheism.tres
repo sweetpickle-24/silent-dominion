@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"egyptian_polytheism"
+display_name = "Egyptian Polytheism"
+kind = &"religion"
+founded_day = -73000
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 45
+institutional_strength = 70
+popular_depth = 80
+ecumenical_openness = 40
+reform_potential = 10
+geographic_concentration_score = 80
+lifecycle_phase = &"dominance"
+liturgical_language_id = &"egyptian"

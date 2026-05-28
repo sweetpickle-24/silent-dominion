@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"lingua_franca_shifted"
+triggering_event_class = &"LinguaFrancaShiftedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Trade language shift", "Lingua franca change"])
+body_variants = Array[String](["The trade language along a major route has shifted.", "A new lingua franca is emerging on the trade routes."])
+content_category = &"cultural_shift"
+is_authored = true

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"religion_phase_changed"
+triggering_event_class = &"ReligionLifecyclePhaseChangedEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Religious shift", "Faith lifecycle change"])
+body_variants = Array[String](["A religion has entered a new phase: {new_phase}.", "The trajectory of a faith has shifted to {new_phase}."])
+content_category = &"cultural_shift"
+is_authored = true

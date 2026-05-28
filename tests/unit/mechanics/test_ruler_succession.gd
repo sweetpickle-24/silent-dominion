@@ -127,9 +127,6 @@ func test_successor_registered_in_immortal_registry():
 	# Verify the new ruler exists in the registry
 	var new_ruler: CharacterRecord = ir.get_character_record_any(k.ruler_character_id)
 	assert_not_null(new_ruler, "New ruler should be registered in ImmortalRegistry")
-	# Verify the new ruler exists
-	var new_ruler: CharacterRecord = ir.get_character_record_any(k.ruler_character_id)
-	assert_not_null(new_ruler)
 
 
 func test_non_ruler_death_does_not_trigger_succession():

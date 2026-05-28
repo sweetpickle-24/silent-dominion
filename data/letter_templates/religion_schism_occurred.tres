@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"religion_schism_occurred"
+triggering_event_class = &"ReligionSchismOccurredEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["A faith fractures", "Religious schism"])
+body_variants = Array[String](["A major religion has fractured. Reform movements have produced a new branch of faith.", "A schism has occurred — reformers have broken away to form a new religious movement."])
+content_category = &"cultural_shift"
+is_authored = true

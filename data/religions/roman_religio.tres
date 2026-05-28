@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"roman_religio"
+display_name = "Roman Religio"
+kind = &"religion"
+founded_day = -36500
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 30
+institutional_strength = 45
+popular_depth = 55
+ecumenical_openness = 60
+reform_potential = 5
+geographic_concentration_score = 75
+lifecycle_phase = &"consolidation"
+liturgical_language_id = &"latin"

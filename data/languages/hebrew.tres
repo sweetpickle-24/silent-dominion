@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"hebrew"
+display_name = "Hebrew"
+origin_region_id = &"phoenicia"
+era_of_emergence = &"ancient"
+prestige = 30
+lingua_franca_scope = 5
+liturgical_use = 80
+writing_system_id = &"hebrew_script"
+vitality = &"stable"

@@ -117,6 +117,16 @@ func derived_military_strength(kingdom_id: StringName) -> int:
 	return levy + k.standing_army
 
 
+func dominant_religion_of(kingdom_id: StringName) -> StringName:
+	var k: KingdomRecord = _kingdoms.get(kingdom_id, null)
+	if k == null:
+		return &""
+	var rel_node: Node = get_node_or_null("../ReligionIdeology")
+	if rel_node == null:
+		return &""
+	return rel_node.dominant_religion(k.capital_place_id)
+
+
 func treasury_condition_of(kingdom_id: StringName) -> StringName:
 	var k: KingdomRecord = _kingdoms.get(kingdom_id, null)
 	if k == null:

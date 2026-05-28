@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"latin"
+display_name = "Latin"
+origin_region_id = &"latium"
+era_of_emergence = &"ancient"
+prestige = 35
+lingua_franca_scope = 5
+liturgical_use = 20
+writing_system_id = &"latin_alphabet"
+vitality = &"growing"

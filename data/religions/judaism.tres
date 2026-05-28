@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ReligionRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/religion_record.gd" id="1_rr"]
+
+[resource]
+script = ExtResource("1_rr")
+id = &"judaism"
+display_name = "Judaism"
+kind = &"religion"
+founded_day = -54750
+era_of_emergence = &"ancient"
+doctrinal_rigidity = 70
+institutional_strength = 50
+popular_depth = 65
+ecumenical_openness = 15
+reform_potential = 20
+geographic_concentration_score = 85
+lifecycle_phase = &"consolidation"
+liturgical_language_id = &"hebrew"

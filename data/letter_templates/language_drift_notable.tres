@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LetterTemplate" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/letter_template.gd" id="1_lt"]
+
+[resource]
+script = ExtResource("1_lt")
+id = &"language_drift_notable"
+triggering_event_class = &"LanguageBecameDominantEvent"
+sender_kind = &"system"
+subject_variants = Array[String](["Language shift", "Linguistic change"])
+body_variants = Array[String](["A language has become dominant in {region_name}.", "The linguistic landscape of {region_name} has shifted."])
+content_category = &"cultural_shift"
+is_authored = true

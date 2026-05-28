@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts/mechanics/place/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://scripts/mechanics/memoirs/memoirs.gd" id="2_memoirs"]
@@ -24,6 +24,8 @@
 [ext_resource type="Script" path="res://scripts/mechanics/population/population.gd" id="23_population"]
 [ext_resource type="Script" path="res://scripts/mechanics/mortality/mortality.gd" id="24_mortality"]
 [ext_resource type="Script" path="res://scripts/mechanics/char_generation/char_generation.gd" id="25_char_generation"]
+[ext_resource type="Script" path="res://scripts/mechanics/religion_ideology/religion_ideology.gd" id="26_religion"]
+[ext_resource type="Script" path="res://scripts/mechanics/languages/languages.gd" id="27_languages"]
 
 [node name="Main" type="Node"]
 
@@ -94,6 +96,12 @@ script = ExtResource("24_mortality")
 
 [node name="CharGeneration" type="Node" parent="Mechanics"]
 script = ExtResource("25_char_generation")
+
+[node name="ReligionIdeology" type="Node" parent="Mechanics"]
+script = ExtResource("26_religion")
+
+[node name="Languages" type="Node" parent="Mechanics"]
+script = ExtResource("27_languages")
 
 [node name="Desk" type="Control" parent="."]
 anchors_preset = 15

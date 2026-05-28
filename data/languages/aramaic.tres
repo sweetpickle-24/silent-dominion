@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LanguageRecord" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/records/language_record.gd" id="1_lr"]
+
+[resource]
+script = ExtResource("1_lr")
+id = &"aramaic"
+display_name = "Aramaic"
+origin_region_id = &"phoenicia"
+era_of_emergence = &"ancient"
+prestige = 45
+lingua_franca_scope = 80
+liturgical_use = 30
+writing_system_id = &"aramaic_script"
+vitality = &"stable"
